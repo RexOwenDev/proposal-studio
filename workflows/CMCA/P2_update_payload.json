@@ -1,0 +1,2186 @@
+{
+  "name": "[CMCA] P2 - Send emails for APPROVE and REJECT",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+          "mode": "list",
+          "cachedResultName": "Automation: CMCA Application Lead Form",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 109979117,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        -816
+      ],
+      "id": "75b3e991-2594-453e-8b3c-a4729c510810",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gnjqsanqJmpgUgbn",
+          "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8d0b957d-71a8-4585-b1a5-e2890e20f2ea",
+                    "leftValue": "={{ $json['Admin Action'] }}",
+                    "rightValue": "Approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d3761e84-a93f-4179-99af-9de33d3b2baf",
+                    "leftValue": "={{ $json['Admin Action'] }}",
+                    "rightValue": "Reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reject"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        416,
+        -816
+      ],
+      "id": "60c50890-6ed6-4e3c-ac81-8abd8d747b65",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "options": {
+          "timezone": "America/Toronto"
+        }
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -816
+      ],
+      "id": "29468bfc-d7b0-4a07-ac24-2e42d9f16375",
+      "name": "Get Date & Time"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entryDate = $input.first().json.currentDate; // Expects ISO 8601 string with timezone\n\n// Parse ISO string into Date object\nconst dateObj = new Date(entryDate);\n\n// Options for 'MMMM D, YYYY at h:mm a'\nconst options1 = {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric',\n  hour: 'numeric',\n  minute: '2-digit',\n  hour12: true,\n};\nconst entry_datetime = dateObj.toLocaleString('en-CA', options1).replace(',', ' at');\n\n// Options for 'YYYY-MM-DD | HH:mm'\nconst options2 = {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false,\n};\nconst localeStr2 = dateObj.toLocaleString('en-CA', options2).replace(',', '');\nconst [dateCA, timeCA] = localeStr2.split(' ');\nconst log_datetime = `${dateCA} | ${timeCA}`;\n\nreturn [\n  {\n    json: {\n      entry_datetime,\n      log_datetime,\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        -816
+      ],
+      "id": "42741913-db13-4259-8ddd-6fc9c7cc0370",
+      "name": "Convert Date & Time"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        864,
+        -960
+      ],
+      "id": "715ee4dc-4e7b-48ff-a108-eb39ba17ccee",
+      "name": "Loop leads = APPROVED"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f24664f-f823-4122-aa55-b3b8aef0455c",
+              "name": "Row Number",
+              "value": "={{ $json.row_number }}",
+              "type": "number"
+            },
+            {
+              "id": "6c4c5ec6-f8a0-4256-a4f9-23d1e1bea311",
+              "name": "First Name",
+              "value": "={{ $json.First }}",
+              "type": "string"
+            },
+            {
+              "id": "27cb19bd-c22a-400f-b543-514c4545622b",
+              "name": "Last Name",
+              "value": "={{ $json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "d3862fc3-16cd-4ea9-ac47-f33c6d3af520",
+              "name": "Email Address",
+              "value": "={{ $json['Email Address'] }}",
+              "type": "string"
+            },
+            {
+              "id": "45dcc614-8f14-4e40-a78f-63a3a8a21765",
+              "name": "Last Action Initiated",
+              "value": "={{ $json['Last Action Initiated'] }}",
+              "type": "string"
+            },
+            {
+              "id": "60dd4d56-534f-48a5-8363-c6065d2a963e",
+              "name": "Automation Status",
+              "value": "={{ $json['Automation Status'] }}",
+              "type": "string"
+            },
+            {
+              "id": "57b8f9ce-02d3-486a-b93e-7b31c8ecc185",
+              "name": "Log Date and Time",
+              "value": "={{ $json['Log Date and Time'] }}",
+              "type": "string"
+            },
+            {
+              "id": "f596e1f7-119c-4b9e-96f3-16b45e783cef",
+              "name": "Current Date and Time",
+              "value": "={{ $('Convert Date & Time').item.json.log_datetime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        -1024
+      ],
+      "id": "ced1dc2f-f5c1-400c-b441-035089459bd7",
+      "name": "Set fields from leads: Approved"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Email Address'] }}",
+        "subject": "=Your Application Has Been Approved",
+        "message": "=<!doctype html>\n<html>\n    <head>\n        <meta charset=\"utf-8\" />\n        <meta name=\"viewport\" content=\"width=device-width\" />\n        <title>Reminder: Documents Needed to Complete OUR Review</title>\n        <style>\n            @media only screen and (max-width: 620px) {\n                .container {\n                    width: 100% !important;\n                }\n                .stack {\n                    display: block !important;\n                    width: 100% !important;\n                }\n                .pad {\n                    padding-left: 16px !important;\n                    padding-right: 16px !important;\n                }\n            }\n            img {\n                border: 0;\n                -ms-interpolation-mode: bicubic;\n                display: block;\n            }\n            a {\n                color: inherit;\n                text-decoration: none;\n            }\n        </style>\n    </head>\n    <body\n        style=\"\n            margin: 0;\n            padding: 0;\n            background-color: #f4f4f4;\n            font-family: Arial, Helvetica, sans-serif;\n            -webkit-text-size-adjust: 100%;\n            -ms-text-size-adjust: 100%;\n        \"\n    >\n        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" role=\"presentation\">\n            <tr>\n                <td align=\"center\" style=\"padding: 20px 10px\">\n                    <table\n                        class=\"container\"\n                        cellpadding=\"0\"\n                        cellspacing=\"0\"\n                        border=\"0\"\n                        width=\"600\"\n                        role=\"presentation\"\n                        style=\"\n                            width: 600px;\n                            max-width: 600px;\n                            background-color: #ffffff;\n                            border-radius: 6px;\n                            overflow: hidden;\n                        \"\n                    >\n                        <tr>\n                    \t\t<td style=\"padding:30px;background-color: #00314D;\">\n                    \t\t\t<p style=\"margin: 0; width: 100%;text-align: center; color: #fff; font-size: 13px; line-height: 24px;\"><b><span style=\"color:#E03431;\">QUICK & EASY APPROVALS.</span> STRAIGHTFORWARD PROCESS.</b></p>\n                    \t\t</td>\n                    \t</tr>\n                        <tr>\n                            <td style=\"padding: 30px; text-align: center; background-color: #ffffff\">\n                                <img\n                                    src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cmca.png\"\n                                    alt=\"CMCA Finance\"\n                                    width=\"160\"\n                                    style=\"display: block; border: 0; outline: none; text-decoration: none; margin: auto;\"\n                                />\n                            </td>\n                        </tr>\n                        <tr>\n                            <td class=\"pad\" style=\"padding: 10px 45px; color: #515967;\">\n                                <p style=\"margin: 0 0 16px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">Hello,</p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">\n                                    Good news — your application for funding has been approved.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    Our underwriting team has completed the initial assessment and determined that your business qualifies to move forward.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 24px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    The next step is for us to connect and review the lending options available based on your file. During this call, we’ll walk you through the approved amounts, terms, and the structure that best supports your business.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 24px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    We will contact you directly using the number on file to schedule this review. Once we connect, we’ll finalize the details and guide you through the remaining steps.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 30px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    We look forward to assisting you.<br/><b><i>Thank you for choosing CMCA</i></b>\n                                </p>\n                                <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <p style=\"display: block; max-width: 510px; margin: 30px auto; font-size: 17px; font-weight: 700; line-height: 22px; text-align: center; color: #C5221F;\">CMCA is committed to responsible, secure, and transparent lending.</p>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <tr>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">We are accredited by the Better Business Bureau</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-bbb.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">Proud member of the Canadian Lender Association</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cla.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                    </tr>\n                                    <tr>\n                                        <td colspan=\"2\">\n                                            <p style=\"margin: 30px auto; font-size: 12px; font-weight: 400; line-height: 19px; text-align: center; font-style: italic; color: #15243C;\">Note: If you prefer to complete a PDF version of the application instead, simply reply to this email to request the form. Docusign is the preferred method.</p>\n                                            <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                                        </td>\n                                    </tr>\n                                </table>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967; margin-top:30px;\"><b>CMCA – Canadian Merchant Cash Advance</b><br/>Underwriting & Client Services</p>\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967;margin-bottom:30px;\"><b>CMCA Finance® Corporate Office</b><br/>309 Lakeshore Blvd. Pointe-Claire, QC H9S 4L6<br/>Phone: <a href=\"tel:18556512844\">1-855-651-2844</a><br/>Fax: <a href=\"tel:18555416893\">1-855-541-6893</a><br/><a href=\"www.canadianmerchantcashadvance.ca\" target=\"_blank\">www.canadianmerchantcashadvance.ca</a>&nbsp;&nbsp;&nbsp;<a href=\"mailto:underwriting@cmcafinance.com\" target=\"_blank\">underwriting@cmcafinance.com</a></p>\n                                </table>\n                            </td>\n                        </tr>\n                    </table>\n                </td>\n            </tr>\n        </table>\n    </body>\n</html>\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1312,
+        -960
+      ],
+      "id": "11d5e3ae-33b5-4b98-a360-666c248c3110",
+      "name": "Send Approved Email",
+      "webhookId": "061baca8-c30e-470e-8cfa-761efeb5c23e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LfULPgXZiOMRS3r5",
+          "name": "[CMCA - admin@cmcafinance.com] Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+          "mode": "list",
+          "cachedResultName": "Automation: CMCA Application Lead Form",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 109979117,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Set fields from leads: Approved').item.json['Row Number'] }}",
+            "Log Date and Time": "={{ $('Set fields from leads: Approved').item.json['Current Date and Time'] }}",
+            "Automation Status": "Sent email of approval. Requested for call schedule and overview."
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "First",
+              "displayName": "First",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Address",
+              "displayName": "Email Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What are you looking to finance?",
+              "displayName": "What are you looking to finance?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What industry are you in?",
+              "displayName": "What industry are you in?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "How much financing do you need?",
+              "displayName": "How much financing do you need?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Storefront/Online Business",
+              "displayName": "Storefront/Online Business",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "How long has your business been operating?",
+              "displayName": "How long has your business been operating?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What are your average monthly sales?",
+              "displayName": "What are your average monthly sales?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Entry Date",
+              "displayName": "Entry Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Comments",
+              "displayName": "Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Duplicate?",
+              "displayName": "Duplicate?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Admin Action",
+              "displayName": "Admin Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Log Date and Time",
+              "displayName": "Log Date and Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1536,
+        -960
+      ],
+      "id": "277e50f9-34f9-4eb8-b2d1-5b8f18b1009b",
+      "name": "Update Automation Status: Sent approval email",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gnjqsanqJmpgUgbn",
+          "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        864,
+        -672
+      ],
+      "id": "57eb336a-63a6-4176-a08c-512aafda22ef",
+      "name": "Loop leads = REJECT"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f24664f-f823-4122-aa55-b3b8aef0455c",
+              "name": "Row Number",
+              "value": "={{ $json.row_number }}",
+              "type": "number"
+            },
+            {
+              "id": "6c4c5ec6-f8a0-4256-a4f9-23d1e1bea311",
+              "name": "First Name",
+              "value": "={{ $json.First }}",
+              "type": "string"
+            },
+            {
+              "id": "27cb19bd-c22a-400f-b543-514c4545622b",
+              "name": "Last Name",
+              "value": "={{ $json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "d3862fc3-16cd-4ea9-ac47-f33c6d3af520",
+              "name": "Email Address",
+              "value": "={{ $json['Email Address'] }}",
+              "type": "string"
+            },
+            {
+              "id": "45dcc614-8f14-4e40-a78f-63a3a8a21765",
+              "name": "Last Action Initiated",
+              "value": "={{ $json['Last Action Initiated'] }}",
+              "type": "string"
+            },
+            {
+              "id": "60dd4d56-534f-48a5-8363-c6065d2a963e",
+              "name": "Automation Status",
+              "value": "={{ $json['Automation Status'] }}",
+              "type": "string"
+            },
+            {
+              "id": "57b8f9ce-02d3-486a-b93e-7b31c8ecc185",
+              "name": "Log Date and Time",
+              "value": "={{ $json['Log Date and Time'] }}",
+              "type": "string"
+            },
+            {
+              "id": "f596e1f7-119c-4b9e-96f3-16b45e783cef",
+              "name": "Current Date and Time",
+              "value": "={{ $('Convert Date & Time').item.json.log_datetime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        -736
+      ],
+      "id": "cbc610c9-2599-45ba-8c48-f4c3994e89e4",
+      "name": "Set fields from leads: Rejected"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['Email Address'] }}",
+        "subject": "=Update on Your CMCA Application",
+        "message": "=<!doctype html>\n<html>\n    <head>\n        <meta charset=\"utf-8\" />\n        <meta name=\"viewport\" content=\"width=device-width\" />\n        <title>Reminder: Documents Needed to Complete OUR Review</title>\n        <style>\n            @media only screen and (max-width: 620px) {\n                .container {\n                    width: 100% !important;\n                }\n                .stack {\n                    display: block !important;\n                    width: 100% !important;\n                }\n                .pad {\n                    padding-left: 16px !important;\n                    padding-right: 16px !important;\n                }\n            }\n            img {\n                border: 0;\n                -ms-interpolation-mode: bicubic;\n                display: block;\n            }\n            a {\n                color: inherit;\n                text-decoration: none;\n            }\n        </style>\n    </head>\n    <body\n        style=\"\n            margin: 0;\n            padding: 0;\n            background-color: #f4f4f4;\n            font-family: Arial, Helvetica, sans-serif;\n            -webkit-text-size-adjust: 100%;\n            -ms-text-size-adjust: 100%;\n        \"\n    >\n        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" role=\"presentation\">\n            <tr>\n                <td align=\"center\" style=\"padding: 20px 10px\">\n                    <table\n                        class=\"container\"\n                        cellpadding=\"0\"\n                        cellspacing=\"0\"\n                        border=\"0\"\n                        width=\"600\"\n                        role=\"presentation\"\n                        style=\"\n                            width: 600px;\n                            max-width: 600px;\n                            background-color: #ffffff;\n                            border-radius: 6px;\n                            overflow: hidden;\n                        \"\n                    >\n                        <tr>\n                    \t\t<td style=\"padding:30px;background-color: #00314D;\">\n                    \t\t\t<p style=\"margin: 0; width: 100%;text-align: center; color: #fff; font-size: 13px; line-height: 24px;\"><b><span style=\"color:#E03431;\">QUICK & EASY APPROVALS.</span> STRAIGHTFORWARD PROCESS.</b></p>\n                    \t\t</td>\n                    \t</tr>\n                        <tr>\n                            <td style=\"padding: 30px; text-align: center; background-color: #ffffff\">\n                                <img\n                                    src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cmca.png\"\n                                    alt=\"CMCA Finance\"\n                                    width=\"160\"\n                                    style=\"display: block; border: 0; outline: none; text-decoration: none; margin: auto;\"\n                                />\n                            </td>\n                        </tr>\n                        <tr>\n                            <td class=\"pad\" style=\"padding: 10px 45px; color: #515967;\">\n                                <p style=\"margin: 0 0 16px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">Hello,</p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">\n                                    Thank you for submitting your application to CMCA and providing the required information. Our underwriting team has completed a full review of your file.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    At this time, we are unable to move forward with your application.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    Please note that this decision reflects CMCA’s internal lending criteria and assessment process. While we cannot proceed at the moment, you are welcome to reapply in the future should your circumstances change or if you wish to submit a new application for consideration.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    If you have questions about the application process or would like general guidance before reapplying, you may reply to this email and our team will be happy to assist you.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    <b><i>Thank you for considering CMCA.</i></b>\n                                </p>\n                                <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <p style=\"display: block; max-width: 510px; margin: 30px auto; font-size: 17px; font-weight: 700; line-height: 22px; text-align: center; color: #C5221F;\">CMCA is committed to responsible, secure, and transparent lending.</p>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <tr>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">We are accredited by the Better Business Bureau</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-bbb.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">Proud member of the Canadian Lender Association</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cla.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                    </tr>\n                                    <tr>\n                                        <td colspan=\"2\">\n                                            <p style=\"margin: 30px auto; font-size: 12px; font-weight: 400; line-height: 19px; text-align: center; font-style: italic; color: #15243C;\">Note: If you prefer to complete a PDF version of the application instead, simply reply to this email to request the form. Docusign is the preferred method.</p>\n                                            <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                                        </td>\n                                    </tr>\n                                </table>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967; margin-top:30px;\"><b>CMCA – Canadian Merchant Cash Advance</b><br/>Underwriting & Client Services</p>\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967;margin-bottom:30px;\"><b>CMCA Finance® Corporate Office</b><br/>309 Lakeshore Blvd. Pointe-Claire, QC H9S 4L6<br/>Phone: <a href=\"tel:18556512844\">1-855-651-2844</a><br/>Fax: <a href=\"tel:18555416893\">1-855-541-6893</a><br/><a href=\"www.canadianmerchantcashadvance.ca\" target=\"_blank\">www.canadianmerchantcashadvance.ca</a>&nbsp;&nbsp;&nbsp;<a href=\"mailto:underwriting@cmcafinance.com\" target=\"_blank\">underwriting@cmcafinance.com</a></p>\n                                </table>\n                            </td>\n                        </tr>\n                    </table>\n                </td>\n            </tr>\n        </table>\n    </body>\n</html>\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1312,
+        -672
+      ],
+      "id": "c5272973-027a-4b6e-848b-9b887cefd46b",
+      "name": "Send Rejected",
+      "webhookId": "061baca8-c30e-470e-8cfa-761efeb5c23e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LfULPgXZiOMRS3r5",
+          "name": "[CMCA - admin@cmcafinance.com] Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+          "mode": "list",
+          "cachedResultName": "Automation: CMCA Application Lead Form",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 109979117,
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Set fields from leads: Rejected').item.json['Row Number'] }}",
+            "Log Date and Time": "={{ $('Set fields from leads: Rejected').item.json['Current Date and Time'] }}",
+            "Automation Status": "Sent email of rejection"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "First",
+              "displayName": "First",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Address",
+              "displayName": "Email Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What are you looking to finance?",
+              "displayName": "What are you looking to finance?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What industry are you in?",
+              "displayName": "What industry are you in?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "How much financing do you need?",
+              "displayName": "How much financing do you need?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Storefront/Online Business",
+              "displayName": "Storefront/Online Business",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "How long has your business been operating?",
+              "displayName": "How long has your business been operating?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "What are your average monthly sales?",
+              "displayName": "What are your average monthly sales?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Entry Date",
+              "displayName": "Entry Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Comments",
+              "displayName": "Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Duplicate?",
+              "displayName": "Duplicate?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Admin Action",
+              "displayName": "Admin Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Log Date and Time",
+              "displayName": "Log Date and Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1536,
+        -672
+      ],
+      "id": "948b22e3-b585-4dc7-b068-455e96133ba5",
+      "name": "Update Automation Status: Sent rejected email",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "gnjqsanqJmpgUgbn",
+          "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        -816
+      ],
+      "id": "63bd697a-933b-4adc-89e8-7b0f8a62a7b4",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5ad72fd8-2529-4515-8651-f1a8c154b186",
+              "leftValue": "={{ $json['Automation Status'] }}",
+              "rightValue": "Sent email of approval",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -960
+      ],
+      "id": "41aaee53-d29f-4007-904f-eaac8459d1cc",
+      "name": "Status is NOT \"Sent email of approval\""
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1b3e76d-dbb4-40a5-a192-d2a0f90deba9",
+              "leftValue": "={{ $json['Automation Status'] }}",
+              "rightValue": "Sent email of rejection",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -672
+      ],
+      "id": "4a98c4ca-3b0c-4ffb-9fc2-ca733fa0f76e",
+      "name": "Status is NOT \"Sent email of rejection\""
+    }
+  ],
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Status is NOT \"Sent email of approval\"",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status is NOT \"Sent email of rejection\"",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Convert Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop leads = APPROVED": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set fields from leads: Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set fields from leads: Approved": {
+      "main": [
+        [
+          {
+            "node": "Send Approved Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approved Email": {
+      "main": [
+        [
+          {
+            "node": "Loop leads = APPROVED",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Automation Status: Sent approval email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop leads = REJECT": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set fields from leads: Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set fields from leads: Rejected": {
+      "main": [
+        [
+          {
+            "node": "Send Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rejected": {
+      "main": [
+        [
+          {
+            "node": "Loop leads = REJECT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Automation Status: Sent rejected email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status is NOT \"Sent email of approval\"": {
+      "main": [
+        [
+          {
+            "node": "Loop leads = APPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status is NOT \"Sent email of rejection\"": {
+      "main": [
+        [
+          {
+            "node": "Loop leads = REJECT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Google Sheets Trigger": {
+      "documentId": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+      "sheetId": 109979117,
+      "lastRevision": 2993,
+      "lastRevisionLink": "https://docs.google.com/spreadsheets/export?id=12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw&revision=2993&exportFormat=xlsx"
+    },
+    "node:Schedule Trigger": {
+      "recurrenceRules": [
+        20
+      ]
+    },
+    "node:Get Admin actions": {
+      "documentId": "1AWnlij33oGC3KY-L9Tovwxom7P7HXSxSvKTuSqvAKCo",
+      "sheetId": 109979117,
+      "lastRevision": 1444,
+      "lastRevisionLink": "https://docs.google.com/spreadsheets/export?id=1AWnlij33oGC3KY-L9Tovwxom7P7HXSxSvKTuSqvAKCo&revision=1444&exportFormat=xlsx"
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "6d8cbf0f-a05c-4441-ba21-bedd61b537a0",
+  "activeVersionId": "6d8cbf0f-a05c-4441-ba21-bedd61b537a0",
+  "versionCounter": 647,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2025-10-03T15:12:08.485Z",
+      "createdAt": "2025-10-03T15:12:08.485Z",
+      "role": "workflow:owner",
+      "workflowId": "Gmu3sjNEhcTk3squ",
+      "projectId": "hAjZa5KBJiO84BJN",
+      "project": {
+        "updatedAt": "2025-10-02T18:41:09.537Z",
+        "createdAt": "2025-10-02T18:41:06.328Z",
+        "id": "hAjZa5KBJiO84BJN",
+        "name": "DesignShopp   <n8n@designshopp.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "00770771-8b12-4aae-95b8-5cd8ec787ce1"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-01-06T18:12:09.265Z",
+    "createdAt": "2026-01-06T18:12:09.265Z",
+    "versionId": "6d8cbf0f-a05c-4441-ba21-bedd61b537a0",
+    "workflowId": "Gmu3sjNEhcTk3squ",
+    "nodes": [
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+            "mode": "list",
+            "cachedResultName": "Automation: CMCA Application Lead Form",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 109979117,
+            "mode": "list",
+            "cachedResultName": "Leads",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          192,
+          -816
+        ],
+        "id": "75b3e991-2594-453e-8b3c-a4729c510810",
+        "name": "Get row(s) in sheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "gnjqsanqJmpgUgbn",
+            "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "8d0b957d-71a8-4585-b1a5-e2890e20f2ea",
+                      "leftValue": "={{ $json['Admin Action'] }}",
+                      "rightValue": "Approve",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Approve"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "d3761e84-a93f-4179-99af-9de33d3b2baf",
+                      "leftValue": "={{ $json['Admin Action'] }}",
+                      "rightValue": "Reject",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals",
+                        "name": "filter.operator.equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "Reject"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.3,
+        "position": [
+          416,
+          -816
+        ],
+        "id": "60c50890-6ed6-4e3c-ac81-8abd8d747b65",
+        "name": "Switch"
+      },
+      {
+        "parameters": {
+          "options": {
+            "timezone": "America/Toronto"
+          }
+        },
+        "type": "n8n-nodes-base.dateTime",
+        "typeVersion": 2,
+        "position": [
+          -256,
+          -816
+        ],
+        "id": "29468bfc-d7b0-4a07-ac24-2e42d9f16375",
+        "name": "Get Date & Time"
+      },
+      {
+        "parameters": {
+          "jsCode": "const entryDate = $input.first().json.currentDate; // Expects ISO 8601 string with timezone\n\n// Parse ISO string into Date object\nconst dateObj = new Date(entryDate);\n\n// Options for 'MMMM D, YYYY at h:mm a'\nconst options1 = {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: 'long',\n  day: 'numeric',\n  hour: 'numeric',\n  minute: '2-digit',\n  hour12: true,\n};\nconst entry_datetime = dateObj.toLocaleString('en-CA', options1).replace(',', ' at');\n\n// Options for 'YYYY-MM-DD | HH:mm'\nconst options2 = {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false,\n};\nconst localeStr2 = dateObj.toLocaleString('en-CA', options2).replace(',', '');\nconst [dateCA, timeCA] = localeStr2.split(' ');\nconst log_datetime = `${dateCA} | ${timeCA}`;\n\nreturn [\n  {\n    json: {\n      entry_datetime,\n      log_datetime,\n    }\n  }\n];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -32,
+          -816
+        ],
+        "id": "42741913-db13-4259-8ddd-6fc9c7cc0370",
+        "name": "Convert Date & Time"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          864,
+          -960
+        ],
+        "id": "715ee4dc-4e7b-48ff-a108-eb39ba17ccee",
+        "name": "Loop leads = APPROVED"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "4f24664f-f823-4122-aa55-b3b8aef0455c",
+                "name": "Row Number",
+                "value": "={{ $json.row_number }}",
+                "type": "number"
+              },
+              {
+                "id": "6c4c5ec6-f8a0-4256-a4f9-23d1e1bea311",
+                "name": "First Name",
+                "value": "={{ $json.First }}",
+                "type": "string"
+              },
+              {
+                "id": "27cb19bd-c22a-400f-b543-514c4545622b",
+                "name": "Last Name",
+                "value": "={{ $json['Last Name'] }}",
+                "type": "string"
+              },
+              {
+                "id": "d3862fc3-16cd-4ea9-ac47-f33c6d3af520",
+                "name": "Email Address",
+                "value": "={{ $json['Email Address'] }}",
+                "type": "string"
+              },
+              {
+                "id": "45dcc614-8f14-4e40-a78f-63a3a8a21765",
+                "name": "Last Action Initiated",
+                "value": "={{ $json['Last Action Initiated'] }}",
+                "type": "string"
+              },
+              {
+                "id": "60dd4d56-534f-48a5-8363-c6065d2a963e",
+                "name": "Automation Status",
+                "value": "={{ $json['Automation Status'] }}",
+                "type": "string"
+              },
+              {
+                "id": "57b8f9ce-02d3-486a-b93e-7b31c8ecc185",
+                "name": "Log Date and Time",
+                "value": "={{ $json['Log Date and Time'] }}",
+                "type": "string"
+              },
+              {
+                "id": "f596e1f7-119c-4b9e-96f3-16b45e783cef",
+                "name": "Current Date and Time",
+                "value": "={{ $('Convert Date & Time').item.json.log_datetime }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1088,
+          -1024
+        ],
+        "id": "ced1dc2f-f5c1-400c-b441-035089459bd7",
+        "name": "Set fields from leads: Approved"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $json['Email Address'] }}",
+          "subject": "=Your Application Has Been Approved",
+          "message": "=<!doctype html>\n<html>\n    <head>\n        <meta charset=\"utf-8\" />\n        <meta name=\"viewport\" content=\"width=device-width\" />\n        <title>Reminder: Documents Needed to Complete OUR Review</title>\n        <style>\n            @media only screen and (max-width: 620px) {\n                .container {\n                    width: 100% !important;\n                }\n                .stack {\n                    display: block !important;\n                    width: 100% !important;\n                }\n                .pad {\n                    padding-left: 16px !important;\n                    padding-right: 16px !important;\n                }\n            }\n            img {\n                border: 0;\n                -ms-interpolation-mode: bicubic;\n                display: block;\n            }\n            a {\n                color: inherit;\n                text-decoration: none;\n            }\n        </style>\n    </head>\n    <body\n        style=\"\n            margin: 0;\n            padding: 0;\n            background-color: #f4f4f4;\n            font-family: Arial, Helvetica, sans-serif;\n            -webkit-text-size-adjust: 100%;\n            -ms-text-size-adjust: 100%;\n        \"\n    >\n        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" role=\"presentation\">\n            <tr>\n                <td align=\"center\" style=\"padding: 20px 10px\">\n                    <table\n                        class=\"container\"\n                        cellpadding=\"0\"\n                        cellspacing=\"0\"\n                        border=\"0\"\n                        width=\"600\"\n                        role=\"presentation\"\n                        style=\"\n                            width: 600px;\n                            max-width: 600px;\n                            background-color: #ffffff;\n                            border-radius: 6px;\n                            overflow: hidden;\n                        \"\n                    >\n                        <tr>\n                    \t\t<td style=\"padding:30px;background-color: #00314D;\">\n                    \t\t\t<p style=\"margin: 0; width: 100%;text-align: center; color: #fff; font-size: 13px; line-height: 24px;\"><b><span style=\"color:#E03431;\">QUICK & EASY APPROVALS.</span> STRAIGHTFORWARD PROCESS.</b></p>\n                    \t\t</td>\n                    \t</tr>\n                        <tr>\n                            <td style=\"padding: 30px; text-align: center; background-color: #ffffff\">\n                                <img\n                                    src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cmca.png\"\n                                    alt=\"CMCA Finance\"\n                                    width=\"160\"\n                                    style=\"display: block; border: 0; outline: none; text-decoration: none; margin: auto;\"\n                                />\n                            </td>\n                        </tr>\n                        <tr>\n                            <td class=\"pad\" style=\"padding: 10px 45px; color: #515967;\">\n                                <p style=\"margin: 0 0 16px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">Hello,</p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">\n                                    Good news — your application for funding has been approved.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    Our underwriting team has completed the initial assessment and determined that your business qualifies to move forward.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 24px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    The next step is for us to connect and review the lending options available based on your file. During this call, we’ll walk you through the approved amounts, terms, and the structure that best supports your business.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 24px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    We will contact you directly using the number on file to schedule this review. Once we connect, we’ll finalize the details and guide you through the remaining steps.\n                                </p>\n                                <p style=\"max-width: 460px; margin: 0 auto 30px; font-size: 12px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    We look forward to assisting you.<br/><b><i>Thank you for choosing CMCA</i></b>\n                                </p>\n                                <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <p style=\"display: block; max-width: 510px; margin: 30px auto; font-size: 17px; font-weight: 700; line-height: 22px; text-align: center; color: #C5221F;\">CMCA is committed to responsible, secure, and transparent lending.</p>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <tr>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">We are accredited by the Better Business Bureau</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-bbb.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">Proud member of the Canadian Lender Association</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cla.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                    </tr>\n                                    <tr>\n                                        <td colspan=\"2\">\n                                            <p style=\"margin: 30px auto; font-size: 12px; font-weight: 400; line-height: 19px; text-align: center; font-style: italic; color: #15243C;\">Note: If you prefer to complete a PDF version of the application instead, simply reply to this email to request the form. Docusign is the preferred method.</p>\n                                            <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                                        </td>\n                                    </tr>\n                                </table>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967; margin-top:30px;\"><b>CMCA – Canadian Merchant Cash Advance</b><br/>Underwriting & Client Services</p>\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967;margin-bottom:30px;\"><b>CMCA Finance® Corporate Office</b><br/>309 Lakeshore Blvd. Pointe-Claire, QC H9S 4L6<br/>Phone: <a href=\"tel:18556512844\">1-855-651-2844</a><br/>Fax: <a href=\"tel:18555416893\">1-855-541-6893</a><br/><a href=\"www.canadianmerchantcashadvance.ca\" target=\"_blank\">www.canadianmerchantcashadvance.ca</a>&nbsp;&nbsp;&nbsp;<a href=\"mailto:underwriting@cmcafinance.com\" target=\"_blank\">underwriting@cmcafinance.com</a></p>\n                                </table>\n                            </td>\n                        </tr>\n                    </table>\n                </td>\n            </tr>\n        </table>\n    </body>\n</html>\n",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          1312,
+          -960
+        ],
+        "id": "11d5e3ae-33b5-4b98-a360-666c248c3110",
+        "name": "Send Approved Email",
+        "webhookId": "061baca8-c30e-470e-8cfa-761efeb5c23e",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "LfULPgXZiOMRS3r5",
+            "name": "[CMCA - admin@cmcafinance.com] Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+            "mode": "list",
+            "cachedResultName": "Automation: CMCA Application Lead Form",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 109979117,
+            "mode": "list",
+            "cachedResultName": "Leads",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "row_number": "={{ $('Set fields from leads: Approved').item.json['Row Number'] }}",
+              "Log Date and Time": "={{ $('Set fields from leads: Approved').item.json['Current Date and Time'] }}",
+              "Automation Status": "Sent email of approval. Requested for call schedule and overview."
+            },
+            "matchingColumns": [
+              "row_number"
+            ],
+            "schema": [
+              {
+                "id": "First",
+                "displayName": "First",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Last Name",
+                "displayName": "Last Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Email Address",
+                "displayName": "Email Address",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Phone Number",
+                "displayName": "Phone Number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What are you looking to finance?",
+                "displayName": "What are you looking to finance?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What industry are you in?",
+                "displayName": "What industry are you in?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "How much financing do you need?",
+                "displayName": "How much financing do you need?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Storefront/Online Business",
+                "displayName": "Storefront/Online Business",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "How long has your business been operating?",
+                "displayName": "How long has your business been operating?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What are your average monthly sales?",
+                "displayName": "What are your average monthly sales?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Company Name",
+                "displayName": "Company Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Entry Date",
+                "displayName": "Entry Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Comments",
+                "displayName": "Comments",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Duplicate?",
+                "displayName": "Duplicate?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Admin Action",
+                "displayName": "Admin Action",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Automation Status",
+                "displayName": "Automation Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Log Date and Time",
+                "displayName": "Log Date and Time",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "row_number",
+                "displayName": "row_number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true,
+                "readOnly": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1536,
+          -960
+        ],
+        "id": "277e50f9-34f9-4eb8-b2d1-5b8f18b1009b",
+        "name": "Update Automation Status: Sent approval email",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "gnjqsanqJmpgUgbn",
+            "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          864,
+          -672
+        ],
+        "id": "57eb336a-63a6-4176-a08c-512aafda22ef",
+        "name": "Loop leads = REJECT"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "4f24664f-f823-4122-aa55-b3b8aef0455c",
+                "name": "Row Number",
+                "value": "={{ $json.row_number }}",
+                "type": "number"
+              },
+              {
+                "id": "6c4c5ec6-f8a0-4256-a4f9-23d1e1bea311",
+                "name": "First Name",
+                "value": "={{ $json.First }}",
+                "type": "string"
+              },
+              {
+                "id": "27cb19bd-c22a-400f-b543-514c4545622b",
+                "name": "Last Name",
+                "value": "={{ $json['Last Name'] }}",
+                "type": "string"
+              },
+              {
+                "id": "d3862fc3-16cd-4ea9-ac47-f33c6d3af520",
+                "name": "Email Address",
+                "value": "={{ $json['Email Address'] }}",
+                "type": "string"
+              },
+              {
+                "id": "45dcc614-8f14-4e40-a78f-63a3a8a21765",
+                "name": "Last Action Initiated",
+                "value": "={{ $json['Last Action Initiated'] }}",
+                "type": "string"
+              },
+              {
+                "id": "60dd4d56-534f-48a5-8363-c6065d2a963e",
+                "name": "Automation Status",
+                "value": "={{ $json['Automation Status'] }}",
+                "type": "string"
+              },
+              {
+                "id": "57b8f9ce-02d3-486a-b93e-7b31c8ecc185",
+                "name": "Log Date and Time",
+                "value": "={{ $json['Log Date and Time'] }}",
+                "type": "string"
+              },
+              {
+                "id": "f596e1f7-119c-4b9e-96f3-16b45e783cef",
+                "name": "Current Date and Time",
+                "value": "={{ $('Convert Date & Time').item.json.log_datetime }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1088,
+          -736
+        ],
+        "id": "cbc610c9-2599-45ba-8c48-f4c3994e89e4",
+        "name": "Set fields from leads: Rejected"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $json['Email Address'] }}",
+          "subject": "=Update on Your CMCA Application",
+          "message": "=<!doctype html>\n<html>\n    <head>\n        <meta charset=\"utf-8\" />\n        <meta name=\"viewport\" content=\"width=device-width\" />\n        <title>Reminder: Documents Needed to Complete OUR Review</title>\n        <style>\n            @media only screen and (max-width: 620px) {\n                .container {\n                    width: 100% !important;\n                }\n                .stack {\n                    display: block !important;\n                    width: 100% !important;\n                }\n                .pad {\n                    padding-left: 16px !important;\n                    padding-right: 16px !important;\n                }\n            }\n            img {\n                border: 0;\n                -ms-interpolation-mode: bicubic;\n                display: block;\n            }\n            a {\n                color: inherit;\n                text-decoration: none;\n            }\n        </style>\n    </head>\n    <body\n        style=\"\n            margin: 0;\n            padding: 0;\n            background-color: #f4f4f4;\n            font-family: Arial, Helvetica, sans-serif;\n            -webkit-text-size-adjust: 100%;\n            -ms-text-size-adjust: 100%;\n        \"\n    >\n        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" role=\"presentation\">\n            <tr>\n                <td align=\"center\" style=\"padding: 20px 10px\">\n                    <table\n                        class=\"container\"\n                        cellpadding=\"0\"\n                        cellspacing=\"0\"\n                        border=\"0\"\n                        width=\"600\"\n                        role=\"presentation\"\n                        style=\"\n                            width: 600px;\n                            max-width: 600px;\n                            background-color: #ffffff;\n                            border-radius: 6px;\n                            overflow: hidden;\n                        \"\n                    >\n                        <tr>\n                    \t\t<td style=\"padding:30px;background-color: #00314D;\">\n                    \t\t\t<p style=\"margin: 0; width: 100%;text-align: center; color: #fff; font-size: 13px; line-height: 24px;\"><b><span style=\"color:#E03431;\">QUICK & EASY APPROVALS.</span> STRAIGHTFORWARD PROCESS.</b></p>\n                    \t\t</td>\n                    \t</tr>\n                        <tr>\n                            <td style=\"padding: 30px; text-align: center; background-color: #ffffff\">\n                                <img\n                                    src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cmca.png\"\n                                    alt=\"CMCA Finance\"\n                                    width=\"160\"\n                                    style=\"display: block; border: 0; outline: none; text-decoration: none; margin: auto;\"\n                                />\n                            </td>\n                        </tr>\n                        <tr>\n                            <td class=\"pad\" style=\"padding: 10px 45px; color: #515967;\">\n                                <p style=\"margin: 0 0 16px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">Hello,</p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 18px; font-weight: 700; line-height: 24px; color: #15243C;\">\n                                    Thank you for submitting your application to CMCA and providing the required information. Our underwriting team has completed a full review of your file.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    At this time, we are unable to move forward with your application.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    Please note that this decision reflects CMCA’s internal lending criteria and assessment process. While we cannot proceed at the moment, you are welcome to reapply in the future should your circumstances change or if you wish to submit a new application for consideration.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    If you have questions about the application process or would like general guidance before reapplying, you may reply to this email and our team will be happy to assist you.\n                                </p>\n                                <p style=\"margin: 0 0 30px 0; font-size: 15px; font-weight: 400; line-height: 22px; color: #515967;\">\n                                    <b><i>Thank you for considering CMCA.</i></b>\n                                </p>\n                                <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <p style=\"display: block; max-width: 510px; margin: 30px auto; font-size: 17px; font-weight: 700; line-height: 22px; text-align: center; color: #C5221F;\">CMCA is committed to responsible, secure, and transparent lending.</p>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <tr>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">We are accredited by the Better Business Bureau</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-bbb.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                        <td>\n                                            <p style=\"font-size: 13px; font-weight: 400; line-height: 22px; text-align: center; color: #15243C;\">Proud member of the Canadian Lender Association</p>\n                                            <p style=\"margin:0; display: block; text-align: center;\">\n                                                <img src=\"http://canadianmerchantcashadvance.ca/wp-content/uploads/2025/11/logo-cla.png\" width=\"150\" style=\"display: inline-block;\" />\n                                            </p>\n                                        </td>\n                                    </tr>\n                                    <tr>\n                                        <td colspan=\"2\">\n                                            <p style=\"margin: 30px auto; font-size: 12px; font-weight: 400; line-height: 19px; text-align: center; font-style: italic; color: #15243C;\">Note: If you prefer to complete a PDF version of the application instead, simply reply to this email to request the form. Docusign is the preferred method.</p>\n                                            <div style=\"display: block; max-width: 460px; width: 100%; margin: 0 auto; height: 1px; background-color: #E1E6EF;\"></div>\n                                        </td>\n                                    </tr>\n                                </table>\n                            </td>\n                        </tr>\n                        <tr>\n                            <td>\n                                <table\n                                    width=\"460\"\n                                    cellpadding=\"0\"\n                                    cellspacing=\"0\"\n                                    border=\"0\"\n                                    role=\"presentation\"\n                                    style=\"margin: 0 auto;\"\n                                >\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967; margin-top:30px;\"><b>CMCA – Canadian Merchant Cash Advance</b><br/>Underwriting & Client Services</p>\n                                    <p style=\"text-align: center; font-size: 10px; font-weight: 400; line-height: 17px; color: #515967;margin-bottom:30px;\"><b>CMCA Finance® Corporate Office</b><br/>309 Lakeshore Blvd. Pointe-Claire, QC H9S 4L6<br/>Phone: <a href=\"tel:18556512844\">1-855-651-2844</a><br/>Fax: <a href=\"tel:18555416893\">1-855-541-6893</a><br/><a href=\"www.canadianmerchantcashadvance.ca\" target=\"_blank\">www.canadianmerchantcashadvance.ca</a>&nbsp;&nbsp;&nbsp;<a href=\"mailto:underwriting@cmcafinance.com\" target=\"_blank\">underwriting@cmcafinance.com</a></p>\n                                </table>\n                            </td>\n                        </tr>\n                    </table>\n                </td>\n            </tr>\n        </table>\n    </body>\n</html>\n",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          1312,
+          -672
+        ],
+        "id": "c5272973-027a-4b6e-848b-9b887cefd46b",
+        "name": "Send Rejected",
+        "webhookId": "061baca8-c30e-470e-8cfa-761efeb5c23e",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "LfULPgXZiOMRS3r5",
+            "name": "[CMCA - admin@cmcafinance.com] Gmail account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+            "mode": "list",
+            "cachedResultName": "Automation: CMCA Application Lead Form",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 109979117,
+            "mode": "list",
+            "cachedResultName": "Leads",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "row_number": "={{ $('Set fields from leads: Rejected').item.json['Row Number'] }}",
+              "Log Date and Time": "={{ $('Set fields from leads: Rejected').item.json['Current Date and Time'] }}",
+              "Automation Status": "Sent email of rejection"
+            },
+            "matchingColumns": [
+              "row_number"
+            ],
+            "schema": [
+              {
+                "id": "First",
+                "displayName": "First",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Last Name",
+                "displayName": "Last Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Email Address",
+                "displayName": "Email Address",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Phone Number",
+                "displayName": "Phone Number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What are you looking to finance?",
+                "displayName": "What are you looking to finance?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What industry are you in?",
+                "displayName": "What industry are you in?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "How much financing do you need?",
+                "displayName": "How much financing do you need?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Storefront/Online Business",
+                "displayName": "Storefront/Online Business",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "How long has your business been operating?",
+                "displayName": "How long has your business been operating?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "What are your average monthly sales?",
+                "displayName": "What are your average monthly sales?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Company Name",
+                "displayName": "Company Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Entry Date",
+                "displayName": "Entry Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Comments",
+                "displayName": "Comments",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Duplicate?",
+                "displayName": "Duplicate?",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Admin Action",
+                "displayName": "Admin Action",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "Automation Status",
+                "displayName": "Automation Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "Log Date and Time",
+                "displayName": "Log Date and Time",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "row_number",
+                "displayName": "row_number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "number",
+                "canBeUsedToMatch": true,
+                "readOnly": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.7,
+        "position": [
+          1536,
+          -672
+        ],
+        "id": "948b22e3-b585-4dc7-b068-455e96133ba5",
+        "name": "Update Automation Status: Sent rejected email",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "gnjqsanqJmpgUgbn",
+            "name": "[CMCA - admin@cmcafinance.com] Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "documentId": {
+            "__rl": true,
+            "value": "12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw",
+            "mode": "list",
+            "cachedResultName": "Automation: CMCA Application Lead Form",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 109979117,
+            "mode": "list",
+            "cachedResultName": "Leads",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12ykIh8SyE2gZ1JRzAeBdEch5vrY_YczuTbPmMIZBnEw/edit#gid=109979117"
+          },
+          "event": "rowUpdate",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheetsTrigger",
+        "typeVersion": 1,
+        "position": [
+          -480,
+          -816
+        ],
+        "id": "63bd697a-933b-4adc-89e8-7b0f8a62a7b4",
+        "name": "Google Sheets Trigger",
+        "executeOnce": true,
+        "credentials": {
+          "googleSheetsTriggerOAuth2Api": {
+            "id": "EUkSKCk43ujKb9KE",
+            "name": "[CMCA - admin@cmcafinance.com] Google Sheets Trigger account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "5ad72fd8-2529-4515-8651-f1a8c154b186",
+                "leftValue": "={{ $json['Automation Status'] }}",
+                "rightValue": "Sent email of approval",
+                "operator": {
+                  "type": "string",
+                  "operation": "notContains"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          640,
+          -960
+        ],
+        "id": "41aaee53-d29f-4007-904f-eaac8459d1cc",
+        "name": "Status is NOT \"Sent email of approval\""
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "c1b3e76d-dbb4-40a5-a192-d2a0f90deba9",
+                "leftValue": "={{ $json['Automation Status'] }}",
+                "rightValue": "Sent email of rejection",
+                "operator": {
+                  "type": "string",
+                  "operation": "notContains"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          640,
+          -672
+        ],
+        "id": "4a98c4ca-3b0c-4ffb-9fc2-ca733fa0f76e",
+        "name": "Status is NOT \"Sent email of rejection\""
+      }
+    ],
+    "connections": {
+      "Get row(s) in sheet": {
+        "main": [
+          [
+            {
+              "node": "Switch",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch": {
+        "main": [
+          [
+            {
+              "node": "Status is NOT \"Sent email of approval\"",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Status is NOT \"Sent email of rejection\"",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Date & Time": {
+        "main": [
+          [
+            {
+              "node": "Convert Date & Time",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Convert Date & Time": {
+        "main": [
+          [
+            {
+              "node": "Get row(s) in sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Loop leads = APPROVED": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Set fields from leads: Approved",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set fields from leads: Approved": {
+        "main": [
+          [
+            {
+              "node": "Send Approved Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Approved Email": {
+        "main": [
+          [
+            {
+              "node": "Loop leads = APPROVED",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Update Automation Status: Sent approval email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Loop leads = REJECT": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Set fields from leads: Rejected",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set fields from leads: Rejected": {
+        "main": [
+          [
+            {
+              "node": "Send Rejected",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Rejected": {
+        "main": [
+          [
+            {
+              "node": "Loop leads = REJECT",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Update Automation Status: Sent rejected email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Sheets Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get Date & Time",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Status is NOT \"Sent email of approval\"": {
+        "main": [
+          [
+            {
+              "node": "Loop leads = APPROVED",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Status is NOT \"Sent email of rejection\"": {
+        "main": [
+          [
+            {
+              "node": "Loop leads = REJECT",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "system migration",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2025-12-19T15:28:42.000Z",
+        "id": 2,
+        "workflowId": "Gmu3sjNEhcTk3squ",
+        "versionId": "6d8cbf0f-a05c-4441-ba21-bedd61b537a0",
+        "event": "activated",
+        "userId": null
+      }
+    ]
+  }
+}

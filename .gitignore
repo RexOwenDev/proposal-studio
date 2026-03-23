@@ -1,0 +1,6 @@
+.env
+*.local.json
+.env.*
+*.key
+.claude/worktrees/
+.claude/projects/
