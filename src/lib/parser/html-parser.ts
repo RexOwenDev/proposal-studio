@@ -4,23 +4,15 @@ import type { ParseResult, ParsedBlock } from '@/lib/types';
 export function parseHTML(html: string): ParseResult {
   const $ = cheerio.load(html);
 
-  // 1. Extract stylesheets
+  // 1. Extract all <head> link tags (fonts, preconnects, stylesheets)
+  const headLinks: string[] = [];
+  $('link[rel="preconnect"], link[rel="stylesheet"], link[href*="fonts"]').each((_, el) => {
+    headLinks.push($.html(el)!);
+  });
+  $('link[rel="preconnect"], link[rel="stylesheet"], link[href*="fonts"]').remove();
+
+  // Extract all <style> tags (head and body)
   const styleParts: string[] = [];
-
-  $('link[rel="stylesheet"]').each((_, el) => {
-    const href = $(el).attr('href');
-    if (href) {
-      styleParts.push(`@import url('${href}');`);
-    }
-  });
-  $('link[rel="stylesheet"]').remove();
-
-  const preconnects: string[] = [];
-  $('link[rel="preconnect"]').each((_, el) => {
-    preconnects.push($.html(el)!);
-  });
-  $('link[rel="preconnect"]').remove();
-
   $('style').each((_, el) => {
     const content = $(el).html();
     if (content?.trim()) {
@@ -29,7 +21,11 @@ export function parseHTML(html: string): ParseResult {
   });
   $('style').remove();
 
-  const stylesheet = styleParts.join('\n\n');
+  // Store head links and CSS together with a reliable separator
+  const cssContent = styleParts.join('\n\n');
+  const stylesheet = headLinks.length > 0
+    ? `<!--HEAD_LINKS-->\n${headLinks.join('\n')}\n<!--/HEAD_LINKS-->\n${cssContent}`
+    : cssContent;
 
   // 2. Extract scripts
   const scriptParts: string[] = [];
@@ -87,11 +83,7 @@ export function parseHTML(html: string): ParseResult {
     }
   }
 
-  const fullStylesheet = preconnects.length > 0
-    ? `<!-- Font preconnects -->\n${preconnects.join('\n')}\n\n${stylesheet}`
-    : stylesheet;
-
-  return { title, stylesheet: fullStylesheet, scripts, blocks };
+  return { title, stylesheet, scripts, blocks };
 }
 
 /** Check if element has no meaningful content */

@@ -82,27 +82,27 @@ export default function EditPage({ params }: EditPageProps) {
     renderIframe();
   }, [proposal, blocks]);
 
-  function renderIframe() {
-    const iframe = iframeRef.current;
-    if (!iframe || !proposal) return;
+  function buildEditorHTML(): string {
+    if (!proposal) return '';
 
-    const doc = iframe.contentDocument;
-    if (!doc) return;
+    // Parse stylesheet: extract head links and CSS
+    const raw = proposal.stylesheet || '';
+    let headLinks = '';
+    let css = '';
 
-    // Extract preconnect links from stylesheet
-    let preconnectLinks = '';
-    let cssContent = proposal.stylesheet || '';
-
-    if (cssContent.includes('<!-- Font preconnects -->')) {
-      const parts = cssContent.split('\n\n');
-      const preconnectPart = parts.find((p) => p.includes('<link'));
-      if (preconnectPart) {
-        preconnectLinks = preconnectPart.replace('<!-- Font preconnects -->', '').trim();
-        cssContent = parts.filter((p) => !p.includes('<link')).join('\n\n');
-      }
+    const newMatch = raw.match(/<!--HEAD_LINKS-->\n([\s\S]*?)\n<!--\/HEAD_LINKS-->/);
+    if (newMatch) {
+      headLinks = newMatch[1].trim();
+      css = raw.replace(/<!--HEAD_LINKS-->[\s\S]*?<!--\/HEAD_LINKS-->\n?/, '').trim();
+    } else if (raw.includes('<!-- Font preconnects -->')) {
+      const parts = raw.split('\n\n');
+      headLinks = parts.filter((p) => p.includes('<link')).map((p) => p.replace('<!-- Font preconnects -->', '').trim()).join('\n');
+      css = parts.filter((p) => !p.includes('<link') && !p.includes('<!-- Font')).join('\n\n');
+    } else {
+      css = raw;
     }
 
-    // Group consecutive blocks by wrapper_class (re-creates content-wrap etc.)
+    // Group consecutive blocks by wrapper_class
     const bodyParts: string[] = [];
     let currentWrapper: string | null = null;
     let wrapperBuffer: string[] = [];
@@ -135,14 +135,31 @@ export default function EditPage({ params }: EditPageProps) {
     }
     flushWrapper();
 
-    const html = `<!DOCTYPE html>
+    // Wrap scripts in DOMContentLoaded
+    const wrappedScripts = proposal.scripts
+      ? `<script>
+document.addEventListener('DOMContentLoaded', function() {
+${proposal.scripts}
+});
+<\/script>`
+      : '';
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  ${preconnectLinks}
+  ${headLinks}
   <style>
-    ${cssContent}
+    ${css}
+
+    /* Force all content visible in editor */
+    .reveal, [class*="reveal"], [class*="animate"], [class*="fade"] {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+      animation: none !important;
+    }
 
     /* Editor affordances */
     [data-editable]:hover {
@@ -172,23 +189,39 @@ export default function EditPage({ params }: EditPageProps) {
 </head>
 <body>
   ${bodyParts.join('\n')}
-  ${proposal.scripts ? `<script>${proposal.scripts}<\/script>` : ''}
+  ${wrappedScripts}
 </body>
 </html>`;
+  }
 
-    doc.open();
-    doc.write(html);
-    doc.close();
+  function renderIframe() {
+    const iframe = iframeRef.current;
+    if (!iframe || !proposal) return;
 
-    // Auto-resize
-    setTimeout(() => {
-      if (doc.body) {
-        iframe.style.height = `${doc.body.scrollHeight + 50}px`;
-      }
-    }, 200);
+    const html = buildEditorHTML();
+    iframe.srcdoc = html;
 
-    // Set up editable elements
-    setTimeout(() => setupEditableElements(doc), 300);
+    // Set up editable elements after iframe loads
+    const onLoad = () => {
+      const doc = iframe.contentDocument;
+      if (!doc?.body) return;
+
+      // Auto-resize
+      iframe.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 50}px`;
+
+      // Watch for height changes
+      const resizeObserver = new ResizeObserver(() => {
+        iframe.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 50}px`;
+      });
+      resizeObserver.observe(doc.body);
+
+      // Set up editable elements
+      setupEditableElements(doc);
+
+      iframe.removeEventListener('load', onLoad);
+    };
+
+    iframe.addEventListener('load', onLoad);
   }
 
   function setupEditableElements(doc: Document) {
@@ -435,7 +468,6 @@ export default function EditPage({ params }: EditPageProps) {
           className="w-full border-0"
           style={{ minHeight: '100vh' }}
           title="Proposal Editor"
-          sandbox="allow-same-origin allow-scripts"
         />
       </div>
     </div>
