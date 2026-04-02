@@ -2,13 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { Proposal } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-  review: 'bg-blue-900/50 text-blue-300 border-blue-700',
-  published: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
-};
+import ProposalCard from '@/components/dashboard/proposal-card';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -49,25 +43,7 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {proposals.map((proposal) => (
-              <Link
-                key={proposal.id}
-                href={`/p/${proposal.slug}/edit`}
-                className="block bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 transition-colors group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h2 className="text-white font-medium group-hover:text-blue-400 transition-colors truncate pr-2">
-                    {proposal.title}
-                  </h2>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded border shrink-0 ${statusColors[proposal.status]}`}
-                  >
-                    {proposal.status}
-                  </span>
-                </div>
-                <p className="text-zinc-500 text-xs">
-                  Updated {formatDate(proposal.updated_at)}
-                </p>
-              </Link>
+              <ProposalCard key={proposal.id} proposal={proposal} />
             ))}
           </div>
         )}

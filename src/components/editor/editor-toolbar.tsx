@@ -61,10 +61,16 @@ export default function EditorToolbar({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="text-zinc-400 hover:text-white text-sm transition-colors"
+            className="px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700"
           >
-            &larr;
+            Back
           </button>
+          <a
+            href="/"
+            className="px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700"
+          >
+            Home
+          </a>
           <span className="text-white text-sm font-medium truncate max-w-[200px]">
             {title}
           </span>

@@ -240,7 +240,7 @@ export default function EditPage({ params }: EditPageProps) {
     });
   }
 
-  /** Walk the DOM tree and mark leaf text elements as editable */
+  /** Walk the DOM tree and mark text elements as editable */
   function markEditableLeaves(
     el: HTMLElement,
     blockId: string,
@@ -248,6 +248,12 @@ export default function EditPage({ params }: EditPageProps) {
     containerTags: Set<string>,
     doc: Document,
   ) {
+    // Inline tags that DON'T indicate the parent should be walked into
+    const inlineTags = new Set([
+      'strong', 'em', 'b', 'i', 'u', 'mark', 'small', 'sub', 'sup',
+      'span', 'a', 'abbr', 'cite', 'code', 'kbd', 'samp', 'var', 'time',
+    ]);
+
     for (const child of Array.from(el.children)) {
       const htmlChild = child as HTMLElement;
       const tag = child.tagName.toLowerCase();
@@ -255,33 +261,43 @@ export default function EditPage({ params }: EditPageProps) {
       if (skipTags.has(tag)) continue;
       if (htmlChild.getAttribute('data-editable')) continue;
 
-      // Check if this element has direct text content (not just child elements)
       const hasDirectText = Array.from(child.childNodes).some(
         (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()
       );
-      const hasChildElements = child.querySelector('*') !== null;
 
-      if (hasDirectText && !containerTags.has(tag)) {
-        // This is a leaf text element — make it editable
-        htmlChild.setAttribute('data-editable', 'true');
-        htmlChild.setAttribute('data-block-id-ref', blockId);
-        htmlChild.addEventListener('click', (e) => {
-          e.stopPropagation();
-          startEditing(htmlChild, blockId, doc);
-        });
-      } else if (hasDirectText && containerTags.has(tag) && !hasChildElements) {
-        // Container with only text (no child elements) — make editable
-        htmlChild.setAttribute('data-editable', 'true');
-        htmlChild.setAttribute('data-block-id-ref', blockId);
-        htmlChild.addEventListener('click', (e) => {
-          e.stopPropagation();
-          startEditing(htmlChild, blockId, doc);
-        });
+      // Check what kinds of children this element has
+      const childEls = Array.from(child.children);
+      const hasBlockChildren = childEls.some(
+        (c) => !inlineTags.has(c.tagName.toLowerCase()) && !skipTags.has(c.tagName.toLowerCase())
+      );
+      const hasOnlyInlineChildren = childEls.length > 0 && !hasBlockChildren;
+
+      // Case 1: Element with only text (no children) — always editable
+      // Case 2: Element with text + only inline children (strong, em, span, a) — editable as unit
+      // Case 3: Non-container with any content — editable
+      if (
+        (hasDirectText && childEls.length === 0) ||
+        (hasDirectText && hasOnlyInlineChildren) ||
+        (!containerTags.has(tag) && htmlChild.textContent?.trim())
+      ) {
+        makeEditable(htmlChild, blockId, doc);
+      } else if (containerTags.has(tag) && !hasBlockChildren && htmlChild.textContent?.trim()) {
+        // Container with only text or inline children — editable as unit
+        makeEditable(htmlChild, blockId, doc);
       } else {
-        // Walk deeper into containers
+        // Walk deeper into structural containers
         markEditableLeaves(htmlChild, blockId, skipTags, containerTags, doc);
       }
     }
+  }
+
+  function makeEditable(el: HTMLElement, blockId: string, doc: Document) {
+    el.setAttribute('data-editable', 'true');
+    el.setAttribute('data-block-id-ref', blockId);
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startEditing(el, blockId, doc);
+    });
   }
 
   function startEditing(el: HTMLElement, blockId: string, doc: Document) {
