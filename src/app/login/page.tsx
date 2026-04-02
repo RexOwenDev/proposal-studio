@@ -7,13 +7,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('loading');
     setErrorMsg('');
 
+    const supabase = createClient();
     const redirectTo = new URL(window.location.href).searchParams.get('redirect') || '/';
 
     const { error } = await supabase.auth.signInWithOtp({
