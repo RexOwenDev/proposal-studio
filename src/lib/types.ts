@@ -19,6 +19,7 @@ export interface ContentBlock {
   label: string | null;
   original_html: string;
   current_html: string;
+  wrapper_class: string | null;
   updated_at: string;
 }
 
@@ -44,4 +45,5 @@ export interface ParsedBlock {
   order: number;
   label: string;
   html: string;
+  wrapperClass?: string;
 }

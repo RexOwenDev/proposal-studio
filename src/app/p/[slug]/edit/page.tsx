@@ -102,11 +102,38 @@ export default function EditPage({ params }: EditPageProps) {
       }
     }
 
-    const blocksHTML = blocks
-      .map((block) =>
-        `<div data-block-id="${block.id}" data-hidden="${!block.visible}" style="${!block.visible ? 'opacity: 0.35; position: relative;' : ''}">${block.current_html}</div>`
-      )
-      .join('\n');
+    // Group consecutive blocks by wrapper_class (re-creates content-wrap etc.)
+    const bodyParts: string[] = [];
+    let currentWrapper: string | null = null;
+    let wrapperBuffer: string[] = [];
+
+    function flushWrapper() {
+      if (wrapperBuffer.length > 0 && currentWrapper) {
+        bodyParts.push(`<div class="${currentWrapper}">\n${wrapperBuffer.join('\n')}\n</div>`);
+        wrapperBuffer = [];
+      }
+      currentWrapper = null;
+    }
+
+    for (const block of blocks) {
+      const blockHTML = `<div data-block-id="${block.id}" data-hidden="${!block.visible}" style="${!block.visible ? 'opacity: 0.35; position: relative;' : ''}">${block.current_html}</div>`;
+      const wrapper = block.wrapper_class || null;
+
+      if (wrapper !== currentWrapper) {
+        flushWrapper();
+        if (wrapper) {
+          currentWrapper = wrapper;
+          wrapperBuffer.push(blockHTML);
+        } else {
+          bodyParts.push(blockHTML);
+        }
+      } else if (wrapper) {
+        wrapperBuffer.push(blockHTML);
+      } else {
+        bodyParts.push(blockHTML);
+      }
+    }
+    flushWrapper();
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -144,7 +171,7 @@ export default function EditPage({ params }: EditPageProps) {
   </style>
 </head>
 <body>
-  ${blocksHTML}
+  ${bodyParts.join('\n')}
   ${proposal.scripts ? `<script>${proposal.scripts}<\/script>` : ''}
 </body>
 </html>`;
@@ -165,18 +192,35 @@ export default function EditPage({ params }: EditPageProps) {
   }
 
   function setupEditableElements(doc: Document) {
-    const editableTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th', 'span', 'a'];
-    const editableSelector = editableTags.join(', ');
+    // All elements that can contain editable text
+    const editableTags = [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th',
+      'span', 'a', 'strong', 'em', 'b', 'i', 'label',
+    ];
+    // CSS classes that indicate text content in divs
+    const editableDivClasses = [
+      'big-num', 'desc', 'num', 'name', 'label', 'val',
+      'wf-label', 'wf-num', 'course', 'student', 'detail',
+      'logo', 'badge', 'hero-label', 'section-label', 'section-title',
+      'section-intro', 'phase-label', 'phase-hours', 'cost-total',
+      'amt', 'total',
+    ];
+
+    const tagSelector = editableTags.join(', ');
+    const classSelector = editableDivClasses.map((c) => `.${c}`).join(', ');
+    const fullSelector = `${tagSelector}, ${classSelector}`;
 
     doc.querySelectorAll('[data-block-id]').forEach((blockEl) => {
       const blockId = blockEl.getAttribute('data-block-id')!;
 
-      blockEl.querySelectorAll(editableSelector).forEach((el) => {
+      blockEl.querySelectorAll(fullSelector).forEach((el) => {
         const htmlEl = el as HTMLElement;
-        // Skip elements that only contain other editable elements (no direct text)
+        // Must have text content
         if (!htmlEl.textContent?.trim()) return;
-        // Skip elements that are purely structural
-        if (htmlEl.children.length > 0 && !htmlEl.childNodes[0]?.textContent?.trim()) return;
+        // Skip if already marked editable (avoid duplicates from nested matches)
+        if (htmlEl.getAttribute('data-editable')) return;
+        // Skip if a child is already editable (prefer leaf nodes)
+        if (htmlEl.querySelector('[data-editable]')) return;
 
         htmlEl.setAttribute('data-editable', 'true');
         htmlEl.setAttribute('data-block-id-ref', blockId);

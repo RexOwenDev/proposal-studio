@@ -10,12 +10,6 @@ interface ProposalRendererProps {
   mode: 'view' | 'edit';
 }
 
-/**
- * Renders a proposal inside an iframe for perfect CSS isolation.
- * In 'view' mode: renders only visible blocks, fills viewport.
- * In 'edit' mode: renders all blocks (hidden ones at reduced opacity),
- *   and exposes the iframe document for Tiptap integration.
- */
 export default function ProposalRenderer({
   stylesheet,
   blocks,
@@ -28,7 +22,6 @@ export default function ProposalRenderer({
     ? blocks.filter((b) => b.visible)
     : blocks;
 
-  // Build the full HTML document for the iframe
   const htmlContent = buildIframeHTML(stylesheet, visibleBlocks, scripts, mode);
 
   useEffect(() => {
@@ -44,13 +37,11 @@ export default function ProposalRenderer({
 
     // Auto-resize iframe to content height
     const resizeObserver = new ResizeObserver(() => {
-      const body = doc.body;
-      if (body) {
-        iframe.style.height = `${body.scrollHeight}px`;
+      if (doc.body) {
+        iframe.style.height = `${doc.body.scrollHeight}px`;
       }
     });
 
-    // Wait for content to render before observing
     const timer = setTimeout(() => {
       if (doc.body) {
         resizeObserver.observe(doc.body);
@@ -75,13 +66,16 @@ export default function ProposalRenderer({
   );
 }
 
+/**
+ * Build the iframe HTML, grouping consecutive blocks that share
+ * the same wrapper_class inside their original wrapper div.
+ */
 function buildIframeHTML(
   stylesheet: string | null,
   blocks: ContentBlock[],
   scripts: string | null,
   mode: 'view' | 'edit',
 ): string {
-  // Extract preconnect links from stylesheet (they're HTML, not CSS)
   let preconnectLinks = '';
   let cssContent = stylesheet || '';
 
@@ -89,9 +83,7 @@ function buildIframeHTML(
     const parts = cssContent.split('\n\n');
     const preconnectPart = parts.find((p) => p.includes('<link'));
     if (preconnectPart) {
-      preconnectLinks = preconnectPart
-        .replace('<!-- Font preconnects -->', '')
-        .trim();
+      preconnectLinks = preconnectPart.replace('<!-- Font preconnects -->', '').trim();
       cssContent = parts.filter((p) => !p.includes('<link')).join('\n\n');
     }
   }
@@ -119,14 +111,41 @@ function buildIframeHTML(
     `
     : '';
 
-  const blocksHTML = blocks
-    .map((block) => {
-      const wrapper = mode === 'edit'
-        ? `<div data-block-id="${block.id}" data-hidden="${!block.visible}">${block.current_html}</div>`
-        : block.current_html;
-      return wrapper;
-    })
-    .join('\n');
+  // Group consecutive blocks by wrapper_class
+  const bodyParts: string[] = [];
+  let currentWrapper: string | null = null;
+  let wrapperBuffer: string[] = [];
+
+  function flushWrapper() {
+    if (wrapperBuffer.length > 0 && currentWrapper) {
+      bodyParts.push(`<div class="${currentWrapper}">\n${wrapperBuffer.join('\n')}\n</div>`);
+      wrapperBuffer = [];
+    }
+    currentWrapper = null;
+  }
+
+  for (const block of blocks) {
+    const blockHTML = mode === 'edit'
+      ? `<div data-block-id="${block.id}" data-hidden="${!block.visible}">${block.current_html}</div>`
+      : block.current_html;
+
+    const wrapper = block.wrapper_class || null;
+
+    if (wrapper !== currentWrapper) {
+      flushWrapper();
+      if (wrapper) {
+        currentWrapper = wrapper;
+        wrapperBuffer.push(blockHTML);
+      } else {
+        bodyParts.push(blockHTML);
+      }
+    } else if (wrapper) {
+      wrapperBuffer.push(blockHTML);
+    } else {
+      bodyParts.push(blockHTML);
+    }
+  }
+  flushWrapper();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -137,7 +156,7 @@ function buildIframeHTML(
   <style>${cssContent}${editStyles}</style>
 </head>
 <body>
-  ${blocksHTML}
+  ${bodyParts.join('\n')}
   ${scripts ? `<script>${scripts}<\/script>` : ''}
 </body>
 </html>`;

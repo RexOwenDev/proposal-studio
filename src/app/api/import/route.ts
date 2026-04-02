@@ -76,6 +76,7 @@ export async function POST(request: Request) {
     label: block.label,
     original_html: block.html,
     current_html: block.html,
+    wrapper_class: block.wrapperClass || null,
   }));
 
   const { data: blocks, error: blocksError } = await supabase
