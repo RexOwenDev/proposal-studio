@@ -398,6 +398,19 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
+  async function handleRevertBlock(blockId: string) {
+    try {
+      const res = await fetch(`/api/blocks/${blockId}/revert`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to revert');
+      const reverted = await res.json();
+      setBlocks((prev) =>
+        prev.map((b) => (b.id === blockId ? { ...b, current_html: reverted.current_html } : b))
+      );
+    } catch {
+      // Silently fail — block stays as-is
+    }
+  }
+
   async function handlePublish(publish: boolean) {
     if (!proposal) return;
 
@@ -457,8 +470,22 @@ export default function EditPage({ params }: EditPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-400">Loading proposal...</div>
+      <div className="min-h-screen bg-zinc-950">
+        {/* Skeleton toolbar */}
+        <div className="fixed top-0 left-0 right-0 z-50 h-14 bg-zinc-900/95 border-b border-zinc-800 px-4 flex items-center gap-4">
+          <div className="w-12 h-6 bg-zinc-800 rounded animate-pulse" />
+          <div className="w-40 h-5 bg-zinc-800 rounded animate-pulse" />
+          <div className="flex-1" />
+          <div className="w-20 h-7 bg-zinc-800 rounded animate-pulse" />
+        </div>
+        {/* Skeleton content */}
+        <div className="pt-14 max-w-4xl mx-auto px-6 py-12 space-y-6">
+          <div className="h-8 bg-zinc-900 rounded-lg w-3/4 animate-pulse" />
+          <div className="h-4 bg-zinc-900 rounded w-1/2 animate-pulse" />
+          <div className="h-64 bg-zinc-900 rounded-lg animate-pulse" />
+          <div className="h-32 bg-zinc-900 rounded-lg animate-pulse" />
+          <div className="h-48 bg-zinc-900 rounded-lg animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -484,6 +511,7 @@ export default function EditPage({ params }: EditPageProps) {
         blocks={blocks}
         onClose={() => setShowSections(false)}
         onToggleVisibility={handleToggleVisibility}
+        onRevertBlock={handleRevertBlock}
       />
 
       <CommentPanel

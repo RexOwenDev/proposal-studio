@@ -12,9 +12,15 @@ const statusColors: Record<string, string> = {
   published: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
 };
 
-export default function ProposalCard({ proposal }: { proposal: Proposal }) {
+interface Props {
+  proposal: Proposal;
+  blockCount: number;
+}
+
+export default function ProposalCard({ proposal, blockCount }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
 
   async function handleDelete(e: React.MouseEvent) {
@@ -31,34 +37,67 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
     router.refresh();
   }
 
+  function handleCopyLink(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = `${window.location.origin}/p/${proposal.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <>
       <div
         onClick={() => router.push(`/p/${proposal.slug}/edit`)}
-        className="block bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 transition-colors group cursor-pointer relative"
+        className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 transition-colors group cursor-pointer relative flex flex-col"
       >
-        <div className="flex items-start justify-between mb-3">
-          <h2 className="text-white font-medium group-hover:text-blue-400 transition-colors truncate pr-2">
+        {/* Top row: title + status */}
+        <div className="flex items-start justify-between mb-2">
+          <h2 className="text-white font-medium group-hover:text-blue-400 transition-colors truncate pr-2 text-sm">
             {proposal.title}
           </h2>
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`text-xs px-2 py-0.5 rounded border ${statusColors[proposal.status]}`}
-            >
-              {proposal.status}
-            </span>
-            <button
-              onClick={handleDelete}
-              className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all text-xs px-1.5 py-0.5 rounded hover:bg-red-950/50"
-              title="Delete proposal"
-            >
-              Delete
-            </button>
-          </div>
+          <span
+            className={`text-xs px-2 py-0.5 rounded border shrink-0 ${statusColors[proposal.status]}`}
+          >
+            {proposal.status}
+          </span>
         </div>
-        <p className="text-zinc-500 text-xs">
-          Updated {formatDate(proposal.updated_at)}
-        </p>
+
+        {/* Meta row */}
+        <div className="flex items-center gap-3 text-zinc-500 text-xs mt-auto pt-2">
+          <span>{blockCount} sections</span>
+          <span className="text-zinc-700">·</span>
+          <span>Updated {formatDate(proposal.updated_at)}</span>
+        </div>
+
+        {/* Action row: appears on hover */}
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
+          {proposal.status === 'published' && (
+            <button
+              onClick={handleCopyLink}
+              className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors border border-zinc-700"
+            >
+              {copied ? 'Copied!' : 'Copy link'}
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/p/${proposal.slug}`);
+            }}
+            className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors border border-zinc-700"
+          >
+            Preview
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={handleDelete}
+            className="text-xs px-2 py-1 text-zinc-500 hover:text-red-400 hover:bg-red-950/50 rounded transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {/* Delete confirmation */}
@@ -74,7 +113,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
             <h3 className="text-white font-medium mb-2">Delete this proposal?</h3>
             <p className="text-zinc-400 text-sm mb-1 font-medium">{proposal.title}</p>
             <p className="text-zinc-500 text-xs mb-4">
-              This will permanently remove the proposal and all its blocks, comments, and edits. This cannot be undone.
+              This will permanently remove the proposal, all sections, and comments. This cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
