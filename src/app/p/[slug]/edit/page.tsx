@@ -135,14 +135,8 @@ export default function EditPage({ params }: EditPageProps) {
     }
     flushWrapper();
 
-    // Wrap scripts in DOMContentLoaded
-    const wrappedScripts = proposal.scripts
-      ? `<script>
-document.addEventListener('DOMContentLoaded', function() {
-${proposal.scripts}
-});
-<\/script>`
-      : '';
+    // Split scripts: function declarations stay global, execution wraps in DOMContentLoaded
+    const wrappedScripts = proposal.scripts ? wrapScripts(proposal.scripts) : '';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -225,45 +219,69 @@ ${proposal.scripts}
   }
 
   function setupEditableElements(doc: Document) {
-    // All elements that can contain editable text
-    const editableTags = [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th',
-      'span', 'a', 'strong', 'em', 'b', 'i', 'label',
-    ];
-    // CSS classes that indicate text content in divs
-    const editableDivClasses = [
-      'big-num', 'desc', 'num', 'name', 'label', 'val',
-      'wf-label', 'wf-num', 'course', 'student', 'detail',
-      'logo', 'badge', 'hero-label', 'section-label', 'section-title',
-      'section-intro', 'phase-label', 'phase-hours', 'cost-total',
-      'amt', 'total',
-    ];
+    // Tags that should never be editable
+    const skipTags = new Set([
+      'script', 'style', 'link', 'meta', 'svg', 'path', 'line', 'circle',
+      'rect', 'polygon', 'polyline', 'g', 'defs', 'clippath', 'use',
+      'input', 'select', 'textarea', 'button', 'iframe', 'img', 'video',
+      'audio', 'canvas', 'br', 'hr',
+    ]);
 
-    const tagSelector = editableTags.join(', ');
-    const classSelector = editableDivClasses.map((c) => `.${c}`).join(', ');
-    const fullSelector = `${tagSelector}, ${classSelector}`;
+    // Tags that are structural containers (walk into, don't make editable themselves)
+    const containerTags = new Set([
+      'div', 'section', 'article', 'main', 'header', 'footer', 'nav',
+      'aside', 'figure', 'fieldset', 'form', 'details', 'summary',
+      'table', 'thead', 'tbody', 'tfoot', 'tr', 'ul', 'ol', 'dl',
+    ]);
 
     doc.querySelectorAll('[data-block-id]').forEach((blockEl) => {
       const blockId = blockEl.getAttribute('data-block-id')!;
-
-      blockEl.querySelectorAll(fullSelector).forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        // Must have text content
-        if (!htmlEl.textContent?.trim()) return;
-        // Skip if already marked editable (avoid duplicates from nested matches)
-        if (htmlEl.getAttribute('data-editable')) return;
-        // Skip if a child is already editable (prefer leaf nodes)
-        if (htmlEl.querySelector('[data-editable]')) return;
-
-        htmlEl.setAttribute('data-editable', 'true');
-        htmlEl.setAttribute('data-block-id-ref', blockId);
-
-        htmlEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          startEditing(htmlEl, blockId, doc);
-        });
-      });
+      markEditableLeaves(blockEl as HTMLElement, blockId, skipTags, containerTags, doc);
     });
+  }
+
+  /** Walk the DOM tree and mark leaf text elements as editable */
+  function markEditableLeaves(
+    el: HTMLElement,
+    blockId: string,
+    skipTags: Set<string>,
+    containerTags: Set<string>,
+    doc: Document,
+  ) {
+    for (const child of Array.from(el.children)) {
+      const htmlChild = child as HTMLElement;
+      const tag = child.tagName.toLowerCase();
+
+      if (skipTags.has(tag)) continue;
+      if (htmlChild.getAttribute('data-editable')) continue;
+
+      // Check if this element has direct text content (not just child elements)
+      const hasDirectText = Array.from(child.childNodes).some(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()
+      );
+      const hasChildElements = child.querySelector('*') !== null;
+
+      if (hasDirectText && !containerTags.has(tag)) {
+        // This is a leaf text element — make it editable
+        htmlChild.setAttribute('data-editable', 'true');
+        htmlChild.setAttribute('data-block-id-ref', blockId);
+        htmlChild.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startEditing(htmlChild, blockId, doc);
+        });
+      } else if (hasDirectText && containerTags.has(tag) && !hasChildElements) {
+        // Container with only text (no child elements) — make editable
+        htmlChild.setAttribute('data-editable', 'true');
+        htmlChild.setAttribute('data-block-id-ref', blockId);
+        htmlChild.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startEditing(htmlChild, blockId, doc);
+        });
+      } else {
+        // Walk deeper into containers
+        markEditableLeaves(htmlChild, blockId, skipTags, containerTags, doc);
+      }
+    }
   }
 
   function startEditing(el: HTMLElement, blockId: string, doc: Document) {
@@ -472,4 +490,49 @@ ${proposal.scripts}
       </div>
     </div>
   );
+}
+
+/**
+ * Split script content into global function declarations and execution code.
+ * Function declarations stay global so inline handlers (oninput, onclick) can find them.
+ * Execution code wraps in DOMContentLoaded.
+ */
+function wrapScripts(scripts: string): string {
+  const lines = scripts.split('\n');
+  const globalLines: string[] = [];
+  const deferLines: string[] = [];
+
+  let inFunction = false;
+  let braceDepth = 0;
+
+  for (const line of lines) {
+    if (!inFunction && /^\s*function\s+\w+/.test(line)) {
+      inFunction = true;
+      braceDepth = 0;
+    }
+
+    if (inFunction) {
+      globalLines.push(line);
+      braceDepth += (line.match(/\{/g) || []).length;
+      braceDepth -= (line.match(/\}/g) || []).length;
+      if (braceDepth <= 0) {
+        inFunction = false;
+      }
+    } else {
+      deferLines.push(line);
+    }
+  }
+
+  const globalCode = globalLines.join('\n').trim();
+  const deferCode = deferLines.join('\n').trim();
+
+  let result = '';
+  if (globalCode) {
+    result += `<script>\n${globalCode}\n<\/script>\n`;
+  }
+  if (deferCode) {
+    result += `<script>\ndocument.addEventListener('DOMContentLoaded', function() {\n${deferCode}\n});\n<\/script>`;
+  }
+
+  return result;
 }

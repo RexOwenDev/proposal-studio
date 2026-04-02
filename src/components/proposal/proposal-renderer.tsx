@@ -205,14 +205,9 @@ function buildIframeHTML(
   }
   flushWrapper();
 
-  // Wrap scripts in DOMContentLoaded so DOM is fully ready
-  const wrappedScripts = scripts
-    ? `<script>
-document.addEventListener('DOMContentLoaded', function() {
-${scripts}
-});
-<\/script>`
-    : '';
+  // Split scripts: function declarations stay global (for inline handlers like
+  // oninput="calc()"), execution code wraps in DOMContentLoaded
+  const wrappedScripts = scripts ? wrapScripts(scripts) : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -227,4 +222,50 @@ ${scripts}
   ${wrappedScripts}
 </body>
 </html>`;
+}
+
+/**
+ * Split script content into global function declarations and execution code.
+ * Function declarations stay global so inline handlers (oninput, onclick) can find them.
+ * Execution code (variable assignments, function calls, IIFEs) wraps in DOMContentLoaded.
+ */
+function wrapScripts(scripts: string): string {
+  // Split into lines and categorize
+  const lines = scripts.split('\n');
+  const globalLines: string[] = [];
+  const deferLines: string[] = [];
+
+  let inFunction = false;
+  let braceDepth = 0;
+
+  for (const line of lines) {
+    if (!inFunction && /^\s*function\s+\w+/.test(line)) {
+      inFunction = true;
+      braceDepth = 0;
+    }
+
+    if (inFunction) {
+      globalLines.push(line);
+      braceDepth += (line.match(/\{/g) || []).length;
+      braceDepth -= (line.match(/\}/g) || []).length;
+      if (braceDepth <= 0) {
+        inFunction = false;
+      }
+    } else {
+      deferLines.push(line);
+    }
+  }
+
+  const globalCode = globalLines.join('\n').trim();
+  const deferCode = deferLines.join('\n').trim();
+
+  let result = '';
+  if (globalCode) {
+    result += `<script>\n${globalCode}\n<\/script>\n`;
+  }
+  if (deferCode) {
+    result += `<script>\ndocument.addEventListener('DOMContentLoaded', function() {\n${deferCode}\n});\n<\/script>`;
+  }
+
+  return result;
 }
