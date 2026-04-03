@@ -14,6 +14,7 @@ const ALLOWED_DOMAINS = ['designshopp.com'];
 
 const ALLOWED_EMAILS = [
   'owenquintenta@gmail.com',
+  'jeniekagerona15@gmail.com',
 ];
 
 export function isEmailAllowed(email: string): boolean {
