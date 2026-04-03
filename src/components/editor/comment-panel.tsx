@@ -15,11 +15,13 @@ interface CommentPanelProps {
   onAddComment: (blockId: string | null, text: string, selectedText?: string) => void;
   onAddReply: (parentId: string, text: string) => void;
   onResolveComment: (commentId: string, resolved: boolean) => void;
+  onDeleteComment: (commentId: string) => void;
   onReaction: (commentId: string, emoji: string) => void;
   onScrollToHighlight: (commentId: string) => void;
   typingUsers: string[];
   onTypingChange: (isTyping: boolean) => void;
   currentUser: string;
+  isOwner: boolean;
 }
 
 export default function CommentPanel({
@@ -30,11 +32,13 @@ export default function CommentPanel({
   onClose,
   onAddReply,
   onResolveComment,
+  onDeleteComment,
   onReaction,
   onScrollToHighlight,
   typingUsers,
   onTypingChange,
   currentUser,
+  isOwner,
 }: CommentPanelProps) {
   const [showResolved, setShowResolved] = useState(false);
 
@@ -95,11 +99,14 @@ export default function CommentPanel({
               replies={repliesMap.get(comment.id) || []}
               blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
               onResolve={() => onResolveComment(comment.id, true)}
+              onDelete={() => onDeleteComment(comment.id)}
+              onDeleteReply={(replyId) => onDeleteComment(replyId)}
               onReply={(text) => onAddReply(comment.id, text)}
               onReaction={onReaction}
               onScrollToHighlight={comment.selected_text ? () => onScrollToHighlight(comment.id) : undefined}
               onTypingChange={onTypingChange}
               currentUser={currentUser}
+              isOwner={isOwner}
               teamMembers={teamMembers}
             />
           ))}
@@ -173,39 +180,48 @@ function CommentThread({
   replies,
   blockLabel,
   onResolve,
+  onDelete,
+  onDeleteReply,
   onReply,
   onReaction,
   onScrollToHighlight,
   onTypingChange,
   currentUser,
+  isOwner,
   teamMembers,
 }: {
   comment: Comment;
   replies: Comment[];
   blockLabel?: string;
   onResolve: () => void;
+  onDelete: () => void;
+  onDeleteReply: (replyId: string) => void;
   onReply: (text: string) => void;
   onReaction: (commentId: string, emoji: string) => void;
   onScrollToHighlight?: () => void;
   onTypingChange: (isTyping: boolean) => void;
   currentUser: string;
+  isOwner: boolean;
   teamMembers: string[];
 }) {
   const [replyText, setReplyText] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [focused, setFocused] = useState(false);
+  const [replySending, setReplySending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const borderClass = getUserCommentBorder(comment.author_name || 'unknown');
 
   const reactions = comment.reactions || {};
 
-  function handleReply() {
-    if (!replyText.trim()) return;
-    onReply(replyText.trim());
+  async function handleReply() {
+    if (!replyText.trim() || replySending) return;
+    setReplySending(true);
+    await onReply(replyText.trim());
     setReplyText('');
     onTypingChange(false);
+    setReplySending(false);
   }
 
   const handleInputChange = useCallback((value: string) => {
@@ -264,21 +280,34 @@ function CommentThread({
           </div>
 
           <div className="flex-1 min-w-0">
-            {/* Name + time + resolve */}
+            {/* Name + time + actions */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs text-zinc-300 font-medium truncate">{comment.author_name}</span>
                 <span className="text-[10px] text-zinc-600 shrink-0">{new Date(comment.created_at).toLocaleDateString()}</span>
               </div>
-              <button
-                onClick={onResolve}
-                className="text-zinc-600 hover:text-emerald-400 transition-colors shrink-0"
-                title="Resolve"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                {(isOwner || comment.author_name === currentUser) && (
+                  <button
+                    onClick={onDelete}
+                    className="text-zinc-700 hover:text-red-400 transition-colors p-0.5 rounded"
+                    title="Delete comment"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={onResolve}
+                  className="text-zinc-600 hover:text-emerald-400 transition-colors p-0.5 rounded"
+                  title="Resolve"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Comment text */}
@@ -341,9 +370,22 @@ function CommentThread({
               {(reply.author_name || '?')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-400 font-medium">{reply.author_name}</span>
-                <span className="text-[10px] text-zinc-600">{new Date(reply.created_at).toLocaleDateString()}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-zinc-400 font-medium">{reply.author_name}</span>
+                  <span className="text-[10px] text-zinc-600">{new Date(reply.created_at).toLocaleDateString()}</span>
+                </div>
+                {(isOwner || reply.author_name === currentUser) && (
+                  <button
+                    onClick={() => onDeleteReply(reply.id)}
+                    className="text-zinc-700 hover:text-red-400 transition-colors p-0.5 rounded shrink-0"
+                    title="Delete reply"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                  </button>
+                )}
               </div>
               <p className="text-[13px] text-zinc-300 leading-relaxed mt-0.5">
                 {renderText(reply.text, teamMembers)}

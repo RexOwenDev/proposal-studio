@@ -52,7 +52,7 @@ export async function POST(
   }
 
   // Ownership check: only the proposal creator can revert blocks
-  const proposalOwner = (block.proposals as { created_by: string }).created_by;
+  const proposalOwner = (block.proposals as unknown as { created_by: string }).created_by;
   if (proposalOwner !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
   }

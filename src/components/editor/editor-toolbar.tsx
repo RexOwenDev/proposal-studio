@@ -18,6 +18,7 @@ interface EditorToolbarProps {
   slug: string;
   onlineUsers?: PresenceUser[];
   currentUserEmail?: string | null;
+  isPublishing?: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -37,6 +38,7 @@ export default function EditorToolbar({
   slug,
   onlineUsers = [],
   currentUserEmail,
+  isPublishing = false,
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
@@ -148,13 +150,14 @@ export default function EditorToolbar({
 
           <button
             onClick={handlePublishClick}
-            className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors ${
+            disabled={isPublishing}
+            className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               isPublished
                 ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             }`}
           >
-            {isPublished ? 'Unpublish' : 'Publish'}
+            {isPublishing ? '...' : isPublished ? 'Unpublish' : 'Publish'}
           </button>
         </div>
       </div>

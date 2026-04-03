@@ -13,11 +13,25 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { data: proposals } = await supabase
-    .from('proposals')
-    .select('*, content_blocks(id)')
-    .order('updated_at', { ascending: false })
-    .returns<(Proposal & { content_blocks: { id: string }[] })[]>();
+  // Run both queries in parallel — proposals + unresolved top-level comment counts
+  const [{ data: proposals }, { data: unresolvedRows }] = await Promise.all([
+    supabase
+      .from('proposals')
+      .select('*, content_blocks(id)')
+      .order('updated_at', { ascending: false })
+      .returns<(Proposal & { content_blocks: { id: string }[] })[]>(),
+    supabase
+      .from('comments')
+      .select('proposal_id')
+      .eq('resolved', false)
+      .is('parent_id', null), // only count top-level threads
+  ]);
+
+  // Build a fast lookup: proposal_id → unresolved count
+  const unresolvedByProposal = new Map<string, number>();
+  for (const row of unresolvedRows || []) {
+    unresolvedByProposal.set(row.proposal_id, (unresolvedByProposal.get(row.proposal_id) || 0) + 1);
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -50,6 +64,7 @@ export default async function DashboardPage() {
                 key={proposal.id}
                 proposal={proposal}
                 blockCount={proposal.content_blocks?.length || 0}
+                unresolvedComments={unresolvedByProposal.get(proposal.id) || 0}
               />
             ))}
           </div>

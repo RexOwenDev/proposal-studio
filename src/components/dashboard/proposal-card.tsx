@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import type { Proposal } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
@@ -15,9 +14,10 @@ const statusColors: Record<string, string> = {
 interface Props {
   proposal: Proposal;
   blockCount: number;
+  unresolvedComments?: number;
 }
 
-export default function ProposalCard({ proposal, blockCount }: Props) {
+export default function ProposalCard({ proposal, blockCount, unresolvedComments = 0 }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,8 +32,14 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
 
   const confirmDelete = useCallback(async () => {
     setDeleting(true);
-    const supabase = createClient();
-    await supabase.from('proposals').delete().eq('id', proposal.id);
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+    } catch {
+      setDeleting(false);
+      setShowDelete(false);
+      return;
+    }
     setShowDelete(false);
     router.refresh();
   }, [proposal.id, router]);
@@ -77,6 +83,17 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
             </>
           )}
           <span>{blockCount} sections</span>
+          {unresolvedComments > 0 && (
+            <>
+              <span className="text-zinc-700">·</span>
+              <span className="inline-flex items-center gap-1 text-amber-400 font-medium">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                </svg>
+                {unresolvedComments}
+              </span>
+            </>
+          )}
           <span className="text-zinc-700">·</span>
           <span>Updated {formatDate(proposal.updated_at)}</span>
         </div>

@@ -183,3 +183,49 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json(comment, { headers: SECURITY_HEADERS });
 }
+
+export async function DELETE(request: Request) {
+  const supabase = await getSupabase();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id || !UUID_RE.test(id)) {
+    return NextResponse.json({ error: 'Valid comment id is required' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
+  // Fetch the comment with its proposal's owner so we can authorize
+  const { data: comment } = await supabase
+    .from('comments')
+    .select('id, author_id, proposal_id, proposals!inner(created_by)')
+    .eq('id', id)
+    .single();
+
+  if (!comment) {
+    return NextResponse.json({ error: 'Comment not found' }, { status: 404, headers: SECURITY_HEADERS });
+  }
+
+  // Allow deletion if: the user is the comment author OR the proposal owner
+  const proposalOwner = (comment.proposals as unknown as { created_by: string }).created_by;
+  const canDelete = comment.author_id === user.id || proposalOwner === user.id;
+
+  if (!canDelete) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
+  }
+
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+  }
+
+  return NextResponse.json({ success: true }, { headers: SECURITY_HEADERS });
+}

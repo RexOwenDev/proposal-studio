@@ -10,6 +10,7 @@ import CommentPanel from '@/components/editor/comment-panel';
 import { useRealtimeComments, useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
 import { getUserColor } from '@/lib/user-colors';
 import CommentTrigger from '@/components/editor/comment-trigger';
+import { useToast, ToastContainer } from '@/components/ui/toast';
 
 interface EditPageProps {
   params: Promise<{ slug: string }>;
@@ -27,6 +28,8 @@ export default function EditPage({ params }: EditPageProps) {
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const { toasts, showToast, dismissToast } = useToast();
   const [selectionData, setSelectionData] = useState<{
     text: string;
     blockId: string;
@@ -539,7 +542,11 @@ export default function EditPage({ params }: EditPageProps) {
             // Conflict — someone else edited this block
             setSaveStatus('error');
             const data = await res.json();
-            alert(data.message || 'This section was edited by someone else. Reload to see their changes.');
+            showToast(
+              data.message || 'This section was edited by someone else.',
+              'warning',
+              { label: 'Reload', onClick: () => window.location.reload() },
+            );
             return;
           }
 
@@ -558,6 +565,7 @@ export default function EditPage({ params }: EditPageProps) {
           setTimeout(() => setSaveStatus('idle'), 2000);
         } catch {
           setSaveStatus('error');
+          showToast('Failed to save changes. Please try again.', 'error');
         }
       }, 500); // 500ms debounce
     },
@@ -590,7 +598,7 @@ export default function EditPage({ params }: EditPageProps) {
         }
       }
     } catch {
-      // Revert on error
+      showToast('Failed to toggle section visibility.', 'error');
     }
   }
 
@@ -602,8 +610,9 @@ export default function EditPage({ params }: EditPageProps) {
       setBlocks((prev) =>
         prev.map((b) => (b.id === blockId ? { ...b, current_html: reverted.current_html } : b))
       );
+      showToast('Section reverted to original.', 'success');
     } catch {
-      // Silently fail — block stays as-is
+      showToast('Failed to revert section. Please try again.', 'error');
     }
   }
 
@@ -611,6 +620,7 @@ export default function EditPage({ params }: EditPageProps) {
     if (!proposal) return;
 
     const status = publish ? 'published' : 'draft';
+    setIsPublishing(true);
     try {
       const res = await fetch(`/api/proposals/${proposal.id}/publish`, {
         method: 'PATCH',
@@ -622,8 +632,11 @@ export default function EditPage({ params }: EditPageProps) {
 
       const updated = await res.json();
       setProposal({ ...proposal, status: updated.status });
+      showToast(publish ? 'Proposal published.' : 'Proposal unpublished.', 'success');
     } catch {
-      // Handle error
+      showToast('Failed to update publish status. Please try again.', 'error');
+    } finally {
+      setIsPublishing(false);
     }
   }
 
@@ -656,7 +669,7 @@ export default function EditPage({ params }: EditPageProps) {
       // Clear selection
       setSelectionData(null);
     } catch {
-      // Handle error
+      showToast('Failed to post comment. Please try again.', 'error');
     }
   }
 
@@ -684,7 +697,34 @@ export default function EditPage({ params }: EditPageProps) {
       const reply = await res.json();
       setComments((prev) => [...prev, reply]);
     } catch {
-      // Handle error
+      showToast('Failed to post reply. Please try again.', 'error');
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    try {
+      const res = await fetch(`/api/comments?id=${commentId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+
+      // Remove from local state (also removes replies whose parent is deleted)
+      setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
+
+      // Remove any iframe highlight marks for this comment
+      const iframe = iframeRef.current;
+      const iframeDoc = iframe?.contentDocument;
+      if (iframeDoc) {
+        iframeDoc
+          .querySelectorAll(`[data-comment-id="${commentId}"]`)
+          .forEach((el) => {
+            const parent = el.parentNode;
+            if (parent) {
+              parent.replaceChild(iframeDoc.createTextNode(el.textContent || ''), el);
+              parent.normalize();
+            }
+          });
+      }
+    } catch {
+      showToast('Failed to delete comment. Please try again.', 'error');
     }
   }
 
@@ -836,7 +876,7 @@ export default function EditPage({ params }: EditPageProps) {
         prev.map((c) => (c.id === commentId ? { ...c, resolved } : c))
       );
     } catch {
-      // Handle error
+      showToast('Failed to update comment. Please try again.', 'error');
     }
   }
 
@@ -905,6 +945,7 @@ export default function EditPage({ params }: EditPageProps) {
         slug={proposal.slug}
         onlineUsers={onlineUsers}
         currentUserEmail={userEmail}
+        isPublishing={isPublishing}
       />
 
       {/* Sidebar panels */}
@@ -927,9 +968,11 @@ export default function EditPage({ params }: EditPageProps) {
         onResolveComment={handleResolveComment}
         onReaction={handleReaction}
         onScrollToHighlight={scrollToHighlight}
+        onDeleteComment={handleDeleteComment}
         typingUsers={typingUsers}
         onTypingChange={setTyping}
         currentUser={userEmail?.split('@')[0] || ''}
+        isOwner={isOwner}
       />
 
       {/* Floating comment trigger — appears when text is selected */}
@@ -952,6 +995,8 @@ export default function EditPage({ params }: EditPageProps) {
           title="Proposal Editor"
         />
       </div>
+
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
