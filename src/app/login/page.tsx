@@ -2,16 +2,28 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { isEmailAllowed } from '@/lib/access-control';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Check URL for unauthorized error from proxy
+  const isUnauthorized = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('error') === 'unauthorized';
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('loading');
     setErrorMsg('');
+
+    // Client-side check — UX only, real enforcement is in proxy.ts
+    if (!isEmailAllowed(email)) {
+      setStatus('error');
+      setErrorMsg('Access is restricted to Design Shopp team members.');
+      return;
+    }
 
     const supabase = createClient();
     const redirectTo = new URL(window.location.href).searchParams.get('redirect') || '/';
@@ -37,6 +49,15 @@ export default function LoginPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
           <h1 className="text-xl font-semibold text-white mb-1">Proposal Studio</h1>
           <p className="text-zinc-400 text-sm mb-6">Sign in with your email to continue</p>
+
+          {isUnauthorized && status === 'idle' && (
+            <div className="bg-red-950/50 border border-red-800 rounded-md p-4 mb-4">
+              <p className="text-red-300 text-sm font-medium">Access denied</p>
+              <p className="text-red-400/70 text-xs mt-1">
+                Your email is not authorized for Proposal Studio. Contact your admin for access.
+              </p>
+            </div>
+          )}
 
           {status === 'sent' ? (
             <div className="bg-emerald-950/50 border border-emerald-800 rounded-md p-4">
@@ -69,12 +90,16 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={status === 'loading' || !email}
-                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
+                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors duration-150"
               >
                 {status === 'loading' ? 'Sending...' : 'Send Magic Link'}
               </button>
             </form>
           )}
+
+          <p className="text-zinc-600 text-xs mt-4 text-center">
+            Restricted to Design Shopp team members
+          </p>
         </div>
       </div>
     </div>
