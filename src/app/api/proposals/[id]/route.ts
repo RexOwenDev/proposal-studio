@@ -110,15 +110,19 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
+  // Ownership check: only the proposal creator can update it.
+  // Adding created_by filter to the UPDATE itself is atomic — returns no rows if not owner.
   const { data, error } = await supabase
     .from('proposals')
     .update(allowed)
     .eq('id', id)
+    .eq('created_by', user.id)
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+  if (error || !data) {
+    // Either server error or the proposal doesn't belong to this user
+    return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
   return NextResponse.json(data, { headers: SECURITY_HEADERS });
@@ -138,6 +142,20 @@ export async function DELETE(
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
+  // Ownership check: only the proposal creator can delete it.
+  // Verify ownership first — delete on a non-owned row silently succeeds in Supabase
+  // so we do an explicit select-then-delete pattern here.
+  const { data: proposal } = await supabase
+    .from('proposals')
+    .select('id')
+    .eq('id', id)
+    .eq('created_by', user.id)
+    .single();
+
+  if (!proposal) {
+    return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
   const { error } = await supabase
