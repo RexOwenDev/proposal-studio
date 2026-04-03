@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Proposal } from '@/lib/types';
@@ -22,110 +22,109 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
+  const isPublished = proposal.status === 'published';
 
-  async function handleDelete(e: React.MouseEvent) {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowDelete(true);
-  }
+  }, []);
 
-  async function confirmDelete() {
+  const confirmDelete = useCallback(async () => {
     setDeleting(true);
     const supabase = createClient();
     await supabase.from('proposals').delete().eq('id', proposal.id);
     setShowDelete(false);
     router.refresh();
-  }
+  }, [proposal.id, router]);
 
-  function handleCopyLink(e: React.MouseEvent) {
+  const handleCopyLink = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = `${window.location.origin}/p/${proposal.slug}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/p/${proposal.slug}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
+  }, [proposal.slug]);
+
+  const handlePreview = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(`/p/${proposal.slug}`, '_blank', 'noopener');
+  }, [proposal.slug]);
 
   return (
     <>
       <div
         onClick={() => router.push(`/p/${proposal.slug}/edit`)}
-        className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 transition-colors group cursor-pointer relative flex flex-col"
+        className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-600 transition-all duration-200 ease-out group cursor-pointer relative flex flex-col hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
       >
-        {/* Top row: title + status */}
         <div className="flex items-start justify-between mb-2">
-          <h2 className="text-white font-medium group-hover:text-blue-400 transition-colors truncate pr-2 text-sm">
+          <h2 className="text-white font-medium group-hover:text-blue-400 transition-colors duration-150 truncate pr-2 text-sm">
             {proposal.title}
           </h2>
-          <span
-            className={`text-xs px-2 py-0.5 rounded border shrink-0 ${statusColors[proposal.status]}`}
-          >
+          <span className={`text-xs px-2 py-0.5 rounded border shrink-0 transition-colors duration-150 ${statusColors[proposal.status]}`}>
             {proposal.status}
           </span>
         </div>
 
-        {/* Meta row */}
         <div className="flex items-center gap-3 text-zinc-500 text-xs mt-auto pt-2">
           <span>{blockCount} sections</span>
           <span className="text-zinc-700">·</span>
           <span>Updated {formatDate(proposal.updated_at)}</span>
         </div>
 
-        {/* Action row: appears on hover */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
-          {proposal.status === 'published' && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-800 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+          {isPublished && (
             <button
               onClick={handleCopyLink}
-              className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors border border-zinc-700"
+              className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors duration-150 border border-zinc-700 active:scale-95"
             >
               {copied ? 'Copied!' : 'Copy link'}
             </button>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/p/${proposal.slug}`);
-            }}
-            className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors border border-zinc-700"
-          >
-            Preview
-          </button>
+          {isPublished && (
+            <button
+              onClick={handlePreview}
+              className="text-xs px-2.5 py-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors duration-150 border border-zinc-700 active:scale-95"
+            >
+              Preview ↗
+            </button>
+          )}
           <div className="flex-1" />
           <button
             onClick={handleDelete}
-            className="text-xs px-2 py-1 text-zinc-500 hover:text-red-400 hover:bg-red-950/50 rounded transition-colors"
+            className="text-xs px-2 py-1 text-zinc-500 hover:text-red-400 hover:bg-red-950/50 rounded transition-colors duration-150 active:scale-95"
           >
             Delete
           </button>
         </div>
       </div>
 
-      {/* Delete confirmation */}
       {showDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-in fade-in duration-150"
           onClick={(e) => { e.stopPropagation(); setShowDelete(false); }}
         >
           <div
-            className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-sm mx-4"
+            className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-sm mx-4 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-white font-medium mb-2">Delete this proposal?</h3>
             <p className="text-zinc-400 text-sm mb-1 font-medium">{proposal.title}</p>
             <p className="text-zinc-500 text-xs mb-4">
-              This will permanently remove the proposal, all sections, and comments. This cannot be undone.
+              This will permanently remove the proposal, all sections, and comments.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowDelete(false)}
-                className="px-4 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 rounded-md transition-colors"
+                className="px-4 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-800 rounded-md transition-colors duration-150 active:scale-95"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-md transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-md transition-colors duration-150 active:scale-95"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>

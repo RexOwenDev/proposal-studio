@@ -56,11 +56,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { proposal_id, block_id, text } = body;
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
-  if (!proposal_id || !text) {
+  const { proposal_id, block_id, text } = body as { proposal_id?: string; block_id?: string; text?: string };
+
+  if (!proposal_id || typeof proposal_id !== 'string' || !text || typeof text !== 'string') {
     return NextResponse.json({ error: 'proposal_id and text are required' }, { status: 400 });
+  }
+
+  // Limit comment text length
+  const sanitizedText = text.trim().slice(0, 5000);
+  if (!sanitizedText) {
+    return NextResponse.json({ error: 'Comment text cannot be empty' }, { status: 400 });
   }
 
   const { data: comment, error } = await supabase
@@ -70,7 +82,7 @@ export async function POST(request: Request) {
       block_id: block_id || null,
       author_id: user.id,
       author_name: user.email?.split('@')[0] || 'Unknown',
-      text,
+      text: sanitizedText,
     })
     .select()
     .single();

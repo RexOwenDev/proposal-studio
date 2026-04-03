@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+};
+
 async function getSupabase() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -27,6 +33,17 @@ export async function GET(
   const { id } = await params;
   const supabase = await getSupabase();
 
+  // Auth check — only authenticated users can fetch proposal details
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
+  }
+
+  // Validate UUID format
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
   const { data: proposal, error } = await supabase
     .from('proposals')
     .select('*')
@@ -34,7 +51,7 @@ export async function GET(
     .single();
 
   if (error || !proposal) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
   const { data: blocks } = await supabase
@@ -49,8 +66,14 @@ export async function GET(
     .eq('proposal_id', id)
     .order('created_at', { ascending: true });
 
-  return NextResponse.json({ ...proposal, blocks: blocks || [], comments: comments || [] });
+  return NextResponse.json(
+    { ...proposal, blocks: blocks || [], comments: comments || [] },
+    { headers: SECURITY_HEADERS }
+  );
 }
+
+// Whitelist of fields that can be updated on a proposal
+const ALLOWED_PATCH_FIELDS = new Set(['title', 'status']);
 
 export async function PATCH(
   request: Request,
@@ -61,23 +84,44 @@ export async function PATCH(
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
   const body = await request.json();
 
+  // Only allow whitelisted fields — prevents setting slug, created_by, original_html, etc.
+  const allowed: Record<string, unknown> = {};
+  for (const key of Object.keys(body)) {
+    if (ALLOWED_PATCH_FIELDS.has(key)) {
+      allowed[key] = body[key];
+    }
+  }
+
+  if (Object.keys(allowed).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
+  // Validate status values
+  if ('status' in allowed && !['draft', 'review', 'published'].includes(allowed.status as string)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('proposals')
-    .update(body)
+    .update(allowed)
     .eq('id', id)
     .select()
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: SECURITY_HEADERS });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: SECURITY_HEADERS });
 }
 
 export async function DELETE(
@@ -89,7 +133,11 @@ export async function DELETE(
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
   const { error } = await supabase
@@ -98,8 +146,8 @@ export async function DELETE(
     .eq('id', id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: SECURITY_HEADERS });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true }, { headers: SECURITY_HEADERS });
 }

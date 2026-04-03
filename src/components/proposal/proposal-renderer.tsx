@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import type { ContentBlock } from '@/lib/types';
 
 interface ProposalRendererProps {
@@ -18,11 +18,13 @@ export default function ProposalRenderer({
 }: ProposalRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const visibleBlocks = mode === 'view'
-    ? blocks.filter((b) => b.visible)
-    : blocks;
-
-  const srcdoc = buildIframeHTML(stylesheet, visibleBlocks, scripts, mode);
+  // Memoize to prevent iframe reload on unrelated parent re-renders
+  const srcdoc = useMemo(() => {
+    const visibleBlocks = mode === 'view'
+      ? blocks.filter((b) => b.visible)
+      : blocks;
+    return buildIframeHTML(stylesheet, visibleBlocks, scripts, mode);
+  }, [stylesheet, blocks, scripts, mode]);
 
   // Auto-resize iframe to match content height
   useEffect(() => {

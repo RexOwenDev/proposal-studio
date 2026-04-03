@@ -27,11 +27,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { html, title: providedTitle } = body as { html: string; title?: string };
+  // Check content-length before parsing (10MB limit)
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Payload too large (max 10MB)' }, { status: 413 });
+  }
 
-  if (!html) {
+  let body: { html?: string; title?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const { html, title: providedTitle } = body;
+
+  if (!html || typeof html !== 'string') {
     return NextResponse.json({ error: 'HTML content is required' }, { status: 400 });
+  }
+
+  if (html.length > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'HTML content too large (max 5MB)' }, { status: 413 });
   }
 
   // Parse the HTML
