@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import type { Proposal } from '@/lib/types';
 import DashboardHeader from '@/components/dashboard/dashboard-header';
-import ProposalCard from '@/components/dashboard/proposal-card';
+import ProposalGrid from '@/components/dashboard/proposal-grid';
 import LiveRefresh from '@/components/dashboard/live-refresh';
 
 export default async function DashboardPage() {
@@ -27,10 +27,11 @@ export default async function DashboardPage() {
       .is('parent_id', null), // only count top-level threads
   ]);
 
-  // Build a fast lookup: proposal_id → unresolved count
-  const unresolvedByProposal = new Map<string, number>();
+  // Build a serialisable lookup: proposal_id → unresolved count
+  // (plain Record, not Map, so it passes across the RSC → Client Component boundary)
+  const unresolvedCounts: Record<string, number> = {};
   for (const row of unresolvedRows || []) {
-    unresolvedByProposal.set(row.proposal_id, (unresolvedByProposal.get(row.proposal_id) || 0) + 1);
+    unresolvedCounts[row.proposal_id] = (unresolvedCounts[row.proposal_id] || 0) + 1;
   }
 
   return (
@@ -58,16 +59,7 @@ export default async function DashboardPage() {
             </a>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
-            {proposals.map((proposal) => (
-              <ProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                blockCount={proposal.content_blocks?.length || 0}
-                unresolvedComments={unresolvedByProposal.get(proposal.id) || 0}
-              />
-            ))}
-          </div>
+          <ProposalGrid proposals={proposals} unresolvedCounts={unresolvedCounts} />
         )}
       </main>
     </div>

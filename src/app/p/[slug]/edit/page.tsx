@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Proposal, ContentBlock, Comment } from '@/lib/types';
@@ -11,6 +11,7 @@ import { useRealtimeComments, useRealtimeBlocks, usePresence } from '@/lib/hooks
 import { getUserColor } from '@/lib/user-colors';
 import CommentTrigger from '@/components/editor/comment-trigger';
 import { useToast, ToastContainer } from '@/components/ui/toast';
+import { wrapScripts } from '@/lib/utils/wrap-scripts';
 
 interface EditPageProps {
   params: Promise<{ slug: string }>;
@@ -29,6 +30,7 @@ export default function EditPage({ params }: EditPageProps) {
   const [isOwner, setIsOwner] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [mediaWarning, setMediaWarning] = useState<string | null>(null); // H4
   const { toasts, showToast, dismissToast } = useToast();
   const [selectionData, setSelectionData] = useState<{
     text: string;
@@ -43,10 +45,25 @@ export default function EditPage({ params }: EditPageProps) {
   const router = useRouter();
   const supabase = createClient();
 
+  // R3: comment notification callback — stable ref so it doesn't re-trigger the subscription
+  const onNewCommentFromOther = useCallback((comment: Comment) => {
+    const sectionName = comment.block_id
+      ? blocks.find((b) => b.id === comment.block_id)?.label || 'a section'
+      : 'the proposal';
+    showToast(
+      `${comment.author_name} commented on ${sectionName}`,
+      'info',
+      { label: 'View', onClick: () => setShowComments(true) },
+    );
+  }, [blocks, showToast]);
+
   // Realtime: live comments + presence
-  const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null);
+  const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null, {
+    currentUserId: userId,
+    onNewCommentFromOther,
+  });
   const { liveBlockUpdates } = useRealtimeBlocks(proposal?.id || null);
-  const { onlineUsers, typingUsers, setTyping } = usePresence(proposal?.id || null, userEmail);
+  const { onlineUsers, typingUsers, editingUsers, setTyping, setEditingBlock } = usePresence(proposal?.id || null, userEmail);
 
   // Re-render highlights when new realtime comments arrive
   useEffect(() => {
@@ -136,6 +153,26 @@ export default function EditPage({ params }: EditPageProps) {
 
     fetchData();
   }, [slug, supabase, router]);
+
+  // R2: Refs initialised without saveBlockContent (which is declared later via useCallback).
+  // The effect that keeps saveBlockRef.current in sync is placed after saveBlockContent below.
+  const saveBlockRef = useRef<((blockId: string, doc: Document) => void) | null>(null);
+  const editingBlockIdRef = useRef<string | null>(null);
+  useEffect(() => { editingBlockIdRef.current = editingBlockId; }, [editingBlockId]);
+
+  // H4: Detect media elements in proposal blocks and show a one-time warning
+  useEffect(() => {
+    if (blocks.length === 0) return;
+    const allHtml = blocks.map((b) => b.original_html).join(' ');
+    const hasMedia =
+      /<canvas[\s>]/i.test(allHtml) ||
+      /<video[\s>]/i.test(allHtml) ||
+      /<audio[\s>]/i.test(allHtml) ||
+      /<iframe[\s>]/i.test(allHtml);
+    if (hasMedia) {
+      setMediaWarning('This proposal contains media elements (video, audio, canvas, or nested iframes) that may not render fully in the editor.');
+    }
+  }, [blocks]);
 
   // Render proposal in iframe — ONCE on initial load only.
   // Block edits update the iframe DOM directly via contentEditable,
@@ -483,6 +520,7 @@ export default function EditPage({ params }: EditPageProps) {
     el.classList.add('editing');
     el.focus();
     setEditingBlockId(blockId);
+    setEditingBlock(blockId); // R1: broadcast to teammates
 
     // Save on blur
     const handleBlur = () => {
@@ -492,6 +530,7 @@ export default function EditPage({ params }: EditPageProps) {
       el.removeEventListener('keydown', handleKeydown);
       saveBlockContent(blockId, doc);
       setEditingBlockId(null);
+      setEditingBlock(null); // R1: clear editing lock
     };
 
     // Cancel on Escape
@@ -572,6 +611,34 @@ export default function EditPage({ params }: EditPageProps) {
     []
   );
 
+  // R2: Keep ref in sync with the latest saveBlockContent closure (declared above)
+  useEffect(() => { saveBlockRef.current = saveBlockContent; }, [saveBlockContent]);
+
+  // R2: Periodic auto-save every 30s — one stable interval for the whole session
+  useEffect(() => {
+    const id = setInterval(() => {
+      const blockId = editingBlockIdRef.current;
+      const doc = iframeRef.current?.contentDocument;
+      if (blockId && doc) saveBlockRef.current?.(blockId, doc);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // R2: Save on tab hide + before-unload (best-effort)
+  useEffect(() => {
+    function saveIfEditing() {
+      const blockId = editingBlockIdRef.current;
+      const doc = iframeRef.current?.contentDocument;
+      if (blockId && doc) saveBlockRef.current?.(blockId, doc);
+    }
+    document.addEventListener('visibilitychange', saveIfEditing);
+    window.addEventListener('beforeunload', saveIfEditing);
+    return () => {
+      document.removeEventListener('visibilitychange', saveIfEditing);
+      window.removeEventListener('beforeunload', saveIfEditing);
+    };
+  }, []);
+
   async function handleToggleVisibility(blockId: string, visible: boolean) {
     try {
       const res = await fetch(`/api/blocks/${blockId}`, {
@@ -616,28 +683,35 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
-  async function handlePublish(publish: boolean) {
+  async function handleSetStatus(newStatus: string) {
     if (!proposal) return;
-
-    const status = publish ? 'published' : 'draft';
     setIsPublishing(true);
     try {
-      const res = await fetch(`/api/proposals/${proposal.id}/publish`, {
+      const res = await fetch(`/api/proposals/${proposal.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: newStatus }),
       });
-
       if (!res.ok) throw new Error('Failed to update status');
-
       const updated = await res.json();
       setProposal({ ...proposal, status: updated.status });
-      showToast(publish ? 'Proposal published.' : 'Proposal unpublished.', 'success');
+      const labels: Record<string, string> = {
+        review: 'Submitted for review.',
+        approved: 'Proposal approved.',
+        published: 'Proposal published.',
+        draft: 'Proposal moved back to draft.',
+      };
+      showToast(labels[newStatus] || 'Status updated.', 'success');
     } catch {
-      showToast('Failed to update publish status. Please try again.', 'error');
+      showToast('Failed to update status. Please try again.', 'error');
     } finally {
       setIsPublishing(false);
     }
+  }
+
+  async function handlePublish(publish: boolean) {
+    if (!proposal) return;
+    await handleSetStatus(publish ? 'published' : 'draft');
   }
 
   async function handleAddComment(blockId: string | null, text: string, selectedText?: string) {
@@ -941,8 +1015,10 @@ export default function EditPage({ params }: EditPageProps) {
         onToggleSections={() => setShowSections(!showSections)}
         onToggleComments={() => setShowComments(!showComments)}
         onPublish={handlePublish}
+        onSetStatus={handleSetStatus}
         onBack={() => router.push('/')}
         slug={proposal.slug}
+        proposalId={proposal.id}
         onlineUsers={onlineUsers}
         currentUserEmail={userEmail}
         isPublishing={isPublishing}
@@ -955,6 +1031,7 @@ export default function EditPage({ params }: EditPageProps) {
         onClose={() => setShowSections(false)}
         onToggleVisibility={handleToggleVisibility}
         onRevertBlock={handleRevertBlock}
+        editingUsers={editingUsers}
       />
 
       <CommentPanel
@@ -986,6 +1063,20 @@ export default function EditPage({ params }: EditPageProps) {
         />
       )}
 
+      {/* H4: Media element compatibility warning */}
+      {mediaWarning && (
+        <div className="fixed top-14 left-0 right-0 z-40 bg-amber-950/90 border-b border-amber-800 px-4 py-2 flex items-center justify-between gap-3">
+          <p className="text-amber-300 text-xs">{mediaWarning}</p>
+          <button
+            onClick={() => setMediaWarning(null)}
+            className="text-amber-500 hover:text-amber-300 text-sm shrink-0 transition-colors"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Proposal content in iframe */}
       <div className="pt-14">
         <iframe
@@ -1001,47 +1092,3 @@ export default function EditPage({ params }: EditPageProps) {
   );
 }
 
-/**
- * Split script content into global function declarations and execution code.
- * Function declarations stay global so inline handlers (oninput, onclick) can find them.
- * Execution code wraps in DOMContentLoaded.
- */
-function wrapScripts(scripts: string): string {
-  const lines = scripts.split('\n');
-  const globalLines: string[] = [];
-  const deferLines: string[] = [];
-
-  let inFunction = false;
-  let braceDepth = 0;
-
-  for (const line of lines) {
-    if (!inFunction && /^\s*function\s+\w+/.test(line)) {
-      inFunction = true;
-      braceDepth = 0;
-    }
-
-    if (inFunction) {
-      globalLines.push(line);
-      braceDepth += (line.match(/\{/g) || []).length;
-      braceDepth -= (line.match(/\}/g) || []).length;
-      if (braceDepth <= 0) {
-        inFunction = false;
-      }
-    } else {
-      deferLines.push(line);
-    }
-  }
-
-  const globalCode = globalLines.join('\n').trim();
-  const deferCode = deferLines.join('\n').trim();
-
-  let result = '';
-  if (globalCode) {
-    result += `<script>\n${globalCode}\n<\/script>\n`;
-  }
-  if (deferCode) {
-    result += `<script>\ndocument.addEventListener('DOMContentLoaded', function() {\n${deferCode}\n});\n<\/script>`;
-  }
-
-  return result;
-}

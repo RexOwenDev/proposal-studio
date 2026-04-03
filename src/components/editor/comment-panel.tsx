@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Comment, ContentBlock } from '@/lib/types';
 import { getUserCommentBorder } from '@/lib/user-colors';
 
@@ -42,26 +42,34 @@ export default function CommentPanel({
 }: CommentPanelProps) {
   const [showResolved, setShowResolved] = useState(false);
 
+  // Memoize thread computations — these run on every render otherwise (P2)
+  const topLevel = useMemo(
+    () => comments.filter((c) => !c.parent_id && !c.resolved),
+    [comments],
+  );
+  const resolved = useMemo(
+    () => comments.filter((c) => !c.parent_id && c.resolved),
+    [comments],
+  );
+  const repliesMap = useMemo(() => {
+    const map = new Map<string, Comment[]>();
+    comments.filter((c) => c.parent_id).forEach((c) => {
+      // Always attach to the ROOT parent (flatten all sub-sub-replies)
+      let rootId = c.parent_id!;
+      let parent = comments.find((p) => p.id === rootId);
+      while (parent?.parent_id) {
+        rootId = parent.parent_id;
+        parent = comments.find((p) => p.id === rootId);
+      }
+      const list = map.get(rootId) || [];
+      list.push(c);
+      map.set(rootId, list);
+    });
+    return map;
+  }, [comments]);
+
+  // Hooks MUST be declared before any conditional return
   if (!open) return null;
-
-  // Top-level = parent comments (no parent_id)
-  const topLevel = comments.filter((c) => !c.parent_id && !c.resolved);
-  const resolved = comments.filter((c) => !c.parent_id && c.resolved);
-
-  // Flat replies by parent_id (Google Docs style — no deep nesting)
-  const repliesMap = new Map<string, Comment[]>();
-  comments.filter((c) => c.parent_id).forEach((c) => {
-    // Always attach to the ROOT parent (flatten all sub-sub-replies)
-    let rootId = c.parent_id!;
-    let parent = comments.find((p) => p.id === rootId);
-    while (parent?.parent_id) {
-      rootId = parent.parent_id;
-      parent = comments.find((p) => p.id === rootId);
-    }
-    const list = repliesMap.get(rootId) || [];
-    list.push(c);
-    repliesMap.set(rootId, list);
-  });
 
   function getBlockLabel(blockId: string): string {
     const block = blocks.find((b) => b.id === blockId);

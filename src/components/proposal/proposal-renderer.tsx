@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useMemo } from 'react';
 import type { ContentBlock } from '@/lib/types';
+import { wrapScripts } from '@/lib/utils/wrap-scripts';
 
 interface ProposalRendererProps {
   stylesheet: string | null;
@@ -33,8 +34,8 @@ export default function ProposalRenderer({
 
     let resizeObserver: ResizeObserver | null = null;
     let mutationObserver: MutationObserver | null = null;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
 
+    // Debounced sync: coalesces rapid calls into one update (100ms)
     let syncTimer: ReturnType<typeof setTimeout>;
     function syncHeight() {
       if (!iframe) return;
@@ -45,7 +46,7 @@ export default function ProposalRenderer({
           const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
           iframe.style.height = `${h + 20}px`;
         }
-      }, 50);
+      }, 100);
     }
 
     function onLoad() {
@@ -56,7 +57,11 @@ export default function ProposalRenderer({
       // Initial size
       syncHeight();
 
-      // Watch for DOM mutations (JS adding classes, content changes)
+      // ResizeObserver: catches image loads, font swaps, layout shifts
+      resizeObserver = new ResizeObserver(syncHeight);
+      resizeObserver.observe(doc.body);
+
+      // MutationObserver: catches JS-driven class/style changes (reveal animations)
       mutationObserver = new MutationObserver(syncHeight);
       mutationObserver.observe(doc.body, {
         childList: true,
@@ -64,18 +69,6 @@ export default function ProposalRenderer({
         attributes: true,
         attributeFilter: ['class', 'style'],
       });
-
-      // Watch for body resize (images loading, fonts rendering)
-      resizeObserver = new ResizeObserver(syncHeight);
-      resizeObserver.observe(doc.body);
-
-      // Periodic fallback for animations that change height over time
-      intervalId = setInterval(syncHeight, 1000);
-      // Stop periodic checks after 10 seconds
-      setTimeout(() => {
-        if (intervalId) clearInterval(intervalId);
-        intervalId = null;
-      }, 10000);
     }
 
     iframe.addEventListener('load', onLoad);
@@ -84,7 +77,7 @@ export default function ProposalRenderer({
       iframe.removeEventListener('load', onLoad);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
-      if (intervalId) clearInterval(intervalId);
+      clearTimeout(syncTimer);
     };
   }, [srcdoc]);
 
@@ -237,48 +230,3 @@ function buildIframeHTML(
 </html>`;
 }
 
-/**
- * Split script content into global function declarations and execution code.
- * Function declarations stay global so inline handlers (oninput, onclick) can find them.
- * Execution code (variable assignments, function calls, IIFEs) wraps in DOMContentLoaded.
- */
-function wrapScripts(scripts: string): string {
-  // Split into lines and categorize
-  const lines = scripts.split('\n');
-  const globalLines: string[] = [];
-  const deferLines: string[] = [];
-
-  let inFunction = false;
-  let braceDepth = 0;
-
-  for (const line of lines) {
-    if (!inFunction && /^\s*function\s+\w+/.test(line)) {
-      inFunction = true;
-      braceDepth = 0;
-    }
-
-    if (inFunction) {
-      globalLines.push(line);
-      braceDepth += (line.match(/\{/g) || []).length;
-      braceDepth -= (line.match(/\}/g) || []).length;
-      if (braceDepth <= 0) {
-        inFunction = false;
-      }
-    } else {
-      deferLines.push(line);
-    }
-  }
-
-  const globalCode = globalLines.join('\n').trim();
-  const deferCode = deferLines.join('\n').trim();
-
-  let result = '';
-  if (globalCode) {
-    result += `<script>\n${globalCode}\n<\/script>\n`;
-  }
-  if (deferCode) {
-    result += `<script>\ndocument.addEventListener('DOMContentLoaded', function() {\n${deferCode}\n});\n<\/script>`;
-  }
-
-  return result;
-}

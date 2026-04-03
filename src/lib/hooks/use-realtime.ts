@@ -4,14 +4,25 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Comment, ContentBlock } from '@/lib/types';
 
-interface PresenceUser {
+export interface PresenceUser {
   email: string;
   joinedAt: string;
   isTyping?: boolean;
+  editingBlockId?: string; // R1: which block this user is currently editing
 }
 
-export function useRealtimeComments(proposalId: string | null) {
+interface UseRealtimeCommentsOptions {
+  currentUserId?: string | null;
+  onNewCommentFromOther?: (comment: Comment) => void; // R3: notification callback
+}
+
+export function useRealtimeComments(
+  proposalId: string | null,
+  options: UseRealtimeCommentsOptions = {},
+) {
   const [liveComments, setLiveComments] = useState<Comment[]>([]);
+  const optionsRef = useRef(options);
+  useEffect(() => { optionsRef.current = options; });
 
   useEffect(() => {
     if (!proposalId) return;
@@ -29,7 +40,14 @@ export function useRealtimeComments(proposalId: string | null) {
           filter: `proposal_id=eq.${proposalId}`,
         },
         (payload) => {
-          setLiveComments((prev) => [...prev, payload.new as Comment]);
+          const comment = payload.new as Comment;
+          setLiveComments((prev) => [...prev, comment]);
+
+          // R3: notify if the comment came from someone else
+          const { currentUserId, onNewCommentFromOther } = optionsRef.current;
+          if (onNewCommentFromOther && comment.author_id !== currentUserId) {
+            onNewCommentFromOther(comment);
+          }
         }
       )
       .on(
@@ -108,6 +126,8 @@ export function useRealtimeBlocks(proposalId: string | null) {
 export function usePresence(proposalId: string | null, userEmail: string | null) {
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  // R1: map of email → blockId for users actively editing a section
+  const [editingUsers, setEditingUsers] = useState<Map<string, string>>(new Map());
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
 
   useEffect(() => {
@@ -130,6 +150,7 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
         // Take the latest entry per unique email.
         const uniqueUsers = new Map<string, PresenceUser>();
         const typingSet = new Set<string>();
+        const editingMap = new Map<string, string>(); // email → blockId
 
         Object.values(state).forEach((presences) => {
           presences.forEach((p) => {
@@ -140,17 +161,23 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
                 email: p.email,
                 joinedAt: p.joinedAt,
                 isTyping: p.isTyping,
+                editingBlockId: p.editingBlockId,
               });
             }
             // If ANY entry for this user is typing, they're typing
             if (p.isTyping && p.email !== userEmail) {
               typingSet.add(p.email);
             }
+            // R1: track which block each other user is editing
+            if (p.editingBlockId && p.email !== userEmail) {
+              editingMap.set(p.email, p.editingBlockId);
+            }
           });
         });
 
         setOnlineUsers(Array.from(uniqueUsers.values()));
         setTypingUsers(Array.from(typingSet));
+        setEditingUsers(new Map(editingMap));
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -177,5 +204,16 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
     });
   }, [userEmail]);
 
-  return { onlineUsers, typingUsers, setTyping };
+  // R1: broadcast which block the current user is actively editing
+  const setEditingBlock = useCallback(async (blockId: string | null) => {
+    if (!channelRef.current || !userEmail) return;
+    await channelRef.current.track({
+      email: userEmail,
+      joinedAt: new Date().toISOString(),
+      isTyping: false,
+      editingBlockId: blockId ?? undefined,
+    });
+  }, [userEmail]);
+
+  return { onlineUsers, typingUsers, editingUsers, setTyping, setEditingBlock };
 }

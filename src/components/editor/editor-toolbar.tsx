@@ -14,8 +14,10 @@ interface EditorToolbarProps {
   onToggleSections: () => void;
   onToggleComments: () => void;
   onPublish: (publish: boolean) => void;
+  onSetStatus?: (status: string) => void; // T2: advance workflow status
   onBack: () => void;
   slug: string;
+  proposalId?: string; // T1: for export link
   onlineUsers?: PresenceUser[];
   currentUserEmail?: string | null;
   isPublishing?: boolean;
@@ -24,7 +26,15 @@ interface EditorToolbarProps {
 const statusColors: Record<string, string> = {
   draft: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
   review: 'bg-blue-900/50 text-blue-300 border-blue-700',
+  approved: 'bg-purple-900/50 text-purple-300 border-purple-700',
   published: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
+};
+
+// T2: next logical status in the review workflow
+const nextStatus: Record<string, { label: string; value: string }> = {
+  draft: { label: 'Submit for Review', value: 'review' },
+  review: { label: 'Approve', value: 'approved' },
+  approved: { label: 'Publish', value: 'published' },
 };
 
 export default function EditorToolbar({
@@ -34,8 +44,10 @@ export default function EditorToolbar({
   onToggleSections,
   onToggleComments,
   onPublish,
+  onSetStatus,
   onBack,
   slug,
+  proposalId,
   onlineUsers = [],
   currentUserEmail,
   isPublishing = false,
@@ -139,6 +151,18 @@ export default function EditorToolbar({
             )}
           </span>
 
+          {/* T1: Export to static HTML */}
+          {proposalId && (
+            <a
+              href={`/api/proposals/${proposalId}/export`}
+              download
+              className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
+              title="Download as static HTML file"
+            >
+              Export
+            </a>
+          )}
+
           {isPublished && (
             <button
               onClick={copyPublicUrl}
@@ -148,13 +172,26 @@ export default function EditorToolbar({
             </button>
           )}
 
+          {/* T2: Workflow advance button (draft→review→approved) */}
+          {!isPublished && nextStatus[status] && onSetStatus && (
+            <button
+              onClick={() => onSetStatus(nextStatus[status].value)}
+              disabled={isPublishing}
+              className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium text-zinc-200 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {nextStatus[status].label}
+            </button>
+          )}
+
           <button
             onClick={handlePublishClick}
             disabled={isPublishing}
             className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               isPublished
                 ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : status === 'approved'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
             }`}
           >
             {isPublishing ? '...' : isPublished ? 'Unpublish' : 'Publish'}

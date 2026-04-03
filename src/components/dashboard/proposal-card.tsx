@@ -20,6 +20,7 @@ interface Props {
 export default function ProposalCard({ proposal, blockCount, unresolvedComments = 0 }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
   const isPublished = proposal.status === 'published';
@@ -57,6 +58,18 @@ export default function ProposalCard({ proposal, blockCount, unresolvedComments 
     e.stopPropagation();
     window.open(`/p/${proposal.slug}`, '_blank', 'noopener');
   }, [proposal.slug]);
+
+  const handleDuplicate = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}/duplicate`, { method: 'POST' });
+      if (res.ok) router.refresh();
+    } finally {
+      setDuplicating(false);
+    }
+  }, [proposal.id, router]);
 
   return (
     <>
@@ -116,6 +129,14 @@ export default function ProposalCard({ proposal, blockCount, unresolvedComments 
             </button>
           )}
           <div className="flex-1" />
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="text-xs px-2 py-1 text-zinc-500 hover:text-blue-400 hover:bg-blue-950/50 rounded transition-colors duration-150 active:scale-95 disabled:opacity-50"
+            title="Duplicate as new draft"
+          >
+            {duplicating ? '…' : 'Duplicate'}
+          </button>
           <button
             onClick={handleDelete}
             className="text-xs px-2 py-1 text-zinc-500 hover:text-red-400 hover:bg-red-950/50 rounded transition-colors duration-150 active:scale-95"

@@ -2,7 +2,7 @@ export interface Proposal {
   id: string;
   slug: string;
   title: string;
-  status: 'draft' | 'review' | 'published';
+  status: 'draft' | 'review' | 'approved' | 'published';
   original_html: string;
   stylesheet: string | null;
   scripts: string | null;
@@ -44,6 +44,7 @@ export interface ParseResult {
   stylesheet: string;
   scripts: string;
   blocks: ParsedBlock[];
+  warnings: string[];
 }
 
 export interface ParsedBlock {

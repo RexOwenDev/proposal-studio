@@ -105,5 +105,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create content blocks' }, { status: 500 });
   }
 
-  return NextResponse.json({ proposal, blocks });
+  return NextResponse.json({ proposal, blocks, warnings: parsed.warnings });
 }

@@ -9,6 +9,8 @@ interface SectionSidebarProps {
   onClose: () => void;
   onToggleVisibility: (blockId: string, visible: boolean) => void;
   onRevertBlock: (blockId: string) => void;
+  /** R1: map of email → blockId for teammates actively editing a section */
+  editingUsers?: Map<string, string>;
 }
 
 export default function SectionSidebar({
@@ -17,6 +19,7 @@ export default function SectionSidebar({
   onClose,
   onToggleVisibility,
   onRevertBlock,
+  editingUsers,
 }: SectionSidebarProps) {
   const [revertingId, setRevertingId] = useState<string | null>(null);
   const [confirmRevertId, setConfirmRevertId] = useState<string | null>(null);
@@ -50,6 +53,12 @@ export default function SectionSidebar({
         <div className="p-2">
           {blocks.map((block) => {
             const isModified = block.current_html !== block.original_html;
+            // R1: find any teammate currently editing this block
+            const editorEmail = editingUsers
+              ? Array.from(editingUsers.entries()).find(([, bid]) => bid === block.id)?.[0]
+              : undefined;
+            const editorName = editorEmail ? editorEmail.split('@')[0] : null;
+
             return (
               <div
                 key={block.id}
@@ -68,8 +77,13 @@ export default function SectionSidebar({
                       >
                         {block.label || `Block ${block.block_order + 1}`}
                       </span>
-                      {isModified && (
+                      {isModified && !editorName && (
                         <span className="text-xs text-amber-500">edited</span>
+                      )}
+                      {editorName && (
+                        <span className="text-xs text-blue-400 animate-pulse">
+                          ✏ {editorName} is editing…
+                        </span>
                       )}
                     </div>
                   </div>

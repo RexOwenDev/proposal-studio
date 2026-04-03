@@ -106,7 +106,7 @@ export async function PATCH(
   }
 
   // Validate status values
-  if ('status' in allowed && !['draft', 'review', 'published'].includes(allowed.status as string)) {
+  if ('status' in allowed && !['draft', 'review', 'approved', 'published'].includes(allowed.status as string)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 

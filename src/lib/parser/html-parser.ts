@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { ParseResult, ParsedBlock } from '@/lib/types';
+import { MODULE_SCRIPT_START, MODULE_SCRIPT_END } from '@/lib/utils/wrap-scripts';
 
 export function parseHTML(html: string): ParseResult {
   const $ = cheerio.load(html);
@@ -27,11 +28,18 @@ export function parseHTML(html: string): ParseResult {
     ? `<!--HEAD_LINKS-->\n${headLinks.join('\n')}\n<!--/HEAD_LINKS-->\n${cssContent}`
     : cssContent;
 
-  // 2. Extract scripts
+  // 2. Extract scripts — preserve type="module" with sentinels (H5)
   const scriptParts: string[] = [];
   $('script').each((_, el) => {
-    const content = $(el).html();
-    if (content?.trim()) {
+    const $el = $(el);
+    const type = $el.attr('type');
+    const content = $el.html();
+    if (!content?.trim()) return;
+
+    if (type === 'module') {
+      // Wrap in sentinels so wrapScripts() preserves type="module"
+      scriptParts.push(`${MODULE_SCRIPT_START}${content}${MODULE_SCRIPT_END}`);
+    } else {
       scriptParts.push(content);
     }
   });
@@ -83,7 +91,44 @@ export function parseHTML(html: string): ParseResult {
     }
   }
 
-  return { title, stylesheet, scripts, blocks };
+  // H2: If parsing produced only 1 block, try a secondary semantic split
+  if (blocks.length === 1) {
+    const singleHtml = blocks[0].html;
+    const $inner = cheerio.load(singleHtml);
+    const semanticChildren = $inner('body > section, body > article, body > header, body > main, body > footer, body > nav').toArray();
+    if (semanticChildren.length >= 2) {
+      blocks.splice(0, 1); // remove the single block
+      for (const child of semanticChildren) {
+        const el = $inner(child);
+        blocks.push({
+          order: order++,
+          label: autoLabel(el, child.tagName.toLowerCase(), order, $inner),
+          html: $inner.html(child)!,
+        });
+      }
+    }
+  }
+
+  // H4: Detect elements that may not render correctly in the editor iframe
+  const warnings: string[] = [];
+  const fullBody = $('body').html() || '';
+  if (/<canvas[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal uses <canvas> elements. Canvas rendering may be limited in the editor.');
+  }
+  if (/<video[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains <video> elements. Video playback may not work in the editor.');
+  }
+  if (/<audio[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains <audio> elements. Audio may not play in the editor.');
+  }
+  if (/<iframe[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains nested <iframe> elements which may be blocked by browser security policies.');
+  }
+  if (scriptParts.some((s) => s.includes(MODULE_SCRIPT_START))) {
+    warnings.push('This proposal uses ES module scripts (<script type="module">). Module imports may fail if they reference external URLs.');
+  }
+
+  return { title, stylesheet, scripts, blocks, warnings };
 }
 
 /** Check if element has no meaningful content */
