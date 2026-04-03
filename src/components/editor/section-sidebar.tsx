@@ -37,9 +37,9 @@ export default function SectionSidebar({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30 animate-in" onClick={onClose} />
 
-      <div className="fixed top-14 left-0 bottom-0 z-50 w-80 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
+      <div className="fixed top-14 left-0 bottom-0 z-50 w-80 bg-zinc-900 border-r border-zinc-800 overflow-y-auto animate-slide-in">
         <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
           <h3 className="text-white text-sm font-medium">Sections</h3>
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-sm">

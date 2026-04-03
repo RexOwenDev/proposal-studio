@@ -54,12 +54,12 @@ export default function CommentPanel({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/30"
+        className="fixed inset-0 z-40 bg-black/30 animate-in"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="fixed top-14 right-0 bottom-0 z-50 w-96 bg-zinc-900 border-l border-zinc-800 overflow-y-auto flex flex-col">
+      <div className="fixed top-14 right-0 bottom-0 z-50 w-96 bg-zinc-900 border-l border-zinc-800 overflow-y-auto flex flex-col animate-slide-right">
         <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
           <h3 className="text-white text-sm font-medium">
             Comments ({activeComments.length})

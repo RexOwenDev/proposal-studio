@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 
+interface PresenceUser {
+  email: string;
+  joinedAt: string;
+}
+
 interface EditorToolbarProps {
   title: string;
   status: string;
@@ -11,6 +16,8 @@ interface EditorToolbarProps {
   onPublish: (publish: boolean) => void;
   onBack: () => void;
   slug: string;
+  onlineUsers?: PresenceUser[];
+  currentUserEmail?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -28,6 +35,8 @@ export default function EditorToolbar({
   onPublish,
   onBack,
   slug,
+  onlineUsers = [],
+  currentUserEmail,
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
@@ -94,6 +103,29 @@ export default function EditorToolbar({
             Comments
           </button>
         </div>
+
+        {/* Presence: who's online */}
+        {onlineUsers.length > 0 && (
+          <div className="hidden sm:flex items-center gap-0.5 shrink-0">
+            {onlineUsers
+              .filter((u) => u.email !== currentUserEmail)
+              .slice(0, 4)
+              .map((u) => (
+                <div
+                  key={u.email}
+                  className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px] font-medium border-2 border-zinc-900 -ml-1 first:ml-0 transition-all duration-200"
+                  title={`${u.email} is viewing`}
+                >
+                  {u.email[0].toUpperCase()}
+                </div>
+              ))}
+            {onlineUsers.filter((u) => u.email !== currentUserEmail).length > 0 && (
+              <span className="text-[10px] text-emerald-400 ml-1.5 font-medium">
+                {onlineUsers.filter((u) => u.email !== currentUserEmail).length} online
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Right: Status + actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">

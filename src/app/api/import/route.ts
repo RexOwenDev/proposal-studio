@@ -77,6 +77,7 @@ export async function POST(request: Request) {
       stylesheet: parsed.stylesheet,
       scripts: parsed.scripts,
       created_by: user.id,
+      created_by_email: user.email || null,
     })
     .select()
     .single();

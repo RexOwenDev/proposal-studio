@@ -7,6 +7,7 @@ export interface Proposal {
   stylesheet: string | null;
   scripts: string | null;
   created_by: string;
+  created_by_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ export interface ContentBlock {
   original_html: string;
   current_html: string;
   wrapper_class: string | null;
+  last_edited_by: string | null;
   updated_at: string;
 }
 

@@ -68,6 +68,14 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
         </div>
 
         <div className="flex items-center gap-3 text-zinc-500 text-xs mt-auto pt-2">
+          {proposal.created_by_email && (
+            <>
+              <span className="truncate max-w-[120px]" title={proposal.created_by_email}>
+                by {proposal.created_by_email.split('@')[0]}
+              </span>
+              <span className="text-zinc-700">·</span>
+            </>
+          )}
           <span>{blockCount} sections</span>
           <span className="text-zinc-700">·</span>
           <span>Updated {formatDate(proposal.updated_at)}</span>

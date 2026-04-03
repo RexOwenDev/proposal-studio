@@ -62,6 +62,27 @@ export async function PATCH(
     return NextResponse.json({ error: 'No valid fields' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
+  // Track who made this edit
+  if ('current_html' in allowed) {
+    allowed.last_edited_by = user.email || 'unknown';
+  }
+
+  // Conflict detection: if client sends expected_updated_at, check it
+  if ('expected_updated_at' in body && typeof body.expected_updated_at === 'string') {
+    const { data: current } = await supabase
+      .from('content_blocks')
+      .select('updated_at')
+      .eq('id', id)
+      .single();
+
+    if (current && current.updated_at !== body.expected_updated_at) {
+      return NextResponse.json(
+        { error: 'conflict', message: 'This section was edited by someone else. Reload to see their changes.' },
+        { status: 409, headers: SECURITY_HEADERS }
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from('content_blocks')
     .update(allowed)

@@ -7,6 +7,7 @@ import type { Proposal, ContentBlock, Comment } from '@/lib/types';
 import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
 import CommentPanel from '@/components/editor/comment-panel';
+import { useRealtimeComments, usePresence } from '@/lib/hooks/use-realtime';
 
 interface EditPageProps {
   params: Promise<{ slug: string }>;
@@ -25,8 +26,13 @@ export default function EditPage({ params }: EditPageProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  // Realtime: live comments + presence
+  const { mergeComments } = useRealtimeComments(proposal?.id || null);
+  const onlineUsers = usePresence(proposal?.id || null, userEmail);
 
   // Resolve async params
   useEffect(() => {
@@ -43,6 +49,7 @@ export default function EditPage({ params }: EditPageProps) {
         router.push('/login');
         return;
       }
+      setUserEmail(user.email || null);
 
       // Fetch proposal by slug
       const { data: proposalData } = await supabase
@@ -387,18 +394,33 @@ export default function EditPage({ params }: EditPageProps) {
         const updatedHtml = blockEl.innerHTML;
 
         try {
+          // Include expected_updated_at for conflict detection
+          const block = blocks.find((b) => b.id === blockId);
           const res = await fetch(`/api/blocks/${blockId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ current_html: updatedHtml }),
+            body: JSON.stringify({
+              current_html: updatedHtml,
+              expected_updated_at: block?.updated_at,
+            }),
           });
+
+          if (res.status === 409) {
+            // Conflict — someone else edited this block
+            setSaveStatus('error');
+            const data = await res.json();
+            alert(data.message || 'This section was edited by someone else. Reload to see their changes.');
+            return;
+          }
 
           if (!res.ok) throw new Error('Save failed');
 
-          // Update local state
+          const updated = await res.json();
+
+          // Update local state with server's updated_at for next save
           setBlocks((prev) =>
             prev.map((b) =>
-              b.id === blockId ? { ...b, current_html: updatedHtml } : b
+              b.id === blockId ? { ...b, current_html: updatedHtml, updated_at: updated.updated_at } : b
             )
           );
 
@@ -535,6 +557,8 @@ export default function EditPage({ params }: EditPageProps) {
         onPublish={handlePublish}
         onBack={() => router.push('/')}
         slug={proposal.slug}
+        onlineUsers={onlineUsers}
+        currentUserEmail={userEmail}
       />
 
       {/* Sidebar panels */}
@@ -548,7 +572,7 @@ export default function EditPage({ params }: EditPageProps) {
 
       <CommentPanel
         open={showComments}
-        comments={comments}
+        comments={mergeComments(comments)}
         blocks={blocks}
         onClose={() => setShowComments(false)}
         onAddComment={handleAddComment}
