@@ -63,7 +63,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { proposal_id, block_id, text } = body as { proposal_id?: string; block_id?: string; text?: string };
+  const { proposal_id, block_id, text, selected_text } = body as {
+    proposal_id?: string; block_id?: string; text?: string; selected_text?: string;
+  };
 
   if (!proposal_id || typeof proposal_id !== 'string' || !text || typeof text !== 'string') {
     return NextResponse.json({ error: 'proposal_id and text are required' }, { status: 400 });
@@ -83,6 +85,7 @@ export async function POST(request: Request) {
       author_id: user.id,
       author_name: user.email?.split('@')[0] || 'Unknown',
       text: sanitizedText,
+      selected_text: typeof selected_text === 'string' ? selected_text.trim().slice(0, 500) : null,
     })
     .select()
     .single();

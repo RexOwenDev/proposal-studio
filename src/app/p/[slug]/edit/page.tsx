@@ -8,6 +8,7 @@ import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
 import CommentPanel from '@/components/editor/comment-panel';
 import { useRealtimeComments, usePresence } from '@/lib/hooks/use-realtime';
+import CommentTrigger from '@/components/editor/comment-trigger';
 
 interface EditPageProps {
   params: Promise<{ slug: string }>;
@@ -23,6 +24,13 @@ export default function EditPage({ params }: EditPageProps) {
   const [showSections, setShowSections] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [selectionData, setSelectionData] = useState<{
+    text: string;
+    blockId: string;
+    rect: { top: number; right: number; bottom: number; left: number };
+  } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
@@ -50,6 +58,7 @@ export default function EditPage({ params }: EditPageProps) {
         return;
       }
       setUserEmail(user.email || null);
+      setUserId(user.id);
 
       // Fetch proposal by slug
       const { data: proposalData } = await supabase
@@ -78,6 +87,7 @@ export default function EditPage({ params }: EditPageProps) {
       setProposal(proposalData);
       setBlocks(blocksData || []);
       setComments(commentsData || []);
+      setIsOwner(proposalData.created_by === user.id);
       setLoading(false);
     }
 
@@ -233,8 +243,48 @@ export default function EditPage({ params }: EditPageProps) {
       });
       resizeObserver.observe(doc.body);
 
-      // Set up editable elements
-      setupEditableElements(doc);
+      // Set up editable elements — ONLY if user is the owner
+      if (isOwner) {
+        setupEditableElements(doc);
+      }
+
+      // Text selection listener — ALL users can highlight text for comments
+      doc.addEventListener('mouseup', () => {
+        const sel = doc.getSelection();
+        if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+          setSelectionData(null);
+          return;
+        }
+
+        const text = sel.toString().trim().slice(0, 500);
+        const range = sel.getRangeAt(0);
+
+        // Find which block this selection is in
+        const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+          ? range.startContainer.parentElement
+          : range.startContainer as HTMLElement;
+        const blockEl = startEl?.closest('[data-block-id]');
+        if (!blockEl) return;
+
+        const blockId = blockEl.getAttribute('data-block-id')!;
+        const rect = range.getBoundingClientRect();
+
+        // Offset by iframe position
+        const iframeRect = iframe.getBoundingClientRect();
+        setSelectionData({
+          text,
+          blockId,
+          rect: {
+            top: rect.top + iframeRect.top,
+            right: rect.right + iframeRect.left,
+            bottom: rect.bottom + iframeRect.top,
+            left: rect.left + iframeRect.left,
+          },
+        });
+      });
+
+      // Render existing highlights
+      renderHighlights(doc, mergeComments(comments));
 
       iframe.removeEventListener('load', onLoad);
     };
@@ -485,22 +535,107 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
-  async function handleAddComment(blockId: string | null, text: string) {
+  async function handleAddComment(blockId: string | null, text: string, selectedText?: string) {
     if (!proposal) return;
 
     try {
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposal_id: proposal.id, block_id: blockId, text }),
+        body: JSON.stringify({
+          proposal_id: proposal.id,
+          block_id: blockId,
+          text,
+          selected_text: selectedText || null,
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to add comment');
 
       const comment = await res.json();
       setComments((prev) => [...prev, comment]);
+
+      // Render the new highlight in the iframe
+      const iframe = iframeRef.current;
+      if (iframe?.contentDocument && selectedText) {
+        renderHighlights(iframe.contentDocument, [comment]);
+      }
+
+      // Clear selection
+      setSelectionData(null);
     } catch {
       // Handle error
+    }
+  }
+
+  /** Render yellow highlights in the iframe for comments with selected_text */
+  function renderHighlights(doc: Document, commentsToHighlight: Comment[]) {
+    commentsToHighlight.forEach((comment) => {
+      if (!comment.selected_text || comment.resolved || !comment.block_id) return;
+
+      // Don't duplicate highlights
+      if (doc.querySelector(`[data-comment-id="${comment.id}"]`)) return;
+
+      const blockEl = doc.querySelector(`[data-block-id="${comment.block_id}"]`);
+      if (!blockEl) return;
+
+      highlightTextInElement(blockEl as HTMLElement, comment.selected_text, comment.id, doc);
+    });
+  }
+
+  /** Find and wrap matching text in a DOM element with a <mark> tag */
+  function highlightTextInElement(root: HTMLElement, searchText: string, commentId: string, doc: Document) {
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node as Text);
+    }
+
+    // Build full text and find the match
+    let fullText = '';
+    const nodeMap: { node: Text; start: number; end: number }[] = [];
+    for (const tn of textNodes) {
+      const start = fullText.length;
+      fullText += tn.textContent || '';
+      nodeMap.push({ node: tn, start, end: fullText.length });
+    }
+
+    const matchIndex = fullText.indexOf(searchText);
+    if (matchIndex === -1) return;
+
+    const matchEnd = matchIndex + searchText.length;
+
+    // Find which text nodes the match spans
+    for (const { node: tn, start, end } of nodeMap) {
+      if (end <= matchIndex || start >= matchEnd) continue;
+
+      const localStart = Math.max(0, matchIndex - start);
+      const localEnd = Math.min(tn.textContent!.length, matchEnd - start);
+
+      const range = doc.createRange();
+      range.setStart(tn, localStart);
+      range.setEnd(tn, localEnd);
+
+      const mark = doc.createElement('mark');
+      mark.setAttribute('data-comment-id', commentId);
+      mark.style.background = 'rgba(255, 213, 79, 0.35)';
+      mark.style.borderBottom = '2px solid rgba(245, 166, 35, 0.6)';
+      mark.style.cursor = 'pointer';
+      mark.style.borderRadius = '2px';
+      mark.style.padding = '1px 0';
+
+      mark.addEventListener('click', () => {
+        // Scroll comment panel to this comment
+        setShowComments(true);
+        setTimeout(() => {
+          const commentEl = document.querySelector(`[data-comment-thread="${commentId}"]`);
+          commentEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      });
+
+      range.surroundContents(mark);
+      break; // Only highlight first occurrence
     }
   }
 
@@ -578,6 +713,17 @@ export default function EditPage({ params }: EditPageProps) {
         onAddComment={handleAddComment}
         onResolveComment={handleResolveComment}
       />
+
+      {/* Floating comment trigger — appears when text is selected */}
+      {selectionData && (
+        <CommentTrigger
+          selectionData={selectionData}
+          onSubmit={(blockId, commentText, selectedText) => {
+            handleAddComment(blockId, commentText, selectedText);
+          }}
+          onDismiss={() => setSelectionData(null)}
+        />
+      )}
 
       {/* Proposal content in iframe */}
       <div className="pt-14">

@@ -32,6 +32,7 @@ export interface Comment {
   author_id: string;
   author_name: string;
   text: string;
+  selected_text: string | null;
   resolved: boolean;
   created_at: string;
 }

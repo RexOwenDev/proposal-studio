@@ -83,8 +83,22 @@ export default function CommentPanel({
                 {blockComments.map((comment) => (
                   <div
                     key={comment.id}
-                    className="bg-zinc-800/50 border border-zinc-700/50 rounded-md p-3"
+                    data-comment-thread={comment.id}
+                    className={`border rounded-md p-3 transition-colors duration-200 ${
+                      comment.selected_text
+                        ? 'bg-amber-950/20 border-amber-700/30 hover:border-amber-600/50'
+                        : 'bg-zinc-800/50 border-zinc-700/50'
+                    }`}
                   >
+                    {/* Highlighted text context */}
+                    {comment.selected_text && (
+                      <div className="mb-2 pb-2 border-b border-amber-800/20">
+                        <p className="text-amber-400/60 text-[10px] font-medium uppercase tracking-wider mb-0.5">Highlighted</p>
+                        <p className="text-zinc-400 text-xs italic leading-relaxed">
+                          &ldquo;{comment.selected_text.slice(0, 120)}{comment.selected_text.length > 120 ? '...' : ''}&rdquo;
+                        </p>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-zinc-400 font-medium">
                         {comment.author_name}

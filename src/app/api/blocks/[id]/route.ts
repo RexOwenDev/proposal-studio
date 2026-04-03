@@ -39,6 +39,20 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
   }
 
+  // Owner check: only the proposal creator can edit blocks
+  const { data: block } = await supabase
+    .from('content_blocks')
+    .select('proposal_id, proposals(created_by)')
+    .eq('id', id)
+    .single();
+
+  if (block) {
+    const proposal = (block as Record<string, unknown>).proposals as { created_by: string } | null;
+    if (proposal && proposal.created_by !== user.id) {
+      return NextResponse.json({ error: 'Only the proposal owner can edit' }, { status: 403, headers: SECURITY_HEADERS });
+    }
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();
