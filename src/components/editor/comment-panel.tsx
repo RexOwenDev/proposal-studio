@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Comment, ContentBlock } from '@/lib/types';
 import { getUserCommentBorder } from '@/lib/user-colors';
+
+const REACTION_EMOJIS = ['👍', '✅', '❤️', '👀', '🎯'];
+
+// Team members for @mentions (derived from access-control allowlist)
+const TEAM_MEMBERS = [
+  'owen', 'jenie',
+];
 
 interface CommentPanelProps {
   open: boolean;
@@ -12,7 +19,11 @@ interface CommentPanelProps {
   onAddComment: (blockId: string | null, text: string, selectedText?: string) => void;
   onAddReply: (parentId: string, text: string) => void;
   onResolveComment: (commentId: string, resolved: boolean) => void;
+  onReaction: (commentId: string, emoji: string) => void;
   onScrollToHighlight: (commentId: string) => void;
+  typingUsers: string[];
+  onTypingChange: (isTyping: boolean) => void;
+  currentUser: string;
 }
 
 export default function CommentPanel({
@@ -20,20 +31,21 @@ export default function CommentPanel({
   comments,
   blocks,
   onClose,
-  onAddComment,
   onAddReply,
   onResolveComment,
+  onReaction,
   onScrollToHighlight,
+  typingUsers,
+  onTypingChange,
+  currentUser,
 }: CommentPanelProps) {
   const [showResolved, setShowResolved] = useState(false);
 
   if (!open) return null;
 
-  // Build a tree from flat comments
   const topLevel = comments.filter((c) => !c.parent_id && !c.resolved);
   const resolved = comments.filter((c) => !c.parent_id && c.resolved);
 
-  // Map all replies by parent_id (supports infinite depth)
   const childrenMap = new Map<string, Comment[]>();
   comments.filter((c) => c.parent_id).forEach((c) => {
     const list = childrenMap.get(c.parent_id!) || [];
@@ -61,6 +73,15 @@ export default function CommentPanel({
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-sm transition-colors">&times;</button>
         </div>
 
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-2 border-b border-zinc-800/50 bg-zinc-800/30">
+            <p className="text-xs text-blue-400 animate-pulse">
+              {typingUsers.map((u) => u.split('@')[0]).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+            </p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {highlightComments.map((comment) => (
             <CommentThread
@@ -71,7 +92,10 @@ export default function CommentPanel({
               blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
               onResolve={() => onResolveComment(comment.id, true)}
               onReply={onAddReply}
+              onReaction={onReaction}
               onScrollToHighlight={() => onScrollToHighlight(comment.id)}
+              onTypingChange={onTypingChange}
+              currentUser={currentUser}
             />
           ))}
 
@@ -91,6 +115,9 @@ export default function CommentPanel({
                   blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
                   onResolve={() => onResolveComment(comment.id, true)}
                   onReply={onAddReply}
+                  onReaction={onReaction}
+                  onTypingChange={onTypingChange}
+                  currentUser={currentUser}
                 />
               ))}
             </>
@@ -137,7 +164,22 @@ export default function CommentPanel({
   );
 }
 
-/** Recursive comment thread — supports infinite nesting */
+/** Render comment text with @mentions highlighted */
+function renderCommentText(text: string) {
+  const parts = text.split(/(@\w+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@') && TEAM_MEMBERS.includes(part.slice(1).toLowerCase())) {
+      return (
+        <span key={i} className="text-blue-400 font-medium bg-blue-500/10 px-1 rounded">
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+/** Recursive comment thread */
 function CommentThread({
   comment,
   childrenMap,
@@ -145,7 +187,10 @@ function CommentThread({
   blockLabel,
   onResolve,
   onReply,
+  onReaction,
   onScrollToHighlight,
+  onTypingChange,
+  currentUser,
 }: {
   comment: Comment;
   childrenMap: Map<string, Comment[]>;
@@ -153,26 +198,55 @@ function CommentThread({
   blockLabel?: string;
   onResolve: () => void;
   onReply: (parentId: string, text: string) => void;
+  onReaction: (commentId: string, emoji: string) => void;
   onScrollToHighlight?: () => void;
+  onTypingChange: (isTyping: boolean) => void;
+  currentUser: string;
 }) {
   const [replyText, setReplyText] = useState('');
+  const [showMentions, setShowMentions] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const replies = childrenMap.get(comment.id) || [];
   const borderClass = depth === 0
     ? getUserCommentBorder(comment.author_name || 'unknown')
     : 'border-l-zinc-700';
 
+  const reactions = comment.reactions || {};
+
   function handleReply() {
     if (!replyText.trim()) return;
     onReply(comment.id, replyText.trim());
     setReplyText('');
+    onTypingChange(false);
+  }
+
+  const handleInputChange = useCallback((value: string) => {
+    setReplyText(value);
+
+    // Typing indicator: broadcast that we're typing
+    onTypingChange(true);
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => onTypingChange(false), 2000);
+
+    // @mention detection
+    const lastWord = value.split(/\s/).pop() || '';
+    setShowMentions(lastWord.startsWith('@') && lastWord.length > 1);
+  }, [onTypingChange]);
+
+  function insertMention(name: string) {
+    const words = replyText.split(/\s/);
+    words[words.length - 1] = `@${name} `;
+    setReplyText(words.join(' '));
+    setShowMentions(false);
+    inputRef.current?.focus();
   }
 
   // Auto-scroll to new replies
   const prevReplyCount = useRef(replies.length);
   useEffect(() => {
     if (replies.length > prevReplyCount.current) {
-      // New reply appeared — scroll it into view
       const el = document.querySelector(`[data-comment-thread="${replies[replies.length - 1].id}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -185,7 +259,7 @@ function CommentThread({
       className={`${depth === 0 ? `border-l-2 ${borderClass} rounded-md overflow-hidden` : ''} transition-all duration-200`}
     >
       <div className={`${depth === 0 ? 'bg-zinc-800/40' : 'bg-zinc-800/20 border-t border-zinc-800/50'} p-3`}>
-        {/* Highlighted text context — only on root comment */}
+        {/* Highlighted text — root only */}
         {depth === 0 && comment.selected_text && onScrollToHighlight && (
           <button
             onClick={onScrollToHighlight}
@@ -200,7 +274,6 @@ function CommentThread({
           </button>
         )}
 
-        {/* Author + date */}
         <div className="flex items-center justify-between mb-1">
           <span className={`font-medium ${depth === 0 ? 'text-xs text-zinc-400' : 'text-[11px] text-zinc-500'}`}>
             {comment.author_name}
@@ -210,17 +283,59 @@ function CommentThread({
           </span>
         </div>
 
-        {/* Comment text */}
         <p className={`leading-relaxed ${depth === 0 ? 'text-sm text-zinc-200' : 'text-xs text-zinc-300'}`}>
-          {comment.text}
+          {renderCommentText(comment.text)}
         </p>
 
-        {/* Actions — only on root */}
-        {depth === 0 && (
-          <div className="flex items-center gap-3 mt-2">
+        {/* Reactions display */}
+        {Object.keys(reactions).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {Object.entries(reactions).map(([emoji, users]) => (
+              <button
+                key={emoji}
+                onClick={() => onReaction(comment.id, emoji)}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border transition-all duration-150 active:scale-95 ${
+                  users.includes(currentUser)
+                    ? 'bg-blue-500/15 border-blue-500/30 text-blue-300'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                }`}
+                title={users.join(', ')}
+              >
+                <span>{emoji}</span>
+                <span className="font-medium">{users.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            onClick={() => setShowReactions(!showReactions)}
+            className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+            title="Add reaction"
+          >
+            😊
+          </button>
+          {depth === 0 && (
             <button onClick={onResolve} className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors">
               Resolve
             </button>
+          )}
+        </div>
+
+        {/* Reaction picker */}
+        {showReactions && (
+          <div className="flex gap-1 mt-2 p-1.5 bg-zinc-800 rounded-lg border border-zinc-700 animate-scale-in w-fit">
+            {REACTION_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => { onReaction(comment.id, emoji); setShowReactions(false); }}
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-zinc-700 transition-colors text-sm active:scale-90"
+              >
+                {emoji}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -236,23 +351,44 @@ function CommentThread({
               depth={depth + 1}
               onResolve={onResolve}
               onReply={onReply}
+              onReaction={onReaction}
+              onTypingChange={onTypingChange}
+              currentUser={currentUser}
             />
           ))}
         </div>
       )}
 
-      {/* Always-visible reply input at the bottom of the thread */}
-      <div className={`px-3 py-2 ${depth === 0 ? 'bg-zinc-850/30 border-t border-zinc-700/30' : 'bg-zinc-800/10'}`}>
+      {/* Reply input with @mention autocomplete */}
+      <div className={`px-3 py-2 ${depth === 0 ? 'border-t border-zinc-700/30' : 'bg-zinc-800/10'} relative`}>
+        {/* @mention dropdown */}
+        {showMentions && (
+          <div className="absolute bottom-full left-3 mb-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 z-10 animate-scale-in">
+            {TEAM_MEMBERS.filter((m) => {
+              const lastWord = replyText.split(/\s/).pop() || '';
+              return m.startsWith(lastWord.slice(1).toLowerCase());
+            }).map((name) => (
+              <button
+                key={name}
+                onClick={() => insertMention(name)}
+                className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              >
+                <span className="text-blue-400">@</span>{name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && replyText.trim()) handleReply();
             }}
-            placeholder={depth === 0 ? 'Reply to this thread...' : 'Reply...'}
+            placeholder={depth === 0 ? 'Reply... (type @ to mention)' : 'Reply...'}
             className="flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700/50 rounded text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-zinc-600 transition-all duration-150"
           />
           {replyText.trim() && (

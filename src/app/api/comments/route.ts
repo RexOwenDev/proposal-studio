@@ -107,10 +107,52 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { id, resolved } = body;
+  const { id, resolved, reaction, reactor } = body;
 
-  if (!id || typeof resolved !== 'boolean') {
-    return NextResponse.json({ error: 'id and resolved are required' }, { status: 400 });
+  if (!id || typeof id !== 'string') {
+    return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  }
+
+  // Handle reaction toggle
+  if (reaction && reactor) {
+    const { data: existing } = await supabase
+      .from('comments')
+      .select('reactions')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+    }
+
+    const reactions = (existing.reactions || {}) as Record<string, string[]>;
+    const users = reactions[reaction] || [];
+
+    if (users.includes(reactor)) {
+      // Remove reaction (toggle off)
+      reactions[reaction] = users.filter((u: string) => u !== reactor);
+      if (reactions[reaction].length === 0) delete reactions[reaction];
+    } else {
+      // Add reaction
+      reactions[reaction] = [...users, reactor];
+    }
+
+    const { data: comment, error } = await supabase
+      .from('comments')
+      .update({ reactions })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    }
+    return NextResponse.json(comment);
+  }
+
+  // Handle resolve toggle
+  if (typeof resolved !== 'boolean') {
+    return NextResponse.json({ error: 'resolved or reaction is required' }, { status: 400 });
   }
 
   const { data: comment, error } = await supabase

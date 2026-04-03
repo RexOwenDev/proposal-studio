@@ -41,7 +41,7 @@ export default function EditPage({ params }: EditPageProps) {
 
   // Realtime: live comments + presence
   const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null);
-  const onlineUsers = usePresence(proposal?.id || null, userEmail);
+  const { onlineUsers, typingUsers, setTyping } = usePresence(proposal?.id || null, userEmail);
 
   // Re-render highlights when new realtime comments arrive
   useEffect(() => {
@@ -743,6 +743,34 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
+  async function handleReaction(commentId: string, emoji: string) {
+    if (!userEmail) return;
+    const reactor = userEmail.split('@')[0];
+
+    // Optimistic update
+    setComments((prev) =>
+      prev.map((c) => {
+        if (c.id !== commentId) return c;
+        const reactions = { ...(c.reactions || {}) };
+        const users = reactions[emoji] || [];
+        if (users.includes(reactor)) {
+          reactions[emoji] = users.filter((u) => u !== reactor);
+          if (reactions[emoji].length === 0) delete reactions[emoji];
+        } else {
+          reactions[emoji] = [...users, reactor];
+        }
+        return { ...c, reactions };
+      })
+    );
+
+    // Persist
+    await fetch('/api/comments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: commentId, reaction: emoji, reactor }),
+    });
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950">
@@ -799,7 +827,11 @@ export default function EditPage({ params }: EditPageProps) {
         onAddComment={handleAddComment}
         onAddReply={handleAddReply}
         onResolveComment={handleResolveComment}
+        onReaction={handleReaction}
         onScrollToHighlight={scrollToHighlight}
+        typingUsers={typingUsers}
+        onTypingChange={setTyping}
+        currentUser={userEmail?.split('@')[0] || ''}
       />
 
       {/* Floating comment trigger — appears when text is selected */}

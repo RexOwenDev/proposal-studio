@@ -35,6 +35,7 @@ export interface Comment {
   text: string;
   selected_text: string | null;
   resolved: boolean;
+  reactions: Record<string, string[]>;
   created_at: string;
 }
 

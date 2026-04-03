@@ -1,21 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Comment } from '@/lib/types';
 
 interface PresenceUser {
   email: string;
   joinedAt: string;
+  isTyping?: boolean;
 }
 
-/**
- * Supabase Realtime hook for live collaboration.
- *
- * Provides:
- * 1. Live comments — auto-updates when anyone adds/resolves a comment
- * 2. Presence — tracks who's currently viewing the same proposal
- */
 export function useRealtimeComments(proposalId: string | null) {
   const [liveComments, setLiveComments] = useState<Comment[]>([]);
 
@@ -59,7 +53,6 @@ export function useRealtimeComments(proposalId: string | null) {
     };
   }, [proposalId]);
 
-  // Merge initial comments with live updates
   const mergeComments = useCallback(
     (initial: Comment[]): Comment[] => {
       const map = new Map<string, Comment>();
@@ -77,6 +70,8 @@ export function useRealtimeComments(proposalId: string | null) {
 
 export function usePresence(proposalId: string | null, userEmail: string | null) {
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
 
   useEffect(() => {
     if (!proposalId || !userEmail) return;
@@ -87,30 +82,51 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
       config: { presence: { key: userEmail } },
     });
 
+    channelRef.current = channel;
+
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>();
         const users: PresenceUser[] = [];
+        const typing: string[] = [];
+
         Object.values(state).forEach((presences) => {
           presences.forEach((p) => {
-            users.push({ email: p.email, joinedAt: p.joinedAt });
+            users.push({ email: p.email, joinedAt: p.joinedAt, isTyping: p.isTyping });
+            if (p.isTyping && p.email !== userEmail) {
+              typing.push(p.email);
+            }
           });
         });
+
         setOnlineUsers(users);
+        setTypingUsers(typing);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
             email: userEmail,
             joinedAt: new Date().toISOString(),
+            isTyping: false,
           });
         }
       });
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [proposalId, userEmail]);
 
-  return onlineUsers;
+  // Broadcast typing state
+  const setTyping = useCallback(async (isTyping: boolean) => {
+    if (!channelRef.current || !userEmail) return;
+    await channelRef.current.track({
+      email: userEmail,
+      joinedAt: new Date().toISOString(),
+      isTyping,
+    });
+  }, [userEmail]);
+
+  return { onlineUsers, typingUsers, setTyping };
 }
