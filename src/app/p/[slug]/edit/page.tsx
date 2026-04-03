@@ -24,6 +24,7 @@ export default function EditPage({ params }: EditPageProps) {
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const iframeRenderedRef = useRef(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -76,9 +77,12 @@ export default function EditPage({ params }: EditPageProps) {
     fetchData();
   }, [slug, supabase, router]);
 
-  // Render proposal in iframe
+  // Render proposal in iframe — ONCE on initial load only.
+  // Block edits update the iframe DOM directly via contentEditable,
+  // so re-rendering the iframe would destroy the user's cursor/selection and flash.
   useEffect(() => {
-    if (!proposal || blocks.length === 0) return;
+    if (!proposal || blocks.length === 0 || iframeRenderedRef.current) return;
+    iframeRenderedRef.current = true;
     renderIframe();
   }, [proposal, blocks]);
 
@@ -147,12 +151,20 @@ export default function EditPage({ params }: EditPageProps) {
   <style>
     ${css}
 
-    /* Force all content visible in editor */
+    /* Force all content visible in editor — no animations, no flashing */
     .reveal, [class*="reveal"], [class*="animate"], [class*="fade"] {
       opacity: 1 !important;
       transform: none !important;
       transition: none !important;
       animation: none !important;
+    }
+    /* Kill SVG declarative animations in edit mode */
+    animate, animateTransform, animateMotion, set {
+      display: none !important;
+    }
+    /* Force all SVG elements to full opacity (override <animate> from="0") */
+    svg path, svg rect, svg circle, svg text, svg g {
+      opacity: 1 !important;
     }
 
     /* Editor affordances */
@@ -200,12 +212,17 @@ export default function EditPage({ params }: EditPageProps) {
       const doc = iframe.contentDocument;
       if (!doc?.body) return;
 
-      // Auto-resize
-      iframe.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 50}px`;
-
-      // Watch for height changes
-      const resizeObserver = new ResizeObserver(() => {
+      // Auto-resize with debounce to prevent flash from rapid height changes
+      let resizeTimer: ReturnType<typeof setTimeout>;
+      function syncHeight() {
+        if (!iframe || !doc?.body) return;
         iframe.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 50}px`;
+      }
+      syncHeight();
+
+      const resizeObserver = new ResizeObserver(() => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(syncHeight, 100);
       });
       resizeObserver.observe(doc.body);
 
@@ -221,12 +238,12 @@ export default function EditPage({ params }: EditPageProps) {
   function setupEditableElements(doc: Document) {
     // Tags that should never be editable
     const skipTags = new Set([
-      'script', 'style', 'link', 'meta', 'svg', 'path', 'line', 'circle',
-      'rect', 'polygon', 'polyline', 'g', 'defs', 'clippath', 'use',
+      'script', 'style', 'link', 'meta', 'path', 'line', 'circle',
+      'rect', 'polygon', 'polyline', 'defs', 'clippath', 'use',
+      'animate', 'animatetransform', 'animatemotion', 'set',
       'input', 'select', 'textarea', 'button', 'iframe', 'img', 'video',
       'audio', 'canvas', 'br', 'hr',
     ]);
-
     // Tags that are structural containers (walk into, don't make editable themselves)
     const containerTags = new Set([
       'div', 'section', 'article', 'main', 'header', 'footer', 'nav',
@@ -239,6 +256,9 @@ export default function EditPage({ params }: EditPageProps) {
       markEditableLeaves(blockEl as HTMLElement, blockId, skipTags, containerTags, doc);
     });
   }
+
+  // SVG containers to walk into (looking for <text> elements)
+  const svgContainerTags = new Set(['svg', 'g']);
 
   /** Walk the DOM tree and mark text elements as editable */
   function markEditableLeaves(
@@ -260,6 +280,18 @@ export default function EditPage({ params }: EditPageProps) {
 
       if (skipTags.has(tag)) continue;
       if (htmlChild.getAttribute('data-editable')) continue;
+
+      // SVG containers: walk into them looking for <text> elements
+      if (svgContainerTags.has(tag)) {
+        markEditableLeaves(htmlChild, blockId, skipTags, containerTags, doc);
+        continue;
+      }
+
+      // SVG <text> elements: make editable directly
+      if (tag === 'text' && htmlChild.textContent?.trim()) {
+        makeEditable(htmlChild, blockId, doc);
+        continue;
+      }
 
       const hasDirectText = Array.from(child.childNodes).some(
         (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim()

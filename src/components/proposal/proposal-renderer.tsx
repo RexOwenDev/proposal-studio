@@ -35,13 +35,17 @@ export default function ProposalRenderer({
     let mutationObserver: MutationObserver | null = null;
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
+    let syncTimer: ReturnType<typeof setTimeout>;
     function syncHeight() {
       if (!iframe) return;
-      const doc = iframe.contentDocument;
-      if (doc?.body) {
-        const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-        iframe.style.height = `${h + 20}px`;
-      }
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        const doc = iframe.contentDocument;
+        if (doc?.body) {
+          const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+          iframe.style.height = `${h + 20}px`;
+        }
+      }, 50);
     }
 
     function onLoad() {
@@ -149,6 +153,13 @@ function buildIframeHTML(
       transform: none !important;
       transition: none !important;
       animation: none !important;
+    }
+    /* Kill SVG declarative animations in edit mode */
+    animate, animateTransform, animateMotion, set {
+      display: none !important;
+    }
+    svg path, svg rect, svg circle, svg text, svg g {
+      opacity: 1 !important;
     }
     [data-block-id][data-hidden="true"] {
       opacity: 0.35 !important;
