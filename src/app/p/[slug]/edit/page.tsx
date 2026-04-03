@@ -7,7 +7,7 @@ import type { Proposal, ContentBlock, Comment } from '@/lib/types';
 import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
 import CommentPanel from '@/components/editor/comment-panel';
-import { useRealtimeComments, usePresence } from '@/lib/hooks/use-realtime';
+import { useRealtimeComments, useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
 import { getUserColor } from '@/lib/user-colors';
 import CommentTrigger from '@/components/editor/comment-trigger';
 
@@ -42,6 +42,7 @@ export default function EditPage({ params }: EditPageProps) {
 
   // Realtime: live comments + presence
   const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null);
+  const { liveBlockUpdates } = useRealtimeBlocks(proposal?.id || null);
   const { onlineUsers, typingUsers, setTyping } = usePresence(proposal?.id || null, userEmail);
 
   // Re-render highlights when new realtime comments arrive
@@ -51,6 +52,30 @@ export default function EditPage({ params }: EditPageProps) {
     if (!iframe?.contentDocument) return;
     renderHighlights(iframe.contentDocument, liveComments);
   }, [liveComments]);
+
+  // Surgically apply live block changes (visibility, html) from any user.
+  // We patch the iframe DOM directly — no full re-render — to avoid losing
+  // scroll position, contentEditable cursor state, and running scripts again.
+  useEffect(() => {
+    if (liveBlockUpdates.length === 0) return;
+    const latest = liveBlockUpdates[liveBlockUpdates.length - 1];
+
+    // Keep local blocks state in sync
+    setBlocks((prev) => prev.map((b) => (b.id === latest.id ? { ...b, ...latest } : b)));
+
+    // Patch the iframe DOM in place
+    const iframe = iframeRef.current;
+    if (iframe?.contentDocument) {
+      const el = iframe.contentDocument.querySelector(
+        `[data-block-id="${latest.id}"]`
+      ) as HTMLElement | null;
+      if (el) {
+        el.setAttribute('data-hidden', String(!latest.visible));
+        el.style.opacity = latest.visible ? '' : '0.35';
+        el.style.position = latest.visible ? '' : 'relative';
+      }
+    }
+  }, [liveBlockUpdates]);
 
   // Resolve async params
   useEffect(() => {
@@ -549,9 +574,21 @@ export default function EditPage({ params }: EditPageProps) {
 
       if (!res.ok) throw new Error('Failed to toggle visibility');
 
-      setBlocks((prev) =>
-        prev.map((b) => (b.id === blockId ? { ...b, visible } : b))
-      );
+      // Update sidebar state
+      setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, visible } : b)));
+
+      // Immediately reflect in the owner's own iframe (no re-render needed)
+      const iframe = iframeRef.current;
+      if (iframe?.contentDocument) {
+        const el = iframe.contentDocument.querySelector(
+          `[data-block-id="${blockId}"]`
+        ) as HTMLElement | null;
+        if (el) {
+          el.setAttribute('data-hidden', String(!visible));
+          el.style.opacity = visible ? '' : '0.35';
+          el.style.position = visible ? '' : 'relative';
+        }
+      }
     } catch {
       // Revert on error
     }

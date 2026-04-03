@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Comment } from '@/lib/types';
+import type { Comment, ContentBlock } from '@/lib/types';
 
 interface PresenceUser {
   email: string;
@@ -66,6 +66,43 @@ export function useRealtimeComments(proposalId: string | null) {
   );
 
   return { liveComments, mergeComments };
+}
+
+/**
+ * Subscribes to content_blocks UPDATE events for a proposal.
+ * Fires whenever any block's visible, current_html, or other fields change.
+ * Consumers can use this to surgically update the iframe DOM without a full re-render.
+ */
+export function useRealtimeBlocks(proposalId: string | null) {
+  const [liveBlockUpdates, setLiveBlockUpdates] = useState<ContentBlock[]>([]);
+
+  useEffect(() => {
+    if (!proposalId) return;
+
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`blocks:${proposalId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'content_blocks',
+          filter: `proposal_id=eq.${proposalId}`,
+        },
+        (payload) => {
+          setLiveBlockUpdates((prev) => [...prev, payload.new as ContentBlock]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [proposalId]);
+
+  return { liveBlockUpdates };
 }
 
 export function usePresence(proposalId: string | null, userEmail: string | null) {
