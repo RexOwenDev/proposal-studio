@@ -8,6 +8,7 @@ import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
 import CommentPanel from '@/components/editor/comment-panel';
 import { useRealtimeComments, usePresence } from '@/lib/hooks/use-realtime';
+import { getUserColor } from '@/lib/user-colors';
 import CommentTrigger from '@/components/editor/comment-trigger';
 
 interface EditPageProps {
@@ -39,8 +40,16 @@ export default function EditPage({ params }: EditPageProps) {
   const supabase = createClient();
 
   // Realtime: live comments + presence
-  const { mergeComments } = useRealtimeComments(proposal?.id || null);
+  const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null);
   const onlineUsers = usePresence(proposal?.id || null, userEmail);
+
+  // Re-render highlights when new realtime comments arrive
+  useEffect(() => {
+    if (liveComments.length === 0) return;
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+    renderHighlights(iframe.contentDocument, liveComments);
+  }, [liveComments]);
 
   // Resolve async params
   useEffect(() => {
@@ -568,23 +577,59 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
-  /** Render yellow highlights in the iframe for comments with selected_text */
+  async function handleAddReply(parentId: string, text: string) {
+    if (!proposal) return;
+
+    // Find the parent comment to get its proposal_id and block_id
+    const parent = comments.find((c) => c.id === parentId);
+    if (!parent) return;
+
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposal_id: proposal.id,
+          block_id: parent.block_id,
+          parent_id: parentId,
+          text,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to add reply');
+
+      const reply = await res.json();
+      setComments((prev) => [...prev, reply]);
+    } catch {
+      // Handle error
+    }
+  }
+
+  /** Render highlights in the iframe for comments with selected_text */
   function renderHighlights(doc: Document, commentsToHighlight: Comment[]) {
     commentsToHighlight.forEach((comment) => {
       if (!comment.selected_text || comment.resolved || !comment.block_id) return;
+      if (!comment.parent_id) {
+        // Only render highlights for top-level comments (not replies)
+        if (doc.querySelector(`[data-comment-id="${comment.id}"]`)) return;
 
-      // Don't duplicate highlights
-      if (doc.querySelector(`[data-comment-id="${comment.id}"]`)) return;
+        const blockEl = doc.querySelector(`[data-block-id="${comment.block_id}"]`);
+        if (!blockEl) return;
 
-      const blockEl = doc.querySelector(`[data-block-id="${comment.block_id}"]`);
-      if (!blockEl) return;
-
-      highlightTextInElement(blockEl as HTMLElement, comment.selected_text, comment.id, doc);
+        const color = getUserColor(comment.author_name || 'unknown');
+        highlightTextInElement(blockEl as HTMLElement, comment.selected_text, comment.id, color, doc);
+      }
     });
   }
 
-  /** Find and wrap matching text in a DOM element with a <mark> tag */
-  function highlightTextInElement(root: HTMLElement, searchText: string, commentId: string, doc: Document) {
+  /** Find and wrap matching text with a colored <mark> tag */
+  function highlightTextInElement(
+    root: HTMLElement,
+    searchText: string,
+    commentId: string,
+    color: { bg: string; border: string },
+    doc: Document,
+  ) {
     const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const textNodes: Text[] = [];
     let node: Node | null;
@@ -592,7 +637,7 @@ export default function EditPage({ params }: EditPageProps) {
       textNodes.push(node as Text);
     }
 
-    // Build full text and find the match
+    // Build full text from all text nodes
     let fullText = '';
     const nodeMap: { node: Text; start: number; end: number }[] = [];
     for (const tn of textNodes) {
@@ -601,41 +646,82 @@ export default function EditPage({ params }: EditPageProps) {
       nodeMap.push({ node: tn, start, end: fullText.length });
     }
 
-    const matchIndex = fullText.indexOf(searchText);
+    // Normalize whitespace for matching: collapse multiple spaces/newlines
+    const normalizedFull = fullText.replace(/\s+/g, ' ');
+    const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
+
+    // Try exact match first, then normalized match
+    let matchIndex = fullText.indexOf(searchText);
+    let useNormalized = false;
+
+    if (matchIndex === -1) {
+      matchIndex = normalizedFull.indexOf(normalizedSearch);
+      useNormalized = true;
+    }
+
+    // Try case-insensitive as last resort
+    if (matchIndex === -1) {
+      matchIndex = normalizedFull.toLowerCase().indexOf(normalizedSearch.toLowerCase());
+      useNormalized = true;
+    }
+
     if (matchIndex === -1) return;
 
-    const matchEnd = matchIndex + searchText.length;
+    // Map normalized index back to original text position
+    const effectiveText = useNormalized ? normalizedSearch : searchText;
+    const matchEnd = matchIndex + effectiveText.length;
 
-    // Find which text nodes the match spans
+    // Find the text node that contains this match
     for (const { node: tn, start, end } of nodeMap) {
       if (end <= matchIndex || start >= matchEnd) continue;
 
       const localStart = Math.max(0, matchIndex - start);
       const localEnd = Math.min(tn.textContent!.length, matchEnd - start);
 
-      const range = doc.createRange();
-      range.setStart(tn, localStart);
-      range.setEnd(tn, localEnd);
+      try {
+        const range = doc.createRange();
+        range.setStart(tn, localStart);
+        range.setEnd(tn, localEnd);
 
-      const mark = doc.createElement('mark');
-      mark.setAttribute('data-comment-id', commentId);
-      mark.style.background = 'rgba(255, 213, 79, 0.35)';
-      mark.style.borderBottom = '2px solid rgba(245, 166, 35, 0.6)';
-      mark.style.cursor = 'pointer';
-      mark.style.borderRadius = '2px';
-      mark.style.padding = '1px 0';
+        const mark = doc.createElement('mark');
+        mark.setAttribute('data-comment-id', commentId);
+        mark.className = 'ps-highlight';
+        mark.style.background = color.bg;
+        mark.style.borderBottom = `2px solid ${color.border}`;
+        mark.style.cursor = 'pointer';
+        mark.style.borderRadius = '2px';
+        mark.style.padding = '1px 0';
+        mark.style.transition = 'background 0.2s ease';
 
-      mark.addEventListener('click', () => {
-        // Scroll comment panel to this comment
-        setShowComments(true);
-        setTimeout(() => {
-          const commentEl = document.querySelector(`[data-comment-thread="${commentId}"]`);
-          commentEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      });
+        mark.addEventListener('click', () => {
+          setShowComments(true);
+          setTimeout(() => {
+            const commentEl = document.querySelector(`[data-comment-thread="${commentId}"]`);
+            commentEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        });
 
-      range.surroundContents(mark);
-      break; // Only highlight first occurrence
+        range.surroundContents(mark);
+      } catch {
+        // surroundContents fails if range spans multiple elements — skip silently
+      }
+      break;
+    }
+  }
+
+  /** Scroll the iframe to a specific highlight by comment ID */
+  function scrollToHighlight(commentId: string) {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+
+    const mark = iframe.contentDocument.querySelector(`[data-comment-id="${commentId}"]`);
+    if (mark) {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Flash effect
+      const el = mark as HTMLElement;
+      const originalBg = el.style.background;
+      el.style.background = 'rgba(255, 255, 0, 0.6)';
+      setTimeout(() => { el.style.background = originalBg; }, 1500);
     }
   }
 
@@ -711,7 +797,9 @@ export default function EditPage({ params }: EditPageProps) {
         blocks={blocks}
         onClose={() => setShowComments(false)}
         onAddComment={handleAddComment}
+        onAddReply={handleAddReply}
         onResolveComment={handleResolveComment}
+        onScrollToHighlight={scrollToHighlight}
       />
 
       {/* Floating comment trigger — appears when text is selected */}

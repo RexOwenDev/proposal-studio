@@ -63,8 +63,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { proposal_id, block_id, text, selected_text } = body as {
-    proposal_id?: string; block_id?: string; text?: string; selected_text?: string;
+  const { proposal_id, block_id, text, selected_text, parent_id } = body as {
+    proposal_id?: string; block_id?: string; text?: string; selected_text?: string; parent_id?: string;
   };
 
   if (!proposal_id || typeof proposal_id !== 'string' || !text || typeof text !== 'string') {
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
     .insert({
       proposal_id,
       block_id: block_id || null,
+      parent_id: parent_id || null,
       author_id: user.id,
       author_name: user.email?.split('@')[0] || 'Unknown',
       text: sanitizedText,

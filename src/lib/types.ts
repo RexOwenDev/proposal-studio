@@ -29,6 +29,7 @@ export interface Comment {
   id: string;
   proposal_id: string;
   block_id: string | null;
+  parent_id: string | null;
   author_id: string;
   author_name: string;
   text: string;
