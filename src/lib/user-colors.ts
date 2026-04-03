@@ -3,15 +3,17 @@
  * Same email always gets the same color across sessions.
  */
 
+// Higher opacity values (0.40–0.45) ensure highlights are clearly visible
+// on the light/warm-white backgrounds used by all Design Shopp proposals.
 const HIGHLIGHT_COLORS = [
-  { bg: 'rgba(255, 213, 79, 0.30)', border: 'rgba(245, 166, 35, 0.6)', name: 'amber' },
-  { bg: 'rgba(96, 165, 250, 0.25)', border: 'rgba(59, 130, 246, 0.6)', name: 'blue' },
-  { bg: 'rgba(52, 211, 153, 0.25)', border: 'rgba(16, 185, 129, 0.6)', name: 'emerald' },
-  { bg: 'rgba(251, 146, 60, 0.25)', border: 'rgba(249, 115, 22, 0.6)', name: 'orange' },
-  { bg: 'rgba(192, 132, 252, 0.25)', border: 'rgba(168, 85, 247, 0.6)', name: 'purple' },
-  { bg: 'rgba(248, 113, 113, 0.25)', border: 'rgba(239, 68, 68, 0.6)', name: 'red' },
-  { bg: 'rgba(45, 212, 191, 0.25)', border: 'rgba(20, 184, 166, 0.6)', name: 'teal' },
-  { bg: 'rgba(244, 114, 182, 0.25)', border: 'rgba(236, 72, 153, 0.6)', name: 'pink' },
+  { bg: 'rgba(255, 213, 79, 0.45)', border: 'rgba(245, 166, 35, 0.85)', name: 'amber' },
+  { bg: 'rgba(96, 165, 250, 0.40)', border: 'rgba(59, 130, 246, 0.85)', name: 'blue' },
+  { bg: 'rgba(52, 211, 153, 0.40)', border: 'rgba(16, 185, 129, 0.85)', name: 'emerald' },
+  { bg: 'rgba(251, 146, 60, 0.40)', border: 'rgba(249, 115, 22, 0.85)', name: 'orange' },
+  { bg: 'rgba(192, 132, 252, 0.40)', border: 'rgba(168, 85, 247, 0.85)', name: 'purple' },
+  { bg: 'rgba(248, 113, 113, 0.40)', border: 'rgba(239, 68, 68, 0.85)', name: 'red' },
+  { bg: 'rgba(45, 212, 191, 0.40)', border: 'rgba(20, 184, 166, 0.85)', name: 'teal' },
+  { bg: 'rgba(244, 114, 182, 0.40)', border: 'rgba(236, 72, 153, 0.85)', name: 'pink' },
 ];
 
 const COMMENT_BORDER_COLORS: Record<string, string> = {

@@ -634,7 +634,12 @@ export default function EditPage({ params }: EditPageProps) {
     });
   }
 
-  /** Find and wrap matching text with a colored <mark> tag */
+  /** Find and wrap matching text with a colored <mark> tag.
+   *
+   * Uses splitText() + replaceChild() per text node instead of
+   * Range.surroundContents() — works correctly across element boundaries
+   * (e.g. selections spanning <strong>, <em>, <span> siblings).
+   */
   function highlightTextInElement(
     root: HTMLElement,
     searchText: string,
@@ -662,38 +667,39 @@ export default function EditPage({ params }: EditPageProps) {
     const normalizedFull = fullText.replace(/\s+/g, ' ');
     const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
 
-    // Try exact match first, then normalized match
+    // Try exact match first, then normalized, then case-insensitive
     let matchIndex = fullText.indexOf(searchText);
-    let useNormalized = false;
+    let matchLength = searchText.length;
 
     if (matchIndex === -1) {
       matchIndex = normalizedFull.indexOf(normalizedSearch);
-      useNormalized = true;
+      matchLength = normalizedSearch.length;
     }
-
-    // Try case-insensitive as last resort
     if (matchIndex === -1) {
       matchIndex = normalizedFull.toLowerCase().indexOf(normalizedSearch.toLowerCase());
-      useNormalized = true;
+      matchLength = normalizedSearch.length;
     }
-
     if (matchIndex === -1) return;
 
-    // Map normalized index back to original text position
-    const effectiveText = useNormalized ? normalizedSearch : searchText;
-    const matchEnd = matchIndex + effectiveText.length;
+    const matchEnd = matchIndex + matchLength;
 
-    // Find the text node that contains this match
-    for (const { node: tn, start, end } of nodeMap) {
-      if (end <= matchIndex || start >= matchEnd) continue;
+    // Find ALL text nodes that overlap with [matchIndex, matchEnd]
+    const overlapping = nodeMap.filter(({ start, end }) => !(end <= matchIndex || start >= matchEnd));
 
-      const localStart = Math.max(0, matchIndex - start);
-      const localEnd = Math.min(tn.textContent!.length, matchEnd - start);
-
+    // Wrap each overlapping text node using splitText() — no surroundContents().
+    // This correctly handles selections that span multiple inline elements.
+    for (const { node: tn, start } of overlapping) {
       try {
-        const range = doc.createRange();
-        range.setStart(tn, localStart);
-        range.setEnd(tn, localEnd);
+        const localStart = Math.max(0, matchIndex - start);
+        const localEnd = Math.min((tn.textContent || '').length, matchEnd - start);
+
+        // Isolate the portion to highlight by splitting the text node
+        let nodeToWrap: Text = tn;
+        if (localStart > 0) nodeToWrap = tn.splitText(localStart);
+        const wrapLength = localEnd - localStart;
+        if (wrapLength < (nodeToWrap.textContent || '').length) nodeToWrap.splitText(wrapLength);
+
+        if (!nodeToWrap.parentNode) continue;
 
         const mark = doc.createElement('mark');
         mark.setAttribute('data-comment-id', commentId);
@@ -705,19 +711,27 @@ export default function EditPage({ params }: EditPageProps) {
         mark.style.padding = '1px 0';
         mark.style.transition = 'background 0.2s ease';
 
+        // Highlight click → open comment panel + scroll to comment thread
         mark.addEventListener('click', () => {
           setShowComments(true);
+          // Wait for panel animation before scrolling
           setTimeout(() => {
             const commentEl = document.querySelector(`[data-comment-thread="${commentId}"]`);
-            commentEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
+            if (commentEl) {
+              commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Brief flash on the comment card so it's obvious which one
+              (commentEl as HTMLElement).style.transition = 'box-shadow 0.2s ease';
+              (commentEl as HTMLElement).style.boxShadow = '0 0 0 2px rgba(251,191,36,0.8)';
+              setTimeout(() => { (commentEl as HTMLElement).style.boxShadow = ''; }, 1200);
+            }
+          }, 180);
         });
 
-        range.surroundContents(mark);
+        nodeToWrap.parentNode.replaceChild(mark, nodeToWrap);
+        mark.appendChild(nodeToWrap);
       } catch {
-        // surroundContents fails if range spans multiple elements — skip silently
+        // Skip on any DOM manipulation error
       }
-      break;
     }
   }
 
