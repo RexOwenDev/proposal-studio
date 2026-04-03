@@ -6,15 +6,11 @@ import { getUserCommentBorder } from '@/lib/user-colors';
 
 const REACTION_EMOJIS = ['👍', '✅', '❤️', '👀', '🎯'];
 
-// Team members for @mentions (derived from access-control allowlist)
-const TEAM_MEMBERS = [
-  'owen', 'jenie',
-];
-
 interface CommentPanelProps {
   open: boolean;
   comments: Comment[];
   blocks: ContentBlock[];
+  teamMembers: string[];
   onClose: () => void;
   onAddComment: (blockId: string | null, text: string, selectedText?: string) => void;
   onAddReply: (parentId: string, text: string) => void;
@@ -30,6 +26,7 @@ export default function CommentPanel({
   open,
   comments,
   blocks,
+  teamMembers,
   onClose,
   onAddReply,
   onResolveComment,
@@ -65,7 +62,7 @@ export default function CommentPanel({
     <>
       <div className="fixed inset-0 z-40 bg-black/30 animate-in" onClick={onClose} />
 
-      <div className="fixed top-14 right-0 bottom-0 z-50 w-96 bg-zinc-900 border-l border-zinc-800 overflow-y-auto flex flex-col animate-slide-right">
+      <div className="fixed top-14 right-0 bottom-0 z-50 w-full sm:w-96 bg-zinc-900 border-l border-zinc-800 overflow-y-auto flex flex-col animate-slide-right">
         <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
           <h3 className="text-white text-sm font-medium">
             Comments ({topLevel.length})
@@ -73,7 +70,6 @@ export default function CommentPanel({
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-sm transition-colors">&times;</button>
         </div>
 
-        {/* Typing indicator */}
         {typingUsers.length > 0 && (
           <div className="px-4 py-2 border-b border-zinc-800/50 bg-zinc-800/30">
             <p className="text-xs text-blue-400 animate-pulse">
@@ -82,7 +78,7 @@ export default function CommentPanel({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
           {highlightComments.map((comment) => (
             <CommentThread
               key={comment.id}
@@ -90,12 +86,13 @@ export default function CommentPanel({
               childrenMap={childrenMap}
               depth={0}
               blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
-              onResolve={() => onResolveComment(comment.id, true)}
+              onResolve={onResolveComment}
               onReply={onAddReply}
               onReaction={onReaction}
               onScrollToHighlight={() => onScrollToHighlight(comment.id)}
               onTypingChange={onTypingChange}
               currentUser={currentUser}
+              teamMembers={teamMembers}
             />
           ))}
 
@@ -113,11 +110,12 @@ export default function CommentPanel({
                   childrenMap={childrenMap}
                   depth={0}
                   blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
-                  onResolve={() => onResolveComment(comment.id, true)}
+                  onResolve={onResolveComment}
                   onReply={onAddReply}
                   onReaction={onReaction}
                   onTypingChange={onTypingChange}
                   currentUser={currentUser}
+                  teamMembers={teamMembers}
                 />
               ))}
             </>
@@ -165,10 +163,10 @@ export default function CommentPanel({
 }
 
 /** Render comment text with @mentions highlighted */
-function renderCommentText(text: string) {
+function renderCommentText(text: string, teamMembers: string[]) {
   const parts = text.split(/(@\w+)/g);
   return parts.map((part, i) => {
-    if (part.startsWith('@') && TEAM_MEMBERS.includes(part.slice(1).toLowerCase())) {
+    if (part.startsWith('@') && teamMembers.includes(part.slice(1).toLowerCase())) {
       return (
         <span key={i} className="text-blue-400 font-medium bg-blue-500/10 px-1 rounded">
           {part}
@@ -179,7 +177,7 @@ function renderCommentText(text: string) {
   });
 }
 
-/** Recursive comment thread */
+/** Recursive comment thread — reply + resolve at EVERY depth */
 function CommentThread({
   comment,
   childrenMap,
@@ -191,17 +189,19 @@ function CommentThread({
   onScrollToHighlight,
   onTypingChange,
   currentUser,
+  teamMembers,
 }: {
   comment: Comment;
   childrenMap: Map<string, Comment[]>;
   depth: number;
   blockLabel?: string;
-  onResolve: () => void;
+  onResolve: (id: string, resolved: boolean) => void;
   onReply: (parentId: string, text: string) => void;
   onReaction: (commentId: string, emoji: string) => void;
   onScrollToHighlight?: () => void;
   onTypingChange: (isTyping: boolean) => void;
   currentUser: string;
+  teamMembers: string[];
 }) {
   const [replyText, setReplyText] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -215,6 +215,10 @@ function CommentThread({
 
   const reactions = comment.reactions || {};
 
+  // Cap visual depth to prevent infinite shrinking
+  const visualDepth = Math.min(depth, 4);
+  const indent = depth > 0 ? `ml-${Math.min(depth * 3, 12)}` : '';
+
   function handleReply() {
     if (!replyText.trim()) return;
     onReply(comment.id, replyText.trim());
@@ -224,13 +228,10 @@ function CommentThread({
 
   const handleInputChange = useCallback((value: string) => {
     setReplyText(value);
-
-    // Typing indicator: broadcast that we're typing
     onTypingChange(true);
     clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => onTypingChange(false), 2000);
 
-    // @mention detection
     const lastWord = value.split(/\s/).pop() || '';
     setShowMentions(lastWord.startsWith('@') && lastWord.length > 1);
   }, [onTypingChange]);
@@ -243,7 +244,6 @@ function CommentThread({
     inputRef.current?.focus();
   }
 
-  // Auto-scroll to new replies
   const prevReplyCount = useRef(replies.length);
   useEffect(() => {
     if (replies.length > prevReplyCount.current) {
@@ -256,9 +256,13 @@ function CommentThread({
   return (
     <div
       data-comment-thread={comment.id}
-      className={`${depth === 0 ? `border-l-2 ${borderClass} rounded-md overflow-hidden` : ''} transition-all duration-200`}
+      className={`${depth === 0 ? `border-l-2 ${borderClass} rounded-md overflow-hidden` : indent} transition-all duration-200`}
     >
-      <div className={`${depth === 0 ? 'bg-zinc-800/40' : 'bg-zinc-800/20 border-t border-zinc-800/50'} p-3`}>
+      <div className={`p-2.5 sm:p-3 ${
+        depth === 0
+          ? 'bg-zinc-800/40'
+          : 'bg-zinc-800/20 border-l-2 border-zinc-700/50 rounded-r-md mt-1.5'
+      }`}>
         {/* Highlighted text — root only */}
         {depth === 0 && comment.selected_text && onScrollToHighlight && (
           <button
@@ -274,6 +278,7 @@ function CommentThread({
           </button>
         )}
 
+        {/* Author + date */}
         <div className="flex items-center justify-between mb-1">
           <span className={`font-medium ${depth === 0 ? 'text-xs text-zinc-400' : 'text-[11px] text-zinc-500'}`}>
             {comment.author_name}
@@ -283,11 +288,16 @@ function CommentThread({
           </span>
         </div>
 
-        <p className={`leading-relaxed ${depth === 0 ? 'text-sm text-zinc-200' : 'text-xs text-zinc-300'}`}>
-          {renderCommentText(comment.text)}
+        {/* Comment text with @mention rendering */}
+        <p className={`leading-relaxed ${
+          depth === 0 ? 'text-sm text-zinc-200' :
+          depth === 1 ? 'text-[13px] text-zinc-300' :
+          'text-xs text-zinc-400'
+        }`}>
+          {renderCommentText(comment.text, teamMembers)}
         </p>
 
-        {/* Reactions display */}
+        {/* Reactions */}
         {Object.keys(reactions).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {Object.entries(reactions).map(([emoji, users]) => (
@@ -308,7 +318,7 @@ function CommentThread({
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — Reply + Resolve at EVERY depth */}
         <div className="flex items-center gap-2 mt-2">
           <button
             onClick={() => setShowReactions(!showReactions)}
@@ -317,11 +327,12 @@ function CommentThread({
           >
             😊
           </button>
-          {depth === 0 && (
-            <button onClick={onResolve} className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors">
-              Resolve
-            </button>
-          )}
+          <button
+            onClick={() => onResolve(comment.id, true)}
+            className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+          >
+            Resolve
+          </button>
         </div>
 
         {/* Reaction picker */}
@@ -340,31 +351,27 @@ function CommentThread({
         )}
       </div>
 
-      {/* Recursive replies */}
-      {replies.length > 0 && (
-        <div className={depth > 0 ? 'ml-3 border-l border-zinc-800' : ''}>
-          {replies.map((reply) => (
-            <CommentThread
-              key={reply.id}
-              comment={reply}
-              childrenMap={childrenMap}
-              depth={depth + 1}
-              onResolve={onResolve}
-              onReply={onReply}
-              onReaction={onReaction}
-              onTypingChange={onTypingChange}
-              currentUser={currentUser}
-            />
-          ))}
-        </div>
-      )}
+      {/* Recursive replies with proper indentation */}
+      {replies.map((reply) => (
+        <CommentThread
+          key={reply.id}
+          comment={reply}
+          childrenMap={childrenMap}
+          depth={depth + 1}
+          onResolve={onResolve}
+          onReply={onReply}
+          onReaction={onReaction}
+          onTypingChange={onTypingChange}
+          currentUser={currentUser}
+          teamMembers={teamMembers}
+        />
+      ))}
 
       {/* Reply input with @mention autocomplete */}
-      <div className={`px-3 py-2 ${depth === 0 ? 'border-t border-zinc-700/30' : 'bg-zinc-800/10'} relative`}>
-        {/* @mention dropdown */}
+      <div className={`px-2.5 sm:px-3 py-2 relative ${depth === 0 ? 'border-t border-zinc-700/30' : `${indent} mt-1`}`}>
         {showMentions && (
-          <div className="absolute bottom-full left-3 mb-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 z-10 animate-scale-in">
-            {TEAM_MEMBERS.filter((m) => {
+          <div className="absolute bottom-full left-3 mb-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 z-10 animate-scale-in max-h-32 overflow-y-auto">
+            {teamMembers.filter((m) => {
               const lastWord = replyText.split(/\s/).pop() || '';
               return m.startsWith(lastWord.slice(1).toLowerCase());
             }).map((name) => (
@@ -388,13 +395,15 @@ function CommentThread({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && replyText.trim()) handleReply();
             }}
-            placeholder={depth === 0 ? 'Reply... (type @ to mention)' : 'Reply...'}
-            className="flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700/50 rounded text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-zinc-600 transition-all duration-150"
+            placeholder={depth === 0 ? 'Reply... (@ to mention)' : 'Reply...'}
+            className={`flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700/50 rounded text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-zinc-600 transition-all duration-150 ${
+              depth > 2 ? 'text-[11px]' : ''
+            }`}
           />
           {replyText.trim() && (
             <button
               onClick={handleReply}
-              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded transition-all duration-150 active:scale-95 animate-scale-in"
+              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded transition-all duration-150 active:scale-95 animate-scale-in shrink-0"
             >
               Send
             </button>

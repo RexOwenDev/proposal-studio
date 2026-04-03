@@ -36,6 +36,7 @@ export default function EditPage({ params }: EditPageProps) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const router = useRouter();
   const supabase = createClient();
 
@@ -68,6 +69,11 @@ export default function EditPage({ params }: EditPageProps) {
       }
       setUserEmail(user.email || null);
       setUserId(user.id);
+
+      // Fetch team members for @mentions
+      fetch('/api/team').then((r) => r.json()).then((data) => {
+        if (Array.isArray(data)) setTeamMembers(data);
+      });
 
       // Fetch proposal by slug
       const { data: proposalData } = await supabase
@@ -823,6 +829,7 @@ export default function EditPage({ params }: EditPageProps) {
         open={showComments}
         comments={mergeComments(comments)}
         blocks={blocks}
+        teamMembers={teamMembers}
         onClose={() => setShowComments(false)}
         onAddComment={handleAddComment}
         onAddReply={handleAddReply}
