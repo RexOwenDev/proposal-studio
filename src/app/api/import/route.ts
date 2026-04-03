@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     .single();
 
   if (proposalError) {
-    return NextResponse.json({ error: proposalError.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create proposal' }, { status: 500 });
   }
 
   // Create content blocks
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     .select();
 
   if (blocksError) {
-    return NextResponse.json({ error: blocksError.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create content blocks' }, { status: 500 });
   }
 
   return NextResponse.json({ proposal, blocks });

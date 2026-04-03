@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: true });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 
   return NextResponse.json(comments);
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 
   return NextResponse.json(comment);
@@ -117,7 +117,7 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 
   return NextResponse.json(comment);

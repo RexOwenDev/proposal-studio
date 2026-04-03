@@ -7,7 +7,7 @@
 - TypeScript strict mode
 - Tailwind CSS v4 for app UI — proposal CSS is preserved separately
 - Tiptap (headless rich text editor) for inline editing
-- Supabase (PostgreSQL + Auth + Storage) — project ref: vjtpykjmrukhypghzqnt
+- Supabase (PostgreSQL + Auth + Storage)
 - Deployed on Vercel
 
 ## Critical Rules
