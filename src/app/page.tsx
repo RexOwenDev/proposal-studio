@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import type { Proposal } from '@/lib/types';
 import DashboardHeader from '@/components/dashboard/dashboard-header';
 import ProposalCard from '@/components/dashboard/proposal-card';
+import LiveRefresh from '@/components/dashboard/live-refresh';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -20,6 +21,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
+      <LiveRefresh />
       <DashboardHeader userEmail={user.email || 'Unknown'} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">

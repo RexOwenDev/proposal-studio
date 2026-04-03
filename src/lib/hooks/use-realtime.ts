@@ -87,20 +87,33 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>();
-        const users: PresenceUser[] = [];
-        const typing: string[] = [];
+
+        // DEDUPLICATE: each email should appear only once.
+        // Supabase presence can have multiple entries per key (tabs, reconnects).
+        // Take the latest entry per unique email.
+        const uniqueUsers = new Map<string, PresenceUser>();
+        const typingSet = new Set<string>();
 
         Object.values(state).forEach((presences) => {
           presences.forEach((p) => {
-            users.push({ email: p.email, joinedAt: p.joinedAt, isTyping: p.isTyping });
+            // Keep the most recent entry per email
+            const existing = uniqueUsers.get(p.email);
+            if (!existing || p.joinedAt > existing.joinedAt) {
+              uniqueUsers.set(p.email, {
+                email: p.email,
+                joinedAt: p.joinedAt,
+                isTyping: p.isTyping,
+              });
+            }
+            // If ANY entry for this user is typing, they're typing
             if (p.isTyping && p.email !== userEmail) {
-              typing.push(p.email);
+              typingSet.add(p.email);
             }
           });
         });
 
-        setOnlineUsers(users);
-        setTypingUsers(typing);
+        setOnlineUsers(Array.from(uniqueUsers.values()));
+        setTypingUsers(Array.from(typingSet));
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -118,7 +131,6 @@ export function usePresence(proposalId: string | null, userEmail: string | null)
     };
   }, [proposalId, userEmail]);
 
-  // Broadcast typing state
   const setTyping = useCallback(async (isTyping: boolean) => {
     if (!channelRef.current || !userEmail) return;
     await channelRef.current.track({

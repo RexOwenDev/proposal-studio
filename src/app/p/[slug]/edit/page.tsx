@@ -263,40 +263,46 @@ export default function EditPage({ params }: EditPageProps) {
         setupEditableElements(doc);
       }
 
-      // Text selection listener — ALL users can highlight text for comments
-      doc.addEventListener('mouseup', () => {
-        const sel = doc.getSelection();
-        if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-          setSelectionData(null);
-          return;
-        }
+      // Text selection listener — works on desktop (mouseup) AND touch devices (touchend)
+      function handleTextSelection() {
+        // Small delay for touch devices — selection isn't ready immediately on touchend
+        setTimeout(() => {
+          if (!doc) return;
+          const sel = doc.getSelection();
+          if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+            setSelectionData(null);
+            return;
+          }
 
-        const text = sel.toString().trim().slice(0, 500);
-        const range = sel.getRangeAt(0);
+          const text = sel.toString().trim().slice(0, 500);
+          const range = sel.getRangeAt(0);
 
-        // Find which block this selection is in
-        const startEl = range.startContainer.nodeType === Node.TEXT_NODE
-          ? range.startContainer.parentElement
-          : range.startContainer as HTMLElement;
-        const blockEl = startEl?.closest('[data-block-id]');
-        if (!blockEl) return;
+          const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+            ? range.startContainer.parentElement
+            : range.startContainer as HTMLElement;
+          const blockEl = startEl?.closest('[data-block-id]');
+          if (!blockEl) return;
 
-        const blockId = blockEl.getAttribute('data-block-id')!;
-        const rect = range.getBoundingClientRect();
+          const blockId = blockEl.getAttribute('data-block-id')!;
+          const rect = range.getBoundingClientRect();
+          if (!iframe) return;
+          const iframeRect = iframe.getBoundingClientRect();
 
-        // Offset by iframe position
-        const iframeRect = iframe.getBoundingClientRect();
-        setSelectionData({
-          text,
-          blockId,
-          rect: {
-            top: rect.top + iframeRect.top,
-            right: rect.right + iframeRect.left,
-            bottom: rect.bottom + iframeRect.top,
-            left: rect.left + iframeRect.left,
-          },
-        });
-      });
+          setSelectionData({
+            text,
+            blockId,
+            rect: {
+              top: rect.top + iframeRect.top,
+              right: rect.right + iframeRect.left,
+              bottom: rect.bottom + iframeRect.top,
+              left: rect.left + iframeRect.left,
+            },
+          });
+        }, 10);
+      }
+
+      doc.addEventListener('mouseup', handleTextSelection);
+      doc.addEventListener('touchend', handleTextSelection);
 
       // Render existing highlights
       renderHighlights(doc, mergeComments(comments));
