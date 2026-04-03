@@ -183,12 +183,23 @@ export default function EditPage({ params }: EditPageProps) {
   <style>
     ${css}
 
-    /* Force all content visible in editor — no animations, no flashing */
+    /* ── EDITOR: Snap all animations to their final frame instantly ─────────
+       Dark-theme and animation-heavy HTML files start elements at opacity:0
+       and rely on CSS @keyframes to reveal them. Killing animations (none)
+       leaves them invisible. Instead we snap every animation to completion
+       in 0.001ms — fill-mode:forwards then holds the final (visible) state.
+       animation-iteration-count:1 prevents infinite spinners from looping. */
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      transition-delay: 0ms !important;
+    }
+    /* Belt-and-suspenders for class-named reveal elements */
     .reveal, [class*="reveal"], [class*="animate"], [class*="fade"] {
       opacity: 1 !important;
       transform: none !important;
-      transition: none !important;
-      animation: none !important;
     }
     /* Kill SVG declarative animations in edit mode */
     animate, animateTransform, animateMotion, set {
@@ -227,6 +238,29 @@ export default function EditPage({ params }: EditPageProps) {
 </head>
 <body>
   ${bodyParts.join('\n')}
+  <script>
+  /* Editor reveal safety net — mops up any element still at opacity:0
+     after the animation-snap approach above (e.g. inline style opacity:0
+     without a forwards fill-mode animation). Runs after DOMContentLoaded. */
+  (function () {
+    function forceRevealHidden() {
+      document.querySelectorAll('body *').forEach(function (el) {
+        var tag = el.tagName.toLowerCase();
+        if (tag === 'script' || tag === 'style' || tag === 'link' || tag === 'meta') return;
+        var cs = window.getComputedStyle(el);
+        if (parseFloat(cs.opacity) < 0.05) {
+          el.style.setProperty('opacity', '1', 'important');
+          el.style.setProperty('transform', 'none', 'important');
+        }
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', forceRevealHidden);
+    } else {
+      forceRevealHidden();
+    }
+  })();
+  </script>
   ${wrappedScripts}
 </body>
 </html>`;
