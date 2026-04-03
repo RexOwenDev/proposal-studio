@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Comment, ContentBlock } from '@/lib/types';
 import { getUserCommentBorder } from '@/lib/user-colors';
 
@@ -29,19 +29,18 @@ export default function CommentPanel({
 
   if (!open) return null;
 
-  // Separate top-level comments from replies
+  // Build a tree from flat comments
   const topLevel = comments.filter((c) => !c.parent_id && !c.resolved);
   const resolved = comments.filter((c) => !c.parent_id && c.resolved);
 
-  // Group replies by parent_id
-  const repliesMap = new Map<string, Comment[]>();
+  // Map all replies by parent_id (supports infinite depth)
+  const childrenMap = new Map<string, Comment[]>();
   comments.filter((c) => c.parent_id).forEach((c) => {
-    const list = repliesMap.get(c.parent_id!) || [];
+    const list = childrenMap.get(c.parent_id!) || [];
     list.push(c);
-    repliesMap.set(c.parent_id!, list);
+    childrenMap.set(c.parent_id!, list);
   });
 
-  // Sort: highlight comments first, then general
   const highlightComments = topLevel.filter((c) => c.selected_text);
   const generalComments = topLevel.filter((c) => !c.selected_text);
 
@@ -63,20 +62,19 @@ export default function CommentPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Highlight comments */}
           {highlightComments.map((comment) => (
             <CommentThread
               key={comment.id}
               comment={comment}
-              replies={repliesMap.get(comment.id) || []}
+              childrenMap={childrenMap}
+              depth={0}
               blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
               onResolve={() => onResolveComment(comment.id, true)}
-              onReply={(text) => onAddReply(comment.id, text)}
+              onReply={onAddReply}
               onScrollToHighlight={() => onScrollToHighlight(comment.id)}
             />
           ))}
 
-          {/* General comments */}
           {generalComments.length > 0 && (
             <>
               {highlightComments.length > 0 && (
@@ -88,10 +86,11 @@ export default function CommentPanel({
                 <CommentThread
                   key={comment.id}
                   comment={comment}
-                  replies={repliesMap.get(comment.id) || []}
+                  childrenMap={childrenMap}
+                  depth={0}
                   blockLabel={comment.block_id ? getBlockLabel(comment.block_id) : undefined}
                   onResolve={() => onResolveComment(comment.id, true)}
-                  onReply={(text) => onAddReply(comment.id, text)}
+                  onReply={onAddReply}
                 />
               ))}
             </>
@@ -104,7 +103,6 @@ export default function CommentPanel({
             </div>
           )}
 
-          {/* Resolved */}
           {resolved.length > 0 && (
             <div className="border-t border-zinc-800 pt-3 mt-3">
               <button
@@ -139,41 +137,56 @@ export default function CommentPanel({
   );
 }
 
-/** A single comment thread with replies */
+/** Recursive comment thread — supports infinite nesting */
 function CommentThread({
   comment,
-  replies,
+  childrenMap,
+  depth,
   blockLabel,
   onResolve,
   onReply,
   onScrollToHighlight,
 }: {
   comment: Comment;
-  replies: Comment[];
+  childrenMap: Map<string, Comment[]>;
+  depth: number;
   blockLabel?: string;
   onResolve: () => void;
-  onReply: (text: string) => void;
+  onReply: (parentId: string, text: string) => void;
   onScrollToHighlight?: () => void;
 }) {
   const [replyText, setReplyText] = useState('');
-  const [showReplyInput, setShowReplyInput] = useState(false);
-  const borderClass = getUserCommentBorder(comment.author_name || 'unknown');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const replies = childrenMap.get(comment.id) || [];
+  const borderClass = depth === 0
+    ? getUserCommentBorder(comment.author_name || 'unknown')
+    : 'border-l-zinc-700';
 
   function handleReply() {
     if (!replyText.trim()) return;
-    onReply(replyText.trim());
+    onReply(comment.id, replyText.trim());
     setReplyText('');
-    setShowReplyInput(false);
   }
+
+  // Auto-scroll to new replies
+  const prevReplyCount = useRef(replies.length);
+  useEffect(() => {
+    if (replies.length > prevReplyCount.current) {
+      // New reply appeared — scroll it into view
+      const el = document.querySelector(`[data-comment-thread="${replies[replies.length - 1].id}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    prevReplyCount.current = replies.length;
+  }, [replies.length, replies]);
 
   return (
     <div
       data-comment-thread={comment.id}
-      className={`border-l-2 ${borderClass} rounded-md overflow-hidden transition-all duration-200 hover:shadow-md`}
+      className={`${depth === 0 ? `border-l-2 ${borderClass} rounded-md overflow-hidden` : ''} transition-all duration-200`}
     >
-      <div className="bg-zinc-800/40 p-3">
-        {/* Highlighted text context */}
-        {comment.selected_text && (
+      <div className={`${depth === 0 ? 'bg-zinc-800/40' : 'bg-zinc-800/20 border-t border-zinc-800/50'} p-3`}>
+        {/* Highlighted text context — only on root comment */}
+        {depth === 0 && comment.selected_text && onScrollToHighlight && (
           <button
             onClick={onScrollToHighlight}
             className="w-full text-left mb-2 pb-2 border-b border-zinc-700/50 group/highlight"
@@ -189,71 +202,69 @@ function CommentThread({
 
         {/* Author + date */}
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-zinc-400 font-medium">{comment.author_name}</span>
-          <span className="text-[10px] text-zinc-600">{new Date(comment.created_at).toLocaleDateString()}</span>
+          <span className={`font-medium ${depth === 0 ? 'text-xs text-zinc-400' : 'text-[11px] text-zinc-500'}`}>
+            {comment.author_name}
+          </span>
+          <span className="text-[10px] text-zinc-600">
+            {new Date(comment.created_at).toLocaleDateString()}
+          </span>
         </div>
 
         {/* Comment text */}
-        <p className="text-sm text-zinc-200 leading-relaxed">{comment.text}</p>
+        <p className={`leading-relaxed ${depth === 0 ? 'text-sm text-zinc-200' : 'text-xs text-zinc-300'}`}>
+          {comment.text}
+        </p>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3 mt-2">
-          <button
-            onClick={() => setShowReplyInput(!showReplyInput)}
-            className="text-xs text-zinc-500 hover:text-blue-400 transition-colors"
-          >
-            Reply
-          </button>
-          <button
-            onClick={onResolve}
-            className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
-          >
-            Resolve
-          </button>
-        </div>
+        {/* Actions — only on root */}
+        {depth === 0 && (
+          <div className="flex items-center gap-3 mt-2">
+            <button onClick={onResolve} className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors">
+              Resolve
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Replies */}
+      {/* Recursive replies */}
       {replies.length > 0 && (
-        <div className="border-t border-zinc-700/30">
+        <div className={depth > 0 ? 'ml-3 border-l border-zinc-800' : ''}>
           {replies.map((reply) => (
-            <div key={reply.id} className="px-3 py-2 bg-zinc-800/20 border-t border-zinc-800/50">
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[11px] text-zinc-400 font-medium">{reply.author_name}</span>
-                <span className="text-[10px] text-zinc-600">{new Date(reply.created_at).toLocaleDateString()}</span>
-              </div>
-              <p className="text-xs text-zinc-300 leading-relaxed">{reply.text}</p>
-            </div>
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              childrenMap={childrenMap}
+              depth={depth + 1}
+              onResolve={onResolve}
+              onReply={onReply}
+            />
           ))}
         </div>
       )}
 
-      {/* Reply input */}
-      {showReplyInput && (
-        <div className="px-3 py-2 bg-zinc-800/20 border-t border-zinc-700/30">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleReply();
-                if (e.key === 'Escape') setShowReplyInput(false);
-              }}
-              placeholder="Reply..."
-              autoFocus
-              className="flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-            />
+      {/* Always-visible reply input at the bottom of the thread */}
+      <div className={`px-3 py-2 ${depth === 0 ? 'bg-zinc-850/30 border-t border-zinc-700/30' : 'bg-zinc-800/10'}`}>
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && replyText.trim()) handleReply();
+            }}
+            placeholder={depth === 0 ? 'Reply to this thread...' : 'Reply...'}
+            className="flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700/50 rounded text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-zinc-600 transition-all duration-150"
+          />
+          {replyText.trim() && (
             <button
               onClick={handleReply}
-              disabled={!replyText.trim()}
-              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium rounded transition-colors active:scale-95"
+              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded transition-all duration-150 active:scale-95 animate-scale-in"
             >
               Send
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
