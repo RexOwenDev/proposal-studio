@@ -90,16 +90,23 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
-    // Surface AI errors distinctly so the client can show a useful message
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    const isAiError = message.toLowerCase().includes('anthropic') ||
-      message.toLowerCase().includes('rate limit') ||
-      message.toLowerCase().includes('api');
-
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
     console.error('[generate] Error:', message);
+    if (stack) console.error('[generate] Stack:', stack);
+
+    const isRateLimit = message.toLowerCase().includes('rate limit') || message.includes('429');
+    const isAiError = message.toLowerCase().includes('anthropic') ||
+      message.toLowerCase().includes('api') || isRateLimit;
 
     return NextResponse.json(
-      { error: isAiError ? 'AI generation failed. Please try again.' : 'Server error' },
+      {
+        error: isRateLimit
+          ? 'AI rate limit reached. Please wait a moment and try again.'
+          : isAiError
+            ? 'AI generation failed. Please try again.'
+            : 'Server error',
+      },
       { status: 500 }
     );
   }

@@ -4,13 +4,18 @@
  * generateText + Output.object({ schema }) replaces the removed generateObject.
  * Zod schemas act as both TypeScript type sources AND structured output schemas.
  *
- * Auth: Direct Anthropic provider — set the provider key in Vercel dashboard env vars.
+ * Model: claude-sonnet-4-6 via direct Anthropic provider.
+ * Base URL is hardcoded to prevent ANTHROPIC_BASE_URL env var from stripping /v1.
  */
 
-import { generateText, Output } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { generateText, jsonSchema } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { ClientProposalData, InternalDocData } from '@/lib/templates/types';
+
+// Hardcode base URL so system-level ANTHROPIC_BASE_URL (e.g. from Claude Code
+// AI Gateway routing) cannot strip the /v1 path and cause 404 errors.
+const anthropic = createAnthropic({ baseURL: 'https://api.anthropic.com/v1' });
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -67,35 +72,35 @@ export const ClientProposalSchema = z.object({
   hero: z.object({
     headline: z.string().describe('8-15 word headline restating the client\'s pain as a transformation statement.'),
     subtext: z.string().describe('1-2 sentences of empathetic context in client language.'),
-    stats: z.array(HeroStatSchema).min(2).max(3).describe('2-3 before/after metric pairs.'),
+    stats: z.array(HeroStatSchema).describe('2-3 before/after metric pairs.'),
   }),
   solution: z.object({
     title: z.string().describe('Solution section headline, 4-8 words.'),
     overview: z.string().describe('1-2 sentence overview of what the solution is.'),
-    capabilities: z.array(CapabilityCardSchema).min(2).max(6),
+    capabilities: z.array(CapabilityCardSchema).describe('2-6 capability cards.'),
   }),
   flow: z.object({
-    steps: z.array(FlowStepSchema).min(3).max(8),
+    steps: z.array(FlowStepSchema).describe('3-8 workflow steps.'),
     gate: z.string().optional().describe('Optional decision gate label. Omit if no decision point.'),
     branches: z.object({
       yes: FlowBranchSchema,
       no: FlowBranchSchema,
     }).optional().describe('Optional yes/no branches after the gate. Omit if no gate.'),
   }),
-  phases: z.array(PhaseSchema).min(2).max(5).describe('IMPORTANT: phases[] and timeline.phases[] must have the SAME length and order.'),
+  phases: z.array(PhaseSchema).describe('2-5 project phases. IMPORTANT: phases[] and timeline.phases[] must have the SAME length and order.'),
   timeline: z.object({
     totalDuration: z.string().describe('Total project duration, e.g. "6 weeks".'),
     phases: z.array(TimelinePhaseSchema).describe('MUST match phases[] in length and order.'),
   }),
   investment: z.object({
     total: z.string().describe('Total price, e.g. "$8,500".'),
-    includes: z.array(z.string()).min(3).max(8),
+    includes: z.array(z.string()).describe('3-8 line items included in the price.'),
     note: z.string().optional().describe('Payment terms or scope disclaimer. Omit if not needed.'),
   }),
   nextSteps: z.array(z.object({
     action: z.string().describe('Short action item.'),
     detail: z.string().describe('1 sentence with more detail.'),
-  })).min(2).max(4),
+  })).describe('2-4 next steps.'),
   cta: z.object({
     label: z.string().describe('CTA button text, e.g. "Book a Call".'),
     href: z.string().describe('URL for the CTA. Use "#" if none provided.'),
@@ -122,7 +127,7 @@ export const InternalDocSchema = z.object({
     title: z.string().describe('Step name, 2-5 words.'),
     desc: z.string().describe('1-2 sentence description.'),
     details: z.array(z.string()).describe('2-5 sub-bullet detail points.'),
-  })).min(2).max(10),
+  })).describe('2-10 workflow steps.'),
   tech: z.array(z.object({
     tool: z.string(),
     purpose: z.string(),
@@ -187,15 +192,23 @@ export async function generateClientProposal(
     ? `\n\nAdditional context:\n${contextLines.join('\n')}`
     : '';
 
-  const { output } = await generateText({
+  const { toolCalls } = await generateText({
     model: anthropic('claude-sonnet-4-6'),
     system: CLIENT_PROPOSAL_SYSTEM,
     prompt: `Here are the sales rep's draft notes for a client proposal:\n\n${draftText}${contextNote}`,
-    output: Output.object({ schema: ClientProposalSchema }),
+    tools: {
+      extract_proposal: {
+        description: 'Extract structured proposal data from the draft notes to populate the client proposal template.',
+        inputSchema: jsonSchema(z.toJSONSchema(ClientProposalSchema) as Record<string, unknown>),
+      },
+    },
+    toolChoice: { type: 'tool', toolName: 'extract_proposal' },
     abortSignal: AbortSignal.timeout(55_000),
   });
 
-  return output as ClientProposalData;
+  const input = toolCalls[0]?.input;
+  if (!input) throw new Error('No proposal data returned from AI');
+  return input as unknown as ClientProposalData;
 }
 
 export async function generateInternalDoc(
@@ -210,13 +223,21 @@ export async function generateInternalDoc(
     ? `\n\nAdditional context:\n${contextLines.join('\n')}`
     : '';
 
-  const { output } = await generateText({
+  const { toolCalls } = await generateText({
     model: anthropic('claude-sonnet-4-6'),
     system: INTERNAL_DOC_SYSTEM,
     prompt: `Here are the team notes for an internal automation doc:\n\n${draftText}${contextNote}`,
-    output: Output.object({ schema: InternalDocSchema }),
+    tools: {
+      extract_doc: {
+        description: 'Extract structured project documentation from the team notes to populate the internal doc template.',
+        inputSchema: jsonSchema(z.toJSONSchema(InternalDocSchema) as Record<string, unknown>),
+      },
+    },
+    toolChoice: { type: 'tool', toolName: 'extract_doc' },
     abortSignal: AbortSignal.timeout(55_000),
   });
 
-  return output as InternalDocData;
+  const input = toolCalls[0]?.input;
+  if (!input) throw new Error('No doc data returned from AI');
+  return input as unknown as InternalDocData;
 }
