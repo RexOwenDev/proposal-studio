@@ -158,7 +158,11 @@ export default function EditPage({ params }: EditPageProps) {
   // The effect that keeps saveBlockRef.current in sync is placed after saveBlockContent below.
   const saveBlockRef = useRef<((blockId: string, doc: Document) => void) | null>(null);
   const editingBlockIdRef = useRef<string | null>(null);
+  // Keep a ref to the latest blocks so saveBlockContent always reads current updated_at
+  // (useCallback with [] would capture a stale snapshot causing false 409 conflicts)
+  const blocksRef = useRef<ContentBlock[]>([]);
   useEffect(() => { editingBlockIdRef.current = editingBlockId; }, [editingBlockId]);
+  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
 
   // H4: Detect media elements in proposal blocks and show a one-time warning
   useEffect(() => {
@@ -591,7 +595,9 @@ export default function EditPage({ params }: EditPageProps) {
 
         try {
           // Include expected_updated_at for conflict detection
-          const block = blocks.find((b) => b.id === blockId);
+          // Use blocksRef (not the closed-over 'blocks') so we always read the
+          // latest updated_at after previous saves — avoids false 409 conflicts.
+          const block = blocksRef.current.find((b) => b.id === blockId);
           const res = await fetch(`/api/blocks/${blockId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -1063,6 +1069,7 @@ export default function EditPage({ params }: EditPageProps) {
         onToggleComments={() => setShowComments(!showComments)}
         onPublish={handlePublish}
         onSetStatus={handleSetStatus}
+        onExportPDF={() => iframeRef.current?.contentWindow?.print()}
         onBack={() => router.push('/')}
         slug={proposal.slug}
         proposalId={proposal.id}

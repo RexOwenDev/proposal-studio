@@ -15,6 +15,7 @@ interface EditorToolbarProps {
   onToggleComments: () => void;
   onPublish: (publish: boolean) => void;
   onSetStatus?: (status: string) => void; // T2: advance workflow status
+  onExportPDF?: () => void;               // Print iframe content as PDF
   onBack: () => void;
   slug: string;
   proposalId?: string; // T1: for export link
@@ -45,6 +46,7 @@ export default function EditorToolbar({
   onToggleComments,
   onPublish,
   onSetStatus,
+  onExportPDF,
   onBack,
   slug,
   proposalId,
@@ -151,7 +153,7 @@ export default function EditorToolbar({
             )}
           </span>
 
-          {/* T1: Export to static HTML */}
+          {/* T1: Export — HTML download + PDF print */}
           {proposalId && (
             <a
               href={`/api/proposals/${proposalId}/export`}
@@ -159,8 +161,17 @@ export default function EditorToolbar({
               className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
               title="Download as static HTML file"
             >
-              Export
+              HTML
             </a>
+          )}
+          {onExportPDF && (
+            <button
+              onClick={onExportPDF}
+              className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
+              title="Print / Save as PDF"
+            >
+              PDF
+            </button>
           )}
 
           {isPublished && (
@@ -177,7 +188,7 @@ export default function EditorToolbar({
             <button
               onClick={() => onSetStatus(nextStatus[status].value)}
               disabled={isPublishing}
-              className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium text-zinc-200 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex px-3 py-1.5 text-xs font-medium text-zinc-200 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {nextStatus[status].label}
             </button>

@@ -182,10 +182,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  // Fetch the comment together with its proposal owner for auth decisions
+  // Two-step auth: fetch comment, then proposal owner separately (same pattern
+  // as DELETE — avoids !inner join silently returning null under RLS).
   const { data: existing } = await supabase
     .from('comments')
-    .select('id, author_id, proposal_id, proposals!inner(created_by)')
+    .select('id, author_id, proposal_id')
     .eq('id', id)
     .single();
 
@@ -193,7 +194,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Comment not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
-  const proposalOwner = (existing.proposals as unknown as { created_by: string }).created_by;
+  const { data: existingProposal } = await supabase
+    .from('proposals')
+    .select('created_by')
+    .eq('id', existing.proposal_id)
+    .single();
+
+  const proposalOwner = existingProposal?.created_by;
 
   // ── Resolve toggle ────────────────────────────────────────────────────────
   // S2: Only the comment author OR the proposal owner can resolve/unresolve.
@@ -260,10 +267,12 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Valid comment id is required' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Fetch the comment with its proposal's owner so we can authorize
+  // Two-step auth: fetch comment, then fetch its proposal owner separately.
+  // Avoids an !inner join that can silently return null when RLS restricts
+  // the joined table — which would make every delete appear as 404.
   const { data: comment } = await supabase
     .from('comments')
-    .select('id, author_id, proposal_id, proposals!inner(created_by)')
+    .select('id, author_id, proposal_id')
     .eq('id', id)
     .single();
 
@@ -271,8 +280,13 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Comment not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
-  // Allow deletion if: the user is the comment author OR the proposal owner
-  const proposalOwner = (comment.proposals as unknown as { created_by: string }).created_by;
+  const { data: proposal } = await supabase
+    .from('proposals')
+    .select('created_by')
+    .eq('id', comment.proposal_id)
+    .single();
+
+  const proposalOwner = proposal?.created_by;
   const canDelete = comment.author_id === user.id || proposalOwner === user.id;
 
   if (!canDelete) {
