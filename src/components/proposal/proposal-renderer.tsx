@@ -230,7 +230,7 @@ function buildIframeHTML(
   ${headLinks}
   <style>${css}${editStyles}</style>
 </head>
-<body>
+<body${mode === 'edit' ? ' data-edit-mode="true"' : ''}>
   ${bodyParts.join('\n')}
   ${wrappedScripts}
 </body>
