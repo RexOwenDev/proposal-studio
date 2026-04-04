@@ -269,9 +269,9 @@ img { max-width: 100%; display: block; }
 .ps-investment,
 .ps-next-steps,
 .ps-footer {
-  padding: 80px 24px;
+  padding: 56px 20px;
 }
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .ps-hero,
   .ps-solution,
   .ps-flow,
@@ -280,11 +280,23 @@ img { max-width: 100%; display: block; }
   .ps-investment,
   .ps-next-steps,
   .ps-footer {
-    padding: 96px 48px;
+    padding: 72px 36px;
+  }
+}
+@media (min-width: 960px) {
+  .ps-hero,
+  .ps-solution,
+  .ps-flow,
+  .ps-phases,
+  .ps-timeline,
+  .ps-investment,
+  .ps-next-steps,
+  .ps-footer {
+    padding: 80px 48px;
   }
 }
 .ps-inner {
-  max-width: 900px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
@@ -301,7 +313,7 @@ img { max-width: 100%; display: block; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 48px;
+  padding-bottom: 32px;
 }
 .ps-logo-wordmark {
   font-family: 'Playfair Display', Georgia, serif;
@@ -332,26 +344,26 @@ img { max-width: 100%; display: block; }
 .ps-hero .ps-overline { color: var(--purple); opacity: 1; }
 .ps-hero-headline {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-size: clamp(1.85rem, 4vw, 3rem);
   font-weight: 900;
-  line-height: 1.08;
+  line-height: 1.1;
   color: var(--text);
-  max-width: 780px;
+  max-width: 680px;
   margin-bottom: 1.25rem;
 }
 .ps-hero-subtext {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--muted);
-  max-width: 560px;
+  max-width: 540px;
   line-height: 1.65;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
 }
 .ps-stats-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 24px 32px;
   margin-top: auto;
-  padding-top: 2.5rem;
+  padding-top: 2rem;
   border-top: 1px solid var(--border-light);
 }
 .ps-stat {
@@ -440,6 +452,26 @@ img { max-width: 100%; display: block; }
   gap: 0;
   margin-bottom: 2rem;
 }
+@media (max-width: 540px) {
+  .ps-flow-pipeline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ps-flow-connector { display: none; }
+  .ps-flow-step {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    width: 100%;
+    flex: none !important;
+    gap: 12px;
+    padding: 0 !important;
+  }
+  .ps-step-node { margin-bottom: 0 !important; flex-shrink: 0; }
+  .ps-step-title, .ps-step-time { text-align: left; }
+  .ps-step-desc { margin-top: 4px; }
+}
 .ps-flow-step {
   display: flex;
   flex-direction: column;
@@ -525,6 +557,9 @@ img { max-width: 100%; display: block; }
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 8px;
+}
+@media (max-width: 540px) {
+  .ps-flow-branches { grid-template-columns: 1fr; }
 }
 .ps-branch {
   border: 1px solid var(--border-light);
@@ -654,10 +689,10 @@ img { max-width: 100%; display: block; }
 .ps-investment .ps-section-title { color: var(--text); text-align: center; }
 .ps-price-tag {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: clamp(3rem, 7vw, 5rem);
+  font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 900;
   color: var(--text);
-  margin: 1.5rem 0 2rem;
+  margin: 1.25rem 0 1.75rem;
   letter-spacing: -0.02em;
 }
 .ps-price-accent { color: var(--purple); }
@@ -709,11 +744,11 @@ img { max-width: 100%; display: block; }
 .ps-footer {
   background: var(--off-white);
   color: var(--subtle);
-  padding: 48px 24px;
+  padding: 36px 20px;
   border-top: 1px solid var(--border-light);
 }
 .ps-footer-inner {
-  max-width: 900px; margin: 0 auto;
+  max-width: 760px; margin: 0 auto;
   display: flex; flex-wrap: wrap;
   align-items: center; justify-content: space-between;
   gap: 12px;
@@ -737,7 +772,7 @@ function buildHeroSection(data: ClientProposalData): string {
     : '';
 
   return `<section id="hero-section" class="ps-hero">
-  <div class="ps-inner" style="width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;padding:80px 0;">
+  <div class="ps-inner" style="width:100%;display:flex;flex-direction:column;">
     <div class="ps-hero-nav">
       <div>
         <div class="ps-logo-wordmark">Spilled Milk</div>

@@ -110,7 +110,26 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Ownership check: only the proposal creator can update it.
+  // Status-only updates (draft→review→approved→published) can be performed by any
+  // authenticated team member — approvals and review actions are not owner-gated.
+  // Title and other field updates still require the proposal creator.
+  const isStatusOnly = Object.keys(allowed).length === 1 && 'status' in allowed;
+
+  if (isStatusOnly) {
+    const { data, error } = await supabase
+      .from('proposals')
+      .update(allowed)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
+    }
+    return NextResponse.json(data, { headers: SECURITY_HEADERS });
+  }
+
+  // Ownership check: only the proposal creator can update title and other fields.
   // Adding created_by filter to the UPDATE itself is atomic — returns no rows if not owner.
   const { data, error } = await supabase
     .from('proposals')
