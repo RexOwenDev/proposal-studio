@@ -562,8 +562,32 @@ export default function EditPage({ params }: EditPageProps) {
         const blockEl = doc.querySelector(`[data-block-id="${blockId}"]`);
         if (!blockEl) return;
 
-        // Get inner HTML (the actual proposal content, minus our wrapper)
-        const updatedHtml = blockEl.innerHTML;
+        // Clone to avoid mutating the live DOM, then strip ALL editor-only
+        // artifacts before persisting. Three categories:
+        //   (a) <mark data-comment-id> — comment highlight wrappers
+        //   (b) data-editable / data-block-id-ref — editor targeting attributes
+        //   (c) contenteditable / class="editing" — active-edit state attributes
+        const blockClone = blockEl.cloneNode(true) as HTMLElement;
+
+        // (a) Unwrap comment highlight marks — move children out, delete the mark
+        blockClone.querySelectorAll('mark[data-comment-id]').forEach((mark) => {
+          const parent = mark.parentNode!;
+          while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+          parent.removeChild(mark);
+          parent.normalize();
+        });
+
+        // (b) + (c) Strip all editor-only attributes from every element in the clone
+        blockClone.querySelectorAll('*').forEach((el) => {
+          el.removeAttribute('data-editable');
+          el.removeAttribute('data-block-id-ref');
+          el.removeAttribute('contenteditable');
+          el.classList.remove('editing');
+          // Remove class attr entirely if it's now empty
+          if (el.getAttribute('class') === '') el.removeAttribute('class');
+        });
+
+        const updatedHtml = blockClone.innerHTML;
 
         try {
           // Include expected_updated_at for conflict detection
@@ -799,6 +823,29 @@ export default function EditPage({ params }: EditPageProps) {
       }
     } catch {
       showToast('Failed to delete comment. Please try again.', 'error');
+    }
+  }
+
+  async function handleEditComment(commentId: string, text: string) {
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: commentId, text }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          showToast('You can only edit your own comments.', 'error');
+        } else {
+          showToast(data.error || 'Failed to save edit. Please try again.', 'error');
+        }
+        return;
+      }
+      const updated = await res.json();
+      setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, text: updated.text, edited_at: updated.edited_at } : c));
+    } catch {
+      showToast('Failed to save edit. Please try again.', 'error');
     }
   }
 
@@ -1046,9 +1093,11 @@ export default function EditPage({ params }: EditPageProps) {
         onReaction={handleReaction}
         onScrollToHighlight={scrollToHighlight}
         onDeleteComment={handleDeleteComment}
+        onEditComment={handleEditComment}
         typingUsers={typingUsers}
         onTypingChange={setTyping}
         currentUser={userEmail?.split('@')[0] || ''}
+        currentUserId={userId || ''}
         isOwner={isOwner}
       />
 
@@ -1084,6 +1133,7 @@ export default function EditPage({ params }: EditPageProps) {
           className="w-full border-0"
           style={{ minHeight: '100vh' }}
           title="Proposal Editor"
+          sandbox="allow-scripts allow-same-origin"
         />
       </div>
 

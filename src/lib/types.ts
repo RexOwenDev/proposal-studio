@@ -37,6 +37,7 @@ export interface Comment {
   resolved: boolean;
   reactions: Record<string, string[]>;
   created_at: string;
+  edited_at?: string | null;
 }
 
 export interface ParseResult {

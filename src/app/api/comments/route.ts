@@ -119,16 +119,25 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
   }
 
-  const body = await request.json();
-  // S2: ignore `reactor` from body — always use the authenticated session user's email
-  const { id, resolved, reaction } = body;
-
-  if (!id || typeof id !== 'string') {
-    return NextResponse.json({ error: 'id is required' }, { status: 400, headers: SECURITY_HEADERS });
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Handle reaction toggle
-  if (reaction) {
+  // S2: ignore `reactor` from body — always use the authenticated session user's email
+  const { id, resolved, reaction, text } = body as {
+    id?: string; resolved?: boolean; reaction?: string; text?: string;
+  };
+
+  if (!id || !UUID_RE.test(id)) {
+    return NextResponse.json({ error: 'Valid comment id is required' }, { status: 400, headers: SECURITY_HEADERS });
+  }
+
+  // ── Reactions ─────────────────────────────────────────────────────────────
+  // Any authenticated user may react — no ownership check needed.
+  if (reaction && typeof reaction === 'string') {
     const { data: existing } = await supabase
       .from('comments')
       .select('reactions')
@@ -145,14 +154,13 @@ export async function PATCH(request: Request) {
     const users = reactions[reaction] || [];
 
     if (users.includes(sessionReactor)) {
-      // Remove reaction (toggle off)
       reactions[reaction] = users.filter((u: string) => u !== sessionReactor);
       if (reactions[reaction].length === 0) delete reactions[reaction];
     } else {
       reactions[reaction] = [...users, sessionReactor];
     }
 
-    const { data: comment, error } = await supabase
+    const { data: updated, error } = await supabase
       .from('comments')
       .update({ reactions })
       .eq('id', id)
@@ -162,26 +170,79 @@ export async function PATCH(request: Request) {
     if (error) {
       return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
     }
-    return NextResponse.json(comment, { headers: SECURITY_HEADERS });
+    return NextResponse.json(updated, { headers: SECURITY_HEADERS });
   }
 
-  // Handle resolve toggle
-  if (typeof resolved !== 'boolean') {
-    return NextResponse.json({ error: 'resolved or reaction is required' }, { status: 400, headers: SECURITY_HEADERS });
+  // ── Resolve toggle / Text edit ────────────────────────────────────────────
+  // Both operations require fetching the comment to perform authorization.
+  if (typeof resolved !== 'boolean' && typeof text !== 'string') {
+    return NextResponse.json(
+      { error: 'One of: resolved, reaction, or text is required' },
+      { status: 400, headers: SECURITY_HEADERS },
+    );
   }
 
-  const { data: comment, error } = await supabase
+  // Fetch the comment together with its proposal owner for auth decisions
+  const { data: existing } = await supabase
     .from('comments')
-    .update({ resolved })
+    .select('id, author_id, proposal_id, proposals!inner(created_by)')
     .eq('id', id)
-    .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+  if (!existing) {
+    return NextResponse.json({ error: 'Comment not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
-  return NextResponse.json(comment, { headers: SECURITY_HEADERS });
+  const proposalOwner = (existing.proposals as unknown as { created_by: string }).created_by;
+
+  // ── Resolve toggle ────────────────────────────────────────────────────────
+  // S2: Only the comment author OR the proposal owner can resolve/unresolve.
+  if (typeof resolved === 'boolean') {
+    const canResolve = existing.author_id === user.id || proposalOwner === user.id;
+    if (!canResolve) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('comments')
+      .update({ resolved })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+    }
+    return NextResponse.json(updated, { headers: SECURITY_HEADERS });
+  }
+
+  // ── Text edit ─────────────────────────────────────────────────────────────
+  // Only the comment's original author can edit their own text.
+  // The proposal owner cannot edit someone else's words on their behalf.
+  if (typeof text === 'string') {
+    if (existing.author_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
+    }
+
+    const sanitizedText = text.trim().slice(0, 5000);
+    if (!sanitizedText) {
+      return NextResponse.json({ error: 'Comment text cannot be empty' }, { status: 400, headers: SECURITY_HEADERS });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('comments')
+      .update({ text: sanitizedText, edited_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+    }
+    return NextResponse.json(updated, { headers: SECURITY_HEADERS });
+  }
+
+  return NextResponse.json({ error: 'No valid operation' }, { status: 400, headers: SECURITY_HEADERS });
 }
 
 export async function DELETE(request: Request) {

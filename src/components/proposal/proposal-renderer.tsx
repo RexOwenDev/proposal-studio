@@ -3,6 +3,7 @@
 import { useRef, useEffect, useMemo } from 'react';
 import type { ContentBlock } from '@/lib/types';
 import { wrapScripts } from '@/lib/utils/wrap-scripts';
+import { stripEditorArtifacts } from '@/lib/utils/strip-editor-artifacts';
 
 interface ProposalRendererProps {
   stylesheet: string | null;
@@ -88,6 +89,7 @@ export default function ProposalRenderer({
       className="w-full border-0"
       style={{ minHeight: '100vh' }}
       title="Proposal Preview"
+      sandbox="allow-scripts allow-same-origin"
     />
   );
 }
@@ -189,9 +191,14 @@ function buildIframeHTML(
   }
 
   for (const block of blocks) {
-    const blockHTML = mode === 'edit'
-      ? `<div data-block-id="${block.id}" data-hidden="${!block.visible}">${block.current_html}</div>`
+    // In view mode, strip ALL editor artifacts (marks, data-editable, contenteditable,
+    // etc.) as a final safety net against anything that slipped past the save-time strip.
+    const html = mode === 'view'
+      ? stripEditorArtifacts(block.current_html)
       : block.current_html;
+    const blockHTML = mode === 'edit'
+      ? `<div data-block-id="${block.id}" data-hidden="${!block.visible}">${html}</div>`
+      : html;
 
     const wrapper = block.wrapper_class || null;
 

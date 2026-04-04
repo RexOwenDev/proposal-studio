@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { wrapScripts } from '@/lib/utils/wrap-scripts';
+import { stripEditorArtifacts } from '@/lib/utils/strip-editor-artifacts';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -97,15 +98,17 @@ export async function GET(
   }
 
   for (const block of blocks || []) {
+    // Strip ALL editor artifacts — exported HTML must be completely clean
+    const html = stripEditorArtifacts(block.current_html);
     const wrapper = block.wrapper_class || null;
     if (wrapper !== currentWrapper) {
       flushWrapper();
-      if (wrapper) { currentWrapper = wrapper; wrapperBuffer.push(block.current_html); }
-      else bodyParts.push(block.current_html);
+      if (wrapper) { currentWrapper = wrapper; wrapperBuffer.push(html); }
+      else bodyParts.push(html);
     } else if (wrapper) {
-      wrapperBuffer.push(block.current_html);
+      wrapperBuffer.push(html);
     } else {
-      bodyParts.push(block.current_html);
+      bodyParts.push(html);
     }
   }
   flushWrapper();

@@ -109,6 +109,62 @@ export function parseHTML(html: string): ParseResult {
     }
   }
 
+  // H3: Fix SVG <use> cross-block references
+  // When blocks are split, <use href="#id"> fails if <defs id="id"> lives in a different block.
+  // Solution: collect every def by ID from all blocks, then inject missing defs into blocks that reference them.
+  (() => {
+    // Pass 1: collect all def elements (children of <defs>) that have an id attribute.
+    // Map: id → outer HTML of the <defs> element that owns it (so we can inject the whole <defs>).
+    const defsById = new Map<string, string>(); // id → defs outerHTML
+
+    for (const block of blocks) {
+      const $b = cheerio.load(block.html);
+      $b('defs').each((_, defsEl) => {
+        const defsHtml = $b.html(defsEl)!;
+        $b(defsEl).children().each((__, child) => {
+          const id = $b(child).attr('id');
+          if (id) {
+            defsById.set(id, defsHtml);
+          }
+        });
+      });
+    }
+
+    if (defsById.size === 0) return; // no SVG defs at all — skip
+
+    // Pass 2: for each block, find <use> references and inject missing defs.
+    for (let i = 0; i < blocks.length; i++) {
+      const $b = cheerio.load(blocks[i].html);
+      const missingDefs = new Set<string>(); // defsHtml strings to inject
+
+      $b('use').each((_, useEl) => {
+        const href = $b(useEl).attr('href') || $b(useEl).attr('xlink:href') || '';
+        if (!href.startsWith('#')) return;
+        const refId = href.slice(1);
+        // Check if this id is already defined within this block
+        if ($b(`#${CSS.escape(refId)}`).length === 0 && defsById.has(refId)) {
+          missingDefs.add(defsById.get(refId)!);
+        }
+      });
+
+      if (missingDefs.size === 0) continue;
+
+      // Inject all missing defs into the first <svg> in the block (or wrap in a hidden svg)
+      const defsToInject = [...missingDefs].join('\n');
+      const firstSvg = $b('svg').first();
+      if (firstSvg.length) {
+        firstSvg.prepend(defsToInject);
+      } else {
+        // No SVG in this block yet — wrap in a zero-size hidden svg so defs are in-scope
+        $b('body').prepend(`<svg xmlns="http://www.w3.org/2000/svg" style="display:none;position:absolute;width:0;height:0">${defsToInject}</svg>`);
+      }
+
+      // Re-serialise block html
+      const body = $b('body');
+      blocks[i] = { ...blocks[i], html: body.html() || blocks[i].html };
+    }
+  })();
+
   // H4: Detect elements that may not render correctly in the editor iframe
   const warnings: string[] = [];
   const fullBody = $('body').html() || '';

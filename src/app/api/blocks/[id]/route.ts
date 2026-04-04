@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { stripEditorArtifacts } from '@/lib/utils/strip-editor-artifacts';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -63,7 +64,9 @@ export async function PATCH(
   // Strict field whitelist
   const allowed: Record<string, unknown> = {};
   if ('current_html' in body && typeof body.current_html === 'string') {
-    allowed.current_html = body.current_html;
+    // Strip ALL editor artifacts server-side (marks, data-editable, contenteditable,
+    // etc.) — defence-in-depth against any path that bypasses the client-side strip.
+    allowed.current_html = stripEditorArtifacts(body.current_html);
   }
   if ('visible' in body && typeof body.visible === 'boolean') {
     allowed.visible = body.visible;
