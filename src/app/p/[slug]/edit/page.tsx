@@ -808,7 +808,8 @@ export default function EditPage({ params }: EditPageProps) {
   async function handleDeleteComment(commentId: string) {
     try {
       const res = await fetch(`/api/comments?id=${commentId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
+      // 404 means comment is already gone — treat as success so UI stays consistent
+      if (!res.ok && res.status !== 404) throw new Error('Failed to delete');
 
       // Remove from local state (also removes replies whose parent is deleted)
       setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isEmailAllowed } from '@/lib/access-control';
 
@@ -9,9 +10,9 @@ export default function LoginPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Check URL for unauthorized error from proxy
-  const isUnauthorized = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('error') === 'unauthorized';
+  // useSearchParams is SSR-safe — no typeof window needed
+  const searchParams = useSearchParams();
+  const isUnauthorized = searchParams.get('error') === 'unauthorized';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
