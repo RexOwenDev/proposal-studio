@@ -153,16 +153,6 @@ export default function EditorToolbar({
             )}
           </span>
 
-          {onExportPDF && (
-            <button
-              onClick={onExportPDF}
-              className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
-              title="Print / Save as PDF"
-            >
-              PDF
-            </button>
-          )}
-
           {isPublished && (
             <button
               onClick={copyPublicUrl}

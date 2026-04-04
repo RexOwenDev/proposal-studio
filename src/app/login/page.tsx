@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isEmailAllowed } from '@/lib/access-control';
 
-export default function LoginPage() {
+// Separated so useSearchParams() can be wrapped in Suspense (Next.js requirement)
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // useSearchParams is SSR-safe — no typeof window needed
   const searchParams = useSearchParams();
   const isUnauthorized = searchParams.get('error') === 'unauthorized';
 
@@ -104,5 +104,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
