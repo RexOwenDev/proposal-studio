@@ -6,6 +6,9 @@ import { buildClientProposalHTML } from '@/lib/templates/client-proposal';
 import { buildInternalDocHTML } from '@/lib/templates/internal-doc';
 import { createProposalFromHTML } from '@/lib/create-proposal-from-html';
 
+// Vercel: allow up to 60 seconds — AI generation takes 10–20s in practice
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const supabase = createServerClient(

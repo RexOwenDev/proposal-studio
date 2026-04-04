@@ -28,10 +28,17 @@ function esc(val: string | number | undefined | null): string {
 
 const INTERACTION_JS = `
 function initWorkflowToggles() {
+  var isEditMode = document.body.getAttribute('data-edit-mode') === 'true';
   var headers = document.querySelectorAll('.id-wf-header');
   headers.forEach(function(header) {
     var body = header.nextElementSibling;
     if (!body) return;
+    // In the editor all steps must be visible — open all, skip collapse
+    if (isEditMode) {
+      header.setAttribute('aria-expanded', 'true');
+      body.style.height = 'auto';
+      return;
+    }
     body.style.overflow = 'hidden';
     body.style.transition = 'height 0.22s ease';
     body.style.height = '0';
@@ -50,6 +57,7 @@ function initWorkflowToggles() {
 }
 
 function initNoteToggles() {
+  if (document.body.getAttribute('data-edit-mode') === 'true') return;
   var items = document.querySelectorAll('.id-note-item');
   items.forEach(function(item) {
     var text = item.querySelector('.id-note-text');

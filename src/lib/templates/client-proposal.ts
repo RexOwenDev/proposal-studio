@@ -24,6 +24,14 @@ function esc(val: string | number | undefined | null): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Sanitize href values — only allow safe URL schemes to prevent javascript: XSS */
+function safeHref(val: string | undefined | null): string {
+  if (!val) return '#';
+  const trimmed = val.trim();
+  if (/^(https?:|mailto:|#)/i.test(trimmed)) return trimmed;
+  return '#';
+}
+
 // ─── Interaction-only JavaScript (no content rendering) ───────────────────────
 // All functions use `function foo()` declaration syntax so wrapScripts() hoists
 // them to global scope. The bare calls at the bottom are deferred to DOMContentLoaded.
@@ -81,10 +89,17 @@ function initReveal() {
 
 // Phase accordion
 function initAccordions() {
+  var isEditMode = document.body.getAttribute('data-edit-mode') === 'true';
   var headers = document.querySelectorAll('.ps-phase-header');
   headers.forEach(function(header, idx) {
     var body = header.nextElementSibling;
     if (!body) return;
+    // In the editor all phases must be fully visible — skip JS collapse
+    if (isEditMode) {
+      header.setAttribute('aria-expanded', 'true');
+      body.style.height = 'auto';
+      return;
+    }
     body.style.overflow = 'hidden';
     body.style.transition = 'height 0.28s ease';
     if (idx === 0) {
@@ -111,6 +126,7 @@ function initAccordions() {
 
 // Capability card hover — reveal outcome text
 function initCapabilityCards() {
+  if (document.body.getAttribute('data-edit-mode') === 'true') return;
   var cards = document.querySelectorAll('.ps-cap-card');
   cards.forEach(function(card) {
     var front = card.querySelector('.ps-cap-front');
@@ -133,6 +149,7 @@ function initCapabilityCards() {
 
 // Flow step expand on click
 function initFlowSteps() {
+  if (document.body.getAttribute('data-edit-mode') === 'true') return;
   var steps = document.querySelectorAll('.ps-flow-step');
   steps.forEach(function(step) {
     var tooltip = step.querySelector('.ps-step-desc');
@@ -946,9 +963,9 @@ function buildNextStepsSection(data: ClientProposalData): string {
       </div>
     </div>`).join('');
 
-  const ctaHTML = cta?.href
+  const ctaHTML = cta?.label
     ? `<div class="ps-cta-wrap ps-reveal">
-        <a href="${esc(cta.href)}" target="_blank" rel="noopener noreferrer" class="ps-cta-btn">
+        <a href="${safeHref(cta.href)}" target="_blank" rel="noopener noreferrer" class="ps-cta-btn">
           ${esc(cta.label)} <span class="ps-cta-arrow">→</span>
         </a>
       </div>`

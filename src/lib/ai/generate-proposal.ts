@@ -1,14 +1,14 @@
 /**
  * AI proposal generation utility.
- * Uses Vercel AI SDK v6 + Anthropic claude-sonnet-4-5 with generateText + Output.object()
- * to extract structured proposal data from a sales rep's raw draft text.
- *
- * generateObject was removed in AI SDK v6. Use generateText with output: Output.object({ schema })
+ * Uses Vercel AI SDK v6 + Vercel AI Gateway (anthropic/claude-sonnet-4.6).
+ * generateText + Output.object({ schema }) replaces the removed generateObject.
  * Zod schemas act as both TypeScript type sources AND structured output schemas.
+ *
+ * Auth: OIDC on Vercel (automatic, no key needed in production).
+ * Local dev: run `vercel env pull` to get AI_GATEWAY_API_KEY, or set it manually.
  */
 
 import { generateText, Output } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { ClientProposalData, InternalDocData } from '@/lib/templates/types';
 
@@ -44,7 +44,7 @@ const FlowBranchSchema = z.object({
 const PhaseSchema = z.object({
   number: z.number().describe('Sequential phase number starting at 1.'),
   title: z.string().describe('Phase name, e.g. "Discovery & Setup".'),
-  duration: z.string().describe('Time estimate, e.g. "Week 1-2" or "2 weeks".'),
+  duration: z.string().describe('Time estimate, e.g. "Week 1–2" or "2 weeks".'),
   description: z.string().describe('2-3 sentences describing what happens in this phase.'),
   deliverables: z.array(z.string()).describe('3-6 specific deliverables the team will produce.'),
   clientNeeds: z.array(z.string()).describe('2-4 things the client must provide or decide.'),
@@ -188,10 +188,11 @@ export async function generateClientProposal(
     : '';
 
   const { output } = await generateText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: 'anthropic/claude-sonnet-4.6',
     system: CLIENT_PROPOSAL_SYSTEM,
     prompt: `Here are the sales rep's draft notes for a client proposal:\n\n${draftText}${contextNote}`,
     output: Output.object({ schema: ClientProposalSchema }),
+    abortSignal: AbortSignal.timeout(55_000),
   });
 
   return output as ClientProposalData;
@@ -210,10 +211,11 @@ export async function generateInternalDoc(
     : '';
 
   const { output } = await generateText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: 'anthropic/claude-sonnet-4.6',
     system: INTERNAL_DOC_SYSTEM,
     prompt: `Here are the team notes for an internal automation doc:\n\n${draftText}${contextNote}`,
     output: Output.object({ schema: InternalDocSchema }),
+    abortSignal: AbortSignal.timeout(55_000),
   });
 
   return output as InternalDocData;

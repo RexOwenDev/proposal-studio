@@ -94,7 +94,7 @@ export default function CreateProposalModal({ onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget && status !== 'generating') onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -105,6 +105,7 @@ export default function CreateProposalModal({ onClose }: Props) {
           <button
             onClick={onClose}
             disabled={status === 'generating'}
+            aria-label="Close dialog"
             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -217,6 +218,7 @@ export default function CreateProposalModal({ onClose }: Props) {
                 : "Describe the automation project for the team. Include: client and goal, workflow steps, tools being used, phases and status, any key decisions or open questions...\n\nExample: Client is ACME. Goal is automated lead qualification. Using n8n + Claude + HubSpot. Phase 1 is discovery (done), Phase 2 is build (in progress). Key decision: using webhook trigger not email polling."
               }
               rows={9}
+              maxLength={20000}
               disabled={status === 'generating'}
               className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-y disabled:opacity-50 leading-relaxed"
             />
