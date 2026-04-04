@@ -1,14 +1,14 @@
 /**
  * AI proposal generation utility.
- * Uses Vercel AI SDK v6 + Vercel AI Gateway (anthropic/claude-sonnet-4.6).
+ * Uses Vercel AI SDK v6 + @ai-sdk/anthropic (direct provider).
  * generateText + Output.object({ schema }) replaces the removed generateObject.
  * Zod schemas act as both TypeScript type sources AND structured output schemas.
  *
- * Auth: OIDC on Vercel (automatic, no key needed in production).
- * Local dev: run `vercel env pull` to get AI_GATEWAY_API_KEY, or set it manually.
+ * Auth: Direct Anthropic provider — set the provider key in Vercel dashboard env vars.
  */
 
 import { generateText, Output } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { ClientProposalData, InternalDocData } from '@/lib/templates/types';
 
@@ -188,7 +188,7 @@ export async function generateClientProposal(
     : '';
 
   const { output } = await generateText({
-    model: 'anthropic/claude-sonnet-4.6',
+    model: anthropic('claude-sonnet-4-6'),
     system: CLIENT_PROPOSAL_SYSTEM,
     prompt: `Here are the sales rep's draft notes for a client proposal:\n\n${draftText}${contextNote}`,
     output: Output.object({ schema: ClientProposalSchema }),
@@ -211,7 +211,7 @@ export async function generateInternalDoc(
     : '';
 
   const { output } = await generateText({
-    model: 'anthropic/claude-sonnet-4.6',
+    model: anthropic('claude-sonnet-4-6'),
     system: INTERNAL_DOC_SYSTEM,
     prompt: `Here are the team notes for an internal automation doc:\n\n${draftText}${contextNote}`,
     output: Output.object({ schema: InternalDocSchema }),

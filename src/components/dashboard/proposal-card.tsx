@@ -165,7 +165,7 @@ export default function ProposalCard({ proposal, blockCount, unresolvedComments 
           onClick={(e) => { e.stopPropagation(); setShowDelete(false); }}
         >
           <div
-            className="bg-white border border-gray-200 rounded-xl p-6 max-w-sm mx-4 shadow-xl animate-in zoom-in-95 duration-200"
+            className="bg-white border border-gray-200 rounded-xl p-6 max-w-sm mx-4 shadow-xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-gray-900 font-semibold mb-1">Delete this proposal?</h3>
