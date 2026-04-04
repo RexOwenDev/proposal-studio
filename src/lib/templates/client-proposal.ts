@@ -290,9 +290,9 @@ img { max-width: 100%; display: block; }
 
 /* ── Hero ──────────────────────────────────────────────────────────────────── */
 .ps-hero {
-  background: var(--dark);
-  color: #fff;
-  min-height: 100vh;
+  background: #fff;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -307,7 +307,7 @@ img { max-width: 100%; display: block; }
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   letter-spacing: -0.01em;
 }
 .ps-logo-sub {
@@ -323,8 +323,8 @@ img { max-width: 100%; display: block; }
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.55);
-  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--muted);
+  border: 1px solid var(--border-light);
   padding: 6px 14px;
   border-radius: 99px;
 }
@@ -335,13 +335,13 @@ img { max-width: 100%; display: block; }
   font-size: clamp(2.2rem, 5vw, 4rem);
   font-weight: 900;
   line-height: 1.08;
-  color: #fff;
+  color: var(--text);
   max-width: 780px;
   margin-bottom: 1.25rem;
 }
 .ps-hero-subtext {
   font-size: 1.1rem;
-  color: rgba(255,255,255,0.65);
+  color: var(--muted);
   max-width: 560px;
   line-height: 1.65;
   margin-bottom: 3rem;
@@ -352,7 +352,7 @@ img { max-width: 100%; display: block; }
   gap: 20px;
   margin-top: auto;
   padding-top: 2.5rem;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid var(--border-light);
 }
 .ps-stat {
   display: flex;
@@ -368,13 +368,13 @@ img { max-width: 100%; display: block; }
   font-weight: 700;
   line-height: 1;
 }
-.ps-stat-before { color: rgba(255,255,255,0.45); }
+.ps-stat-before { color: var(--subtle); }
 .ps-stat-arrow { color: var(--purple); font-size: 1.25rem; font-weight: 400; align-self: center; }
-.ps-stat-after { color: #fff; }
+.ps-stat-after { color: var(--text); }
 .ps-stat-label {
   width: 100%;
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.4);
+  color: var(--subtle);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 2px;
@@ -644,17 +644,19 @@ img { max-width: 100%; display: block; }
 
 /* ── Investment ────────────────────────────────────────────────────────────── */
 .ps-investment {
-  background: var(--dark-2);
-  color: #fff;
+  background: var(--off-white);
+  color: var(--text);
   text-align: center;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
 }
 .ps-investment .ps-overline { color: var(--purple); opacity: 1; text-align: center; }
-.ps-investment .ps-section-title { color: #fff; text-align: center; }
+.ps-investment .ps-section-title { color: var(--text); text-align: center; }
 .ps-price-tag {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(3rem, 7vw, 5rem);
   font-weight: 900;
-  color: #fff;
+  color: var(--text);
   margin: 1.5rem 0 2rem;
   letter-spacing: -0.02em;
 }
@@ -665,12 +667,12 @@ img { max-width: 100%; display: block; }
 }
 .ps-includes-item {
   display: flex; align-items: center; gap: 10px;
-  font-size: 0.9rem; color: rgba(255,255,255,0.75);
+  font-size: 0.9rem; color: var(--muted);
 }
 .ps-includes-check { color: var(--teal); font-size: 1rem; flex-shrink: 0; }
 .ps-investment-note {
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.35);
+  color: var(--subtle);
   max-width: 400px;
   margin: 0 auto;
   line-height: 1.6;
@@ -705,9 +707,10 @@ img { max-width: 100%; display: block; }
 
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 .ps-footer {
-  background: var(--dark);
-  color: rgba(255,255,255,0.4);
+  background: var(--off-white);
+  color: var(--subtle);
   padding: 48px 24px;
+  border-top: 1px solid var(--border-light);
 }
 .ps-footer-inner {
   max-width: 900px; margin: 0 auto;
@@ -715,7 +718,7 @@ img { max-width: 100%; display: block; }
   align-items: center; justify-content: space-between;
   gap: 12px;
 }
-.ps-footer-brand { font-family: 'Playfair Display', Georgia, serif; color: #fff; font-size: 0.95rem; font-weight: 700; }
+.ps-footer-brand { font-family: 'Playfair Display', Georgia, serif; color: var(--text); font-size: 0.95rem; font-weight: 700; }
 .ps-footer-meta { font-size: 0.75rem; text-align: right; }
 `;
 
@@ -734,7 +737,7 @@ function buildHeroSection(data: ClientProposalData): string {
     : '';
 
   return `<section id="hero-section" class="ps-hero">
-  <div class="ps-inner" style="width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;min-height:100vh;padding:80px 0;">
+  <div class="ps-inner" style="width:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column;padding:80px 0;">
     <div class="ps-hero-nav">
       <div>
         <div class="ps-logo-wordmark">Spilled Milk</div>
