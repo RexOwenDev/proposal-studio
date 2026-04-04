@@ -747,4 +747,108 @@ AI_GATEWAY_API_KEY=[key]
 **Vercel production env vars needed** (add in Vercel dashboard → Settings → Environment Variables):
 - `NEXT_PUBLIC_SUPABASE_URL` ✅ already set
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` ✅ already set
-- AI Gateway: **no key needed** — OIDC handles it automatically on Vercel
+- `ANTHROPIC_API_KEY` ✅ set — required for `@ai-sdk/anthropic` direct provider auth
+  - NOTE: This project uses **direct Anthropic** (`@ai-sdk/anthropic`), NOT Vercel AI Gateway.
+  - AI Gateway uses OIDC tokens; direct Anthropic uses `ANTHROPIC_API_KEY`. These are different auth systems.
+  - Vercel AI Gateway was evaluated and ruled out (requires credit card even on free tier — see session 3, Issue C).
+- **DO NOT SET** `ANTHROPIC_BASE_URL` in Vercel — baseURL is hardcoded in `generate-proposal.ts` to prevent routing interference
+
+---
+
+## Session 3 — April 5, 2026 (Bug Fix Sprint)
+*Commits: `5e69768`, `e7c1f94`*
+
+### What Was Broken
+Two major blockers:
+1. `/api/generate` returning 500 on every call — AI generation completely broken
+2. Editor page (`/p/[slug]/edit`) showing a black screen after generation succeeded
+
+---
+
+### Fix 1 — `/api/generate` 500 error
+**File:** `src/lib/ai/generate-proposal.ts`
+**Commit:** `5e69768`
+
+Six compounding root causes, all fixed:
+
+| # | Root Cause | Fix |
+|---|-----------|-----|
+| 1 | System env `ANTHROPIC_BASE_URL=https://api.anthropic.com` (set by Claude Code AI Gateway routing) stripped `/v1` from URL → every API call hit a 404 | Hardcoded `createAnthropic({ baseURL: 'https://api.anthropic.com/v1' })` |
+| 2 | Zod `.min(2)` on arrays generated `minItems: 2` — Anthropic native structured outputs rejects any `minItems > 1` | Removed all `.min()` / `.max()` from array schemas; moved counts into `.describe()` |
+| 3 | Complex schema exceeded Anthropic's grammar compilation size limit | Switched from `Output.object` to tool-calling approach |
+| 4 | Zod v4 + AI SDK v6 internal converter silently produces `{}` instead of real JSON Schema | Used `jsonSchema(z.toJSONSchema(Schema) as Record<string, unknown>)` — Zod v4's native converter |
+| 5 | Tool definition used `parameters:` key — AI SDK v6 renamed it to `inputSchema:` | Changed `parameters:` → `inputSchema:` |
+| 6 | `toolCalls[0].args` renamed to `toolCalls[0].input` in AI SDK v6; `toolChoice: { type: 'required' }` wrong for named tool forcing | Changed to `toolCalls[0]?.input` + `toolChoice: { type: 'tool', toolName: '...' }` |
+
+**Canonical working pattern (do NOT change):**
+```ts
+import { generateText, jsonSchema } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { z } from 'zod';
+
+const anthropic = createAnthropic({ baseURL: 'https://api.anthropic.com/v1' }); // hardcoded!
+
+const { toolCalls } = await generateText({
+  model: anthropic('claude-sonnet-4-6'),
+  tools: {
+    extract_proposal: {
+      description: '...',
+      inputSchema: jsonSchema(z.toJSONSchema(ClientProposalSchema) as Record<string, unknown>),
+    },
+  },
+  toolChoice: { type: 'tool', toolName: 'extract_proposal' },
+  abortSignal: AbortSignal.timeout(55_000),
+});
+const input = toolCalls[0]?.input;  // NOT .args
+```
+
+---
+
+### Fix 2 — Black screen in editor
+**File:** `src/lib/templates/client-proposal.ts`
+**Commit:** `e7c1f94`
+
+**Root cause:** Three dark sections in the proposal template:
+- Hero: `background: #09090b` (near-black) + `min-height: 100vh` on inner container → full viewport black before any scroll
+- Investment: `background: #18181b`
+- Footer: `background: #09090b`
+
+**Fix:** Full light-theme conversion across all three sections.
+
+| CSS property | Before | After |
+|---|---|---|
+| `.ps-hero` background | `#09090b` (dark) | `#fff` |
+| `.ps-inner` (hero) min-height | `100vh` inline style | removed |
+| `.ps-hero-headline` color | `#fff` | `var(--text)` |
+| `.ps-hero-subtext` color | `rgba(255,255,255,0.65)` | `var(--muted)` |
+| `.ps-investment` background | `#18181b` | `var(--off-white)` |
+| `.ps-investment` text color | `#fff` | `var(--text)` |
+| `.ps-footer` background | `#09090b` | `var(--off-white)` |
+| `.ps-footer` text color | `rgba(255,255,255,0.4)` | `var(--subtle)` |
+
+Purple accents (`--purple: #6c3fff`) kept on: logo sub-label, overline, stat arrows, CTA, price.
+
+---
+
+### ⚠️ Remaining Issues After Session 3
+
+**A — Existing proposals still have old dark CSS**
+The light-theme fix only applies to newly generated proposals. Old ones have the dark CSS baked into their `stylesheet` column in Supabase. To fix: delete and re-generate them, or update stylesheet column in DB manually.
+
+**B — Stats `data-count` sometimes gets word strings instead of numbers**
+AI occasionally ignores the "numeric strings only" instruction and sends values like `data-count="Hours"`. The `initCountUp()` JS handles it gracefully (shows text as-is), but the count-up animation won't run. To fix: add post-processing validation in `generate-proposal.ts` after `toolCalls[0]?.input` to coerce/strip non-numeric stat values.
+
+**C — AI Gateway incompatibility (context for future sessions)**
+Vercel AI Gateway was investigated as an alternative but is unavailable for this account (requires credit card even for free tier). The solution uses direct Anthropic provider (`@ai-sdk/anthropic`) with `ANTHROPIC_API_KEY` env var. The AI Gateway `ai-gateway` skill's model slug format (`anthropic/claude-sonnet-4.6` with a dot) is different from the direct provider slug (`claude-sonnet-4-6` with a dash) — don't mix them up.
+
+---
+
+### Critical Rules — Do NOT Break These
+
+1. **`createAnthropic({ baseURL: 'https://api.anthropic.com/v1' })`** — hardcoded baseURL is load-bearing; removing it breaks generation if `ANTHROPIC_BASE_URL` is set in the environment
+2. **`inputSchema:` not `parameters:`** — AI SDK v6 uses `inputSchema` for raw tool objects
+3. **`toolCalls[0]?.input` not `.args`** — renamed in AI SDK v6
+4. **`toolChoice: { type: 'tool', toolName: '...' }`** — not `type: 'required'`
+5. **`jsonSchema(z.toJSONSchema(Schema))`** — Zod v4 native converter required; AI SDK's internal converter silently fails on Zod v4
+6. **No `.min(2+)` / `.max(N)` on Zod arrays in schemas** — Anthropic rejects `minItems > 1` in structured outputs
+7. **Do NOT set `ANTHROPIC_BASE_URL` in Vercel env vars** — already handled in code
