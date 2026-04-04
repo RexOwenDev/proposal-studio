@@ -22,6 +22,7 @@ export default function EditPage({ params }: EditPageProps) {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showSections, setShowSections] = useState(false);
@@ -64,6 +65,9 @@ export default function EditPage({ params }: EditPageProps) {
   });
   const { liveBlockUpdates } = useRealtimeBlocks(proposal?.id || null);
   const { onlineUsers, typingUsers, editingUsers, setTyping, setEditingBlock } = usePresence(proposal?.id || null, userEmail);
+
+  // Mark as mounted so SSR skeleton and client first-render are identical (fixes React #418)
+  useEffect(() => { setMounted(true); }, []);
 
   // Re-render highlights when new realtime comments arrive
   useEffect(() => {
@@ -1036,7 +1040,7 @@ export default function EditPage({ params }: EditPageProps) {
     });
   }
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-zinc-950">
         {/* Skeleton toolbar */}
