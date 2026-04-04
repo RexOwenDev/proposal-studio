@@ -3,7 +3,7 @@
 > **Project**: Collaborative HTML proposal editing system for Design Shopp
 > **Builder**: Claude Sonnet 4.6 + Owen Quintenta
 > **Started**: April 2, 2026
-> **Last Updated**: April 5, 2026
+> **Last Updated**: April 5, 2026 (Session 2)
 > **Repo**: github.com/RexOwenDev/proposal-studio
 > **Live**: proposal-studio-mu.vercel.app
 > **Supabase Project ID**: vjtpykjmrukhypghzqnt
@@ -11,6 +11,15 @@
 ---
 
 ## What This App Does
+
+Owen's sales team types raw draft notes into the app → Claude AI converts them into a fully-rendered, styled HTML proposal → the team can then edit, comment, and publish. Two templates are available:
+
+- **Client Proposal** — dark hero section, count-up stats, capability cards, flow pipeline, phases accordion, timeline bar, investment section, CTA
+- **Internal Doc** — Notion-style reference doc with workflow steps, tech stack table, phase status board, notes
+
+After generation, all editing, commenting, and publishing features work identically to the original import flow.
+
+---
 
 Owen creates polished HTML proposals (single-file, inline CSS/JS) for Design Shopp clients. Proposal Studio lets him import those HTML files, and then the sales team, CEO, and VP can:
 
@@ -44,6 +53,8 @@ Only the person who imported a proposal can edit text. Everyone else can view an
 | HTML Parsing | Cheerio | 1.2.0 |
 | Editor | contentEditable (native) | — |
 | CSS Isolation | iframe + srcdoc | — |
+| AI Provider | Vercel AI Gateway → Anthropic | claude-sonnet-4.6 |
+| AI SDK | Vercel AI SDK | v6 (generateText + Output.object) |
 | Hosting | Vercel | Hobby plan |
 | Repo | GitHub | Public, auto-deploy on push |
 
@@ -131,6 +142,7 @@ proposal-studio/
 │   │   └── api/
 │   │       ├── auth/callback/route.ts      # Supabase auth callback (open redirect protected)
 │   │       ├── import/route.ts             # POST: parse HTML → create proposal + blocks
+│   │       ├── generate/route.ts           # POST: draft notes → AI → HTML → create proposal + blocks
 │   │       ├── team/route.ts               # GET: dynamic team members for @mentions
 │   │       ├── proposals/
 │   │       │   ├── route.ts                # GET: list proposals
@@ -144,7 +156,9 @@ proposal-studio/
 │   │       └── comments/route.ts           # GET/POST/PATCH/DELETE (3-tier auth)
 │   ├── components/
 │   │   ├── dashboard/
-│   │   │   ├── dashboard-header.tsx        # User avatar, logout dropdown
+│   │   │   ├── dashboard-shell.tsx         # 'use client' wrapper — holds modal state, receives server props
+│   │   │   ├── dashboard-header.tsx        # Logo, New Proposal button (calls onNewProposal), user dropdown
+│   │   │   ├── create-proposal-modal.tsx   # AI generation modal (template selector, draft textarea, progress)
 │   │   │   ├── proposal-card.tsx           # Card with actions (preview, copy, delete)
 │   │   │   └── live-refresh.tsx            # Invisible: Supabase Realtime → router.refresh()
 │   │   ├── editor/
@@ -157,6 +171,13 @@ proposal-studio/
 │   ├── lib/
 │   │   ├── access-control.ts               # Email domain/whitelist auth
 │   │   ├── types.ts                        # Proposal, ContentBlock, Comment types
+│   │   ├── create-proposal-from-html.ts    # Shared: slug collision + DB insert (used by import + generate)
+│   │   ├── ai/
+│   │   │   └── generate-proposal.ts        # generateClientProposal / generateInternalDoc (Zod schemas)
+│   │   ├── templates/
+│   │   │   ├── types.ts                    # ClientProposalData + InternalDocData TypeScript interfaces
+│   │   │   ├── client-proposal.ts          # Template 1 builder → static HTML (dark hero, animations)
+│   │   │   └── internal-doc.ts             # Template 2 builder → static HTML (Notion-style)
 │   │   ├── utils.ts                        # slugify, formatDate, debounce
 │   │   ├── user-colors.ts                  # Per-user highlight colors (8 colors)
 │   │   ├── hooks/
@@ -230,6 +251,22 @@ Artifacts stripped:
 - `data-block-id-ref="..."` — editor targeting attributes
 - `contenteditable="..."` — active-edit state
 - `class="editing"` token — active-edit state
+
+### 12. AI Proposal Generation Pipeline
+Sales rep types draft notes → POST `/api/generate` → Claude structured output → template builder → `createProposalFromHTML` → redirect to editor.
+
+Key design decisions:
+- **Static HTML output, not JS-rendered**: Template builders emit fully-rendered HTML where all content is in the DOM from day 1. JS is interaction-only (accordion, count-up, reveal). This is critical because the editor's `saveBlockContent()` saves `current_html` — if JS re-rendered content at runtime, edits would be overwritten on next load.
+- **Vercel AI SDK v6 + Zod structured output**: `generateObject` was removed in v6. The correct API is `generateText({ output: Output.object({ schema }) })`. Zod `.describe()` on each field acts as inline prompt hints to Claude.
+- **AI Gateway provider**: Uses `anthropic/claude-sonnet-4.6` via Vercel AI Gateway (not direct Anthropic SDK). OIDC handles auth automatically in production — no API key needed on Vercel. Local dev uses `AI_GATEWAY_API_KEY`.
+- **maxDuration = 60**: Without this, Vercel kills the function at 10s. AI generation takes 10–20s. This is a required export on the route.
+- **AbortSignal.timeout(55s)**: Prevents indefinite hangs if Anthropic is slow.
+- **`data-edit-mode` JS guards**: All accordion/toggle JS functions check `document.body.getAttribute('data-edit-mode') === 'true'` before collapsing content. CSS `!important` overrides don't work against inline `element.style.height = '0'` set by JS.
+- **`safeHref()` sanitizer**: CTA href from AI output is sanitized to only allow `https:`, `mailto:`, and `#`. Blocks `javascript:` XSS.
+- **Shared `createProposalFromHTML`**: Extracted from `/api/import` to avoid duplicate slug + DB insert logic. Both import and generate routes use the same utility.
+
+### 13. Dashboard Architecture (Server + Client Split)
+`page.tsx` is a Server Component — it fetches proposals + unresolved comment counts at request time, then passes them as plain props to `DashboardShell`. The shell is a `'use client'` component that holds `showModal` state and renders the header, grid, and modal. This keeps data fetching in the server while interactivity stays in the client.
 
 ### 10. Three-Tier Comment Authorization
 Different operations have different auth requirements, all enforced server-side:
@@ -361,6 +398,9 @@ const ALLOWED_EMAILS = [
 | 30 | `239d452` | Fix dark homepage (globals.css `--background` → `#f9fafb`), login: switch to `useSearchParams` |
 | 31 | `ef8d9e1` | Fix Vercel build failure: wrap login in `<Suspense>` for `useSearchParams`; remove export buttons from toolbar |
 | 32 | `3fd02da` | Fix React #418 hydration error: mounted guard pattern on edit page |
+| 33 | `0c8a4c8` | **feat: AI proposal generation** — full pipeline: modal → Claude → template → editor |
+| 34 | `148db0b` | **fix: QA pass** — maxDuration, AbortSignal, AI Gateway, edit-mode guards, XSS sanitizer, modal UX |
+| 35 | `186e7b7` | **Merge**: feature/ai-proposal-generation → main |
 
 ---
 
@@ -500,6 +540,8 @@ First pass that missed the 4 blocks above.
 - **Vercel project**: proposal-studio-mu.vercel.app
 - **GitHub**: auto-deploys on push to main
 - **Env vars in Vercel**: `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **AI in production**: Vercel AI Gateway (OIDC — no key needed, auto-provisioned by Vercel)
+- **AI in local dev**: `AI_GATEWAY_API_KEY` in `.env.local` — get from vercel.com → team → AI Gateway → API Keys
 - **Build**: ~30s, Turbopack, zero TypeScript errors
 
 ### Supabase Auth Config
@@ -605,3 +647,104 @@ WHERE current_html LIKE '%data-comment-id%'
    OR current_html LIKE '%contenteditable%';
 ```
 Then check: `SELECT COUNT(*) FROM content_blocks WHERE current_html LIKE '%data-comment-id%';` — should be 0.
+
+---
+
+## Session: April 5, 2026 — AI Proposal Generation Feature
+
+### What Was Built
+
+Replaced the HTML file import flow with a fully AI-powered text-to-proposal pipeline. Sales rep pastes draft notes → Claude generates a fully structured, styled HTML proposal → opens directly in the editor.
+
+**Branch**: `feature/ai-proposal-generation` → merged to `main` (commit `186e7b7`)
+
+### New Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/lib/templates/types.ts` | TypeScript interfaces for `ClientProposalData` and `InternalDocData` |
+| `src/lib/templates/client-proposal.ts` | Template 1 builder: dark hero, count-up stats, capability cards, flow pipeline, phases accordion, timeline bar, investment, next steps, CTA |
+| `src/lib/templates/internal-doc.ts` | Template 2 builder: Notion-style header, goal overview, collapsible workflow steps, tech stack table, phase status board, notes |
+| `src/lib/ai/generate-proposal.ts` | AI utility: full Zod schemas + `generateClientProposal()` + `generateInternalDoc()` |
+| `src/lib/create-proposal-from-html.ts` | Shared DB utility: slug collision check + proposal row + content_blocks insert |
+| `src/app/api/generate/route.ts` | POST endpoint: auth → validate → AI generate → template build → DB insert → return slug |
+| `src/components/dashboard/create-proposal-modal.tsx` | 4-state modal (idle → generating → redirect \| error): template selector, optional title/client name, draft textarea, rotating progress messages |
+| `src/components/dashboard/dashboard-shell.tsx` | `'use client'` wrapper: holds `showModal` state, receives server-fetched proposals as props |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/app/page.tsx` | Replaced direct render with `DashboardShell` (Server Component now just fetches data + passes props) |
+| `src/components/dashboard/dashboard-header.tsx` | Replaced `<Link href="/import">Import New</Link>` with `<button onClick={onNewProposal}>New Proposal</button>`; added `onNewProposal: () => void` prop |
+| `src/components/proposal/proposal-renderer.tsx` | Added `data-edit-mode="true"` attribute to `<body>` when `mode === 'edit'` in `buildIframeHTML()` |
+
+### QA Fixes Applied (commit `148db0b`)
+
+| Fix | Details |
+|-----|---------|
+| `export const maxDuration = 60` | Vercel default is 10s — AI takes 10–20s. Without this, 100% timeout rate in production |
+| `AbortSignal.timeout(55_000)` | On both AI calls — prevents indefinite hang if Anthropic is unresponsive |
+| Migrate to AI Gateway | Changed from `@ai-sdk/anthropic` + direct API key to `'anthropic/claude-sonnet-4.6'` via Vercel AI Gateway. OIDC in prod = no key management |
+| Edit-mode JS guards | `initAccordions`, `initCapabilityCards`, `initFlowSteps` (client proposal) + `initWorkflowToggles`, `initNoteToggles` (internal doc) all check `data-edit-mode` before collapsing. CSS `!important` does NOT override JS inline styles |
+| `safeHref()` sanitizer | CTA href from AI validated against `/^(https?:\|mailto:\|#)/i` — blocks `javascript:` XSS |
+| `animate-scale-in` class | Replaced `zoom-in-95 duration-200` (requires `tailwindcss-animate`, not installed) with `animate-scale-in` (defined in `globals.css`) |
+| `maxLength={20000}` | Hard browser stop on textarea — previously only showed a red counter but allowed typing past limit |
+| `aria-label="Close dialog"` | Screen reader accessibility on X button |
+
+### How the AI Pipeline Works
+
+```
+User types draft notes (20 char min, 20k char max)
+  ↓
+POST /api/generate
+  ↓
+Auth check (Supabase session)
+  ↓
+generateClientProposal() or generateInternalDoc()
+  ├── generateText({ model: 'anthropic/claude-sonnet-4.6', output: Output.object({ schema }) })
+  ├── Zod schema validates + retries if Claude output doesn't conform
+  └── Returns typed ClientProposalData or InternalDocData
+  ↓
+buildClientProposalHTML(data) or buildInternalDocHTML(data)
+  └── Returns fully-rendered <!DOCTYPE html> string (content in DOM, JS interaction-only)
+  ↓
+createProposalFromHTML(supabase, { html, title, userId, userEmail })
+  ├── parseHTML() → stylesheet, scripts, blocks
+  ├── Slug collision check + suffix if taken
+  ├── INSERT into proposals
+  └── INSERT into content_blocks
+  ↓
+Return { proposal: { slug, ... } }
+  ↓
+router.push('/p/{slug}/edit')  ← editor opens
+```
+
+### AI Model Notes
+- Model: `anthropic/claude-sonnet-4.6` via Vercel AI Gateway
+- Local dev: requires `AI_GATEWAY_API_KEY` in `.env.local`
+- Production: OIDC auth — no key needed, Vercel handles it automatically
+- Zod schema `.describe()` strings act as inline prompt instructions to Claude
+- If generation fails, error message is shown in modal — user can fix notes and retry
+
+### Template Architecture Notes
+
+**Why static HTML (not JS-rendered templates)**:
+The editor saves `element.innerHTML` as `current_html` in the DB. If the template rendered content via a JS `PROPOSAL_DATA` object at runtime, every editor save would capture the rendered state — but on re-load, the JS would run again and overwrite it. Static HTML means the content is in the DOM at parse time. JS is strictly interaction-only (animations, accordions, count-ups).
+
+**`data-edit-mode` body attribute**:
+The template CSS includes `body[data-edit-mode] * { opacity: 1 !important; animation: none !important; transition: none !important; }`. The renderer injects `data-edit-mode="true"` on `<body>` when `mode === 'edit'`. This forces all animated/hidden content fully visible. But CSS `!important` only covers CSS properties — JS that sets `element.style.height = '0'` bypasses it. That's why all accordion-init functions have an early-return edit-mode guard.
+
+### Environment Variables (current state)
+```
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://vjtpykjmrukhypghzqnt.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[anon key]
+# AI Gateway key for local dev (rotate after sharing)
+AI_GATEWAY_API_KEY=[key]
+```
+
+**Vercel production env vars needed** (add in Vercel dashboard → Settings → Environment Variables):
+- `NEXT_PUBLIC_SUPABASE_URL` ✅ already set
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` ✅ already set
+- AI Gateway: **no key needed** — OIDC handles it automatically on Vercel
