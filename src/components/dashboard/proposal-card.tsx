@@ -18,6 +18,7 @@ interface Props {
 export default function ProposalCard({ proposal, blockCount }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateLabel, setDuplicateLabel] = useState('Duplicate');
   const [copied, setCopied] = useState(false);
@@ -32,12 +33,13 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
 
   const confirmDelete = useCallback(async () => {
     setDeleting(true);
+    setDeleteError(false);
     try {
       const res = await fetch(`/api/proposals/${proposal.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
     } catch {
       setDeleting(false);
-      setShowDelete(false);
+      setDeleteError(true);
       return;
     }
     setShowDelete(false);
@@ -110,7 +112,7 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
           <span>{formatDate(proposal.updated_at)}</span>
         </div>
 
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 sm:translate-y-1 sm:group-hover:translate-y-0">
           {isPublished && (
             <button
               onClick={handleCopyLink}
@@ -148,7 +150,7 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
       {showDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-150"
-          onClick={(e) => { e.stopPropagation(); setShowDelete(false); }}
+          onClick={(e) => { e.stopPropagation(); setShowDelete(false); setDeleteError(false); }}
         >
           <div
             className="bg-white border border-gray-200 rounded-xl p-6 max-w-sm mx-4 shadow-xl animate-scale-in"
@@ -159,9 +161,12 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
             <p className="text-gray-400 text-xs mb-5">
               This will permanently remove the proposal and all its sections.
             </p>
+            {deleteError && (
+              <p className="text-red-600 text-xs mb-4">Something went wrong. Please try again.</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowDelete(false)}
+                onClick={() => { setShowDelete(false); setDeleteError(false); }}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150 active:scale-95"
               >
                 Cancel

@@ -168,7 +168,8 @@ Output rules:
 - phases[] and timeline.phases[] MUST have the same length and same ordering
 - If pricing is not specified, estimate based on the scope described
 - Today's date formatted as "Month D, YYYY" (e.g. "April 5, 2026")
-- Be generous with content — fill in reasonable details where the draft is thin`;
+- Be generous with content — fill in reasonable details where the draft is thin
+- Never use double hyphens (--) in any text field. Use a single hyphen or rephrase`;
 
 const INTERNAL_DOC_SYSTEM = `You are a technical project manager for Spilled Milk / Design Shopp, a design and automation agency.
 
@@ -185,7 +186,8 @@ Output rules:
 - Tech stack should list every tool mentioned or implied in the notes
 - Phase status defaults to "Pending" for phases not mentioned
 - Notes should capture key decisions, open questions, and observations
-- Today's date formatted as "Month D, YYYY" (e.g. "April 5, 2026")`;
+- Today's date formatted as "Month D, YYYY" (e.g. "April 5, 2026")
+- Never use double hyphens (--) in any text field. Use a single hyphen or rephrase`;
 
 // ─── Generation functions ─────────────────────────────────────────────────────
 

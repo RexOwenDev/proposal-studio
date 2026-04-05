@@ -94,12 +94,12 @@ export default function CreateProposalModal({ onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget && status !== 'generating') onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[92vw] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+      <div role="dialog" aria-modal="true" aria-labelledby="modal-title" className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[92vw] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-gray-900 font-semibold text-base">New Proposal</h2>
+            <h2 id="modal-title" className="text-gray-900 font-semibold text-base">New Proposal</h2>
             <p className="text-gray-400 text-xs mt-0.5">Paste your notes — AI builds the proposal from them</p>
           </div>
           <button

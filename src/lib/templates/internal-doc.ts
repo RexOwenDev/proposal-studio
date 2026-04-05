@@ -18,6 +18,7 @@ import type {
 function esc(val: string | number | undefined | null): string {
   if (val === undefined || val === null) return '';
   return String(val)
+    .replace(/--+/g, '\u2013')   // collapse double-hyphens to en-dash
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
