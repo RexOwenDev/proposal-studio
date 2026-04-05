@@ -213,6 +213,12 @@ body[data-edit-mode] * {
   animation: none !important;
   transition: none !important;
 }
+/* Capability card outcome panels are hover-only reveals — keep them hidden in
+   the editor so the front (editable) face stays visible, not the outcome overlay. */
+body[data-edit-mode] .ps-cap-outcome {
+  opacity: 0 !important;
+  transform: translateY(6px) !important;
+}
 
 /* ── Reset & base ──────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
