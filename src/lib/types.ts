@@ -2,7 +2,7 @@ export interface Proposal {
   id: string;
   slug: string;
   title: string;
-  status: 'draft' | 'review' | 'approved' | 'published';
+  status: 'draft' | 'published';
   original_html: string;
   stylesheet: string | null;
   scripts: string | null;
@@ -23,21 +23,6 @@ export interface ContentBlock {
   wrapper_class: string | null;
   last_edited_by: string | null;
   updated_at: string;
-}
-
-export interface Comment {
-  id: string;
-  proposal_id: string;
-  block_id: string | null;
-  parent_id: string | null;
-  author_id: string;
-  author_name: string;
-  text: string;
-  selected_text: string | null;
-  resolved: boolean;
-  reactions: Record<string, string[]>;
-  created_at: string;
-  edited_at?: string | null;
 }
 
 export interface ParseResult {

@@ -12,13 +12,11 @@ interface EditorToolbarProps {
   status: string;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
   onToggleSections: () => void;
-  onToggleComments: () => void;
   onPublish: (publish: boolean) => void;
-  onSetStatus?: (status: string) => void; // T2: advance workflow status
-  onExportPDF?: () => void;               // Print iframe content as PDF
+  onExportPDF?: () => void;
   onBack: () => void;
   slug: string;
-  proposalId?: string; // T1: for export link
+  proposalId?: string;
   onlineUsers?: PresenceUser[];
   currentUserEmail?: string | null;
   isPublishing?: boolean;
@@ -26,16 +24,7 @@ interface EditorToolbarProps {
 
 const statusColors: Record<string, string> = {
   draft: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-  review: 'bg-blue-900/50 text-blue-300 border-blue-700',
-  approved: 'bg-purple-900/50 text-purple-300 border-purple-700',
   published: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
-};
-
-// T2: next logical status in the review workflow
-const nextStatus: Record<string, { label: string; value: string }> = {
-  draft: { label: 'Submit for Review', value: 'review' },
-  review: { label: 'Approve', value: 'approved' },
-  approved: { label: 'Publish', value: 'published' },
 };
 
 export default function EditorToolbar({
@@ -43,9 +32,7 @@ export default function EditorToolbar({
   status,
   saveStatus,
   onToggleSections,
-  onToggleComments,
   onPublish,
-  onSetStatus,
   onExportPDF,
   onBack,
   slug,
@@ -112,12 +99,6 @@ export default function EditorToolbar({
           >
             Sections
           </button>
-          <button
-            onClick={onToggleComments}
-            className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-          >
-            Comments
-          </button>
         </div>
 
         {/* Presence: who's online */}
@@ -162,26 +143,13 @@ export default function EditorToolbar({
             </button>
           )}
 
-          {/* T2: Workflow advance button (draft→review→approved) */}
-          {!isPublished && nextStatus[status] && onSetStatus && (
-            <button
-              onClick={() => onSetStatus(nextStatus[status].value)}
-              disabled={isPublishing}
-              className="inline-flex px-3 py-1.5 text-xs font-medium text-zinc-200 bg-zinc-700 hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {nextStatus[status].label}
-            </button>
-          )}
-
           <button
             onClick={handlePublishClick}
             disabled={isPublishing}
             className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               isPublished
                 ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
-                : status === 'approved'
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             }`}
           >
             {isPublishing ? '...' : isPublished ? 'Unpublish' : 'Publish'}

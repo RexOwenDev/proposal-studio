@@ -3,13 +3,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import type { Proposal, ContentBlock, Comment } from '@/lib/types';
+import type { Proposal, ContentBlock } from '@/lib/types';
 import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
-import CommentPanel from '@/components/editor/comment-panel';
-import { useRealtimeComments, useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
-import { getUserColor } from '@/lib/user-colors';
-import CommentTrigger from '@/components/editor/comment-trigger';
+import { useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
 import { useToast, ToastContainer } from '@/components/ui/toast';
 import { wrapScripts } from '@/lib/utils/wrap-scripts';
 
@@ -21,61 +18,29 @@ export default function EditPage({ params }: EditPageProps) {
   const [slug, setSlug] = useState<string>('');
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showSections, setShowSections] = useState(false);
-  const [showComments, setShowComments] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [mediaWarning, setMediaWarning] = useState<string | null>(null); // H4
   const { toasts, showToast, dismissToast } = useToast();
-  const [selectionData, setSelectionData] = useState<{
-    text: string;
-    blockId: string;
-    rect: { top: number; right: number; bottom: number; left: number };
-  } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const router = useRouter();
   const supabase = createClient();
 
-  // R3: comment notification callback — stable ref so it doesn't re-trigger the subscription
-  const onNewCommentFromOther = useCallback((comment: Comment) => {
-    const sectionName = comment.block_id
-      ? blocks.find((b) => b.id === comment.block_id)?.label || 'a section'
-      : 'the proposal';
-    showToast(
-      `${comment.author_name} commented on ${sectionName}`,
-      'info',
-      { label: 'View', onClick: () => setShowComments(true) },
-    );
-  }, [blocks, showToast]);
-
-  // Realtime: live comments + presence
-  const { liveComments, mergeComments } = useRealtimeComments(proposal?.id || null, {
-    currentUserId: userId,
-    onNewCommentFromOther,
-  });
+  // Realtime: live block updates + presence
   const { liveBlockUpdates } = useRealtimeBlocks(proposal?.id || null);
-  const { onlineUsers, typingUsers, editingUsers, setTyping, setEditingBlock } = usePresence(proposal?.id || null, userEmail);
+  const { onlineUsers, editingUsers, setEditingBlock } = usePresence(proposal?.id || null, userEmail);
 
   // Mark as mounted so SSR skeleton and client first-render are identical (fixes React #418)
   useEffect(() => { setMounted(true); }, []);
-
-  // Re-render highlights when new realtime comments arrive
-  useEffect(() => {
-    if (liveComments.length === 0) return;
-    const iframe = iframeRef.current;
-    if (!iframe?.contentDocument) return;
-    renderHighlights(iframe.contentDocument, liveComments);
-  }, [liveComments]);
 
   // Surgically apply live block changes (visibility, html) from any user.
   // We patch the iframe DOM directly — no full re-render — to avoid losing
@@ -119,11 +84,6 @@ export default function EditPage({ params }: EditPageProps) {
       setUserEmail(user.email || null);
       setUserId(user.id);
 
-      // Fetch team members for @mentions
-      fetch('/api/team').then((r) => r.json()).then((data) => {
-        if (Array.isArray(data)) setTeamMembers(data);
-      });
-
       // Fetch proposal by slug
       const { data: proposalData } = await supabase
         .from('proposals')
@@ -142,15 +102,8 @@ export default function EditPage({ params }: EditPageProps) {
         .eq('proposal_id', proposalData.id)
         .order('block_order', { ascending: true });
 
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('*')
-        .eq('proposal_id', proposalData.id)
-        .order('created_at', { ascending: true });
-
       setProposal(proposalData);
       setBlocks(blocksData || []);
-      setComments(commentsData || []);
       setIsOwner(proposalData.created_by === user.id);
       setLoading(false);
     }
@@ -369,50 +322,6 @@ export default function EditPage({ params }: EditPageProps) {
       if (isOwner) {
         setupEditableElements(doc);
       }
-
-      // Text selection listener — works on desktop (mouseup) AND touch devices (touchend)
-      function handleTextSelection() {
-        // Small delay for touch devices — selection isn't ready immediately on touchend
-        setTimeout(() => {
-          if (!doc) return;
-          const sel = doc.getSelection();
-          if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-            setSelectionData(null);
-            return;
-          }
-
-          const text = sel.toString().trim().slice(0, 500);
-          const range = sel.getRangeAt(0);
-
-          const startEl = range.startContainer.nodeType === Node.TEXT_NODE
-            ? range.startContainer.parentElement
-            : range.startContainer as HTMLElement;
-          const blockEl = startEl?.closest('[data-block-id]');
-          if (!blockEl) return;
-
-          const blockId = blockEl.getAttribute('data-block-id')!;
-          const rect = range.getBoundingClientRect();
-          if (!iframe) return;
-          const iframeRect = iframe.getBoundingClientRect();
-
-          setSelectionData({
-            text,
-            blockId,
-            rect: {
-              top: rect.top + iframeRect.top,
-              right: rect.right + iframeRect.left,
-              bottom: rect.bottom + iframeRect.top,
-              left: rect.left + iframeRect.left,
-            },
-          });
-        }, 10);
-      }
-
-      doc.addEventListener('mouseup', handleTextSelection);
-      doc.addEventListener('touchend', handleTextSelection);
-
-      // Render existing highlights
-      renderHighlights(doc, mergeComments(comments));
 
       iframe.removeEventListener('load', onLoad);
     };
@@ -730,10 +639,8 @@ export default function EditPage({ params }: EditPageProps) {
       const updated = await res.json();
       setProposal({ ...proposal, status: updated.status });
       const labels: Record<string, string> = {
-        review: 'Submitted for review.',
-        approved: 'Proposal approved.',
         published: 'Proposal published.',
-        draft: 'Proposal moved back to draft.',
+        draft: 'Proposal unpublished.',
       };
       showToast(labels[newStatus] || 'Status updated.', 'success');
     } catch {
@@ -746,298 +653,6 @@ export default function EditPage({ params }: EditPageProps) {
   async function handlePublish(publish: boolean) {
     if (!proposal) return;
     await handleSetStatus(publish ? 'published' : 'draft');
-  }
-
-  async function handleAddComment(blockId: string | null, text: string, selectedText?: string) {
-    if (!proposal) return;
-
-    try {
-      const res = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proposal_id: proposal.id,
-          block_id: blockId,
-          text,
-          selected_text: selectedText || null,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to add comment');
-
-      const comment = await res.json();
-      setComments((prev) => [...prev, comment]);
-
-      // Render the new highlight in the iframe
-      const iframe = iframeRef.current;
-      if (iframe?.contentDocument && selectedText) {
-        renderHighlights(iframe.contentDocument, [comment]);
-      }
-
-      // Clear selection
-      setSelectionData(null);
-    } catch {
-      showToast('Failed to post comment. Please try again.', 'error');
-    }
-  }
-
-  async function handleAddReply(parentId: string, text: string) {
-    if (!proposal) return;
-
-    // Find the parent comment to get its proposal_id and block_id
-    const parent = comments.find((c) => c.id === parentId);
-    if (!parent) return;
-
-    try {
-      const res = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          proposal_id: proposal.id,
-          block_id: parent.block_id,
-          parent_id: parentId,
-          text,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to add reply');
-
-      const reply = await res.json();
-      setComments((prev) => [...prev, reply]);
-    } catch {
-      showToast('Failed to post reply. Please try again.', 'error');
-    }
-  }
-
-  async function handleDeleteComment(commentId: string) {
-    try {
-      const res = await fetch(`/api/comments?id=${commentId}`, { method: 'DELETE' });
-      // 404 means comment is already gone — treat as success so UI stays consistent
-      if (!res.ok && res.status !== 404) throw new Error('Failed to delete');
-
-      // Remove from local state (also removes replies whose parent is deleted)
-      setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
-
-      // Remove any iframe highlight marks for this comment
-      const iframe = iframeRef.current;
-      const iframeDoc = iframe?.contentDocument;
-      if (iframeDoc) {
-        iframeDoc
-          .querySelectorAll(`[data-comment-id="${commentId}"]`)
-          .forEach((el) => {
-            const parent = el.parentNode;
-            if (parent) {
-              parent.replaceChild(iframeDoc.createTextNode(el.textContent || ''), el);
-              parent.normalize();
-            }
-          });
-      }
-    } catch {
-      showToast('Failed to delete comment. Please try again.', 'error');
-    }
-  }
-
-  async function handleEditComment(commentId: string, text: string) {
-    try {
-      const res = await fetch('/api/comments', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: commentId, text }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 403) {
-          showToast('You can only edit your own comments.', 'error');
-        } else {
-          showToast(data.error || 'Failed to save edit. Please try again.', 'error');
-        }
-        return;
-      }
-      const updated = await res.json();
-      setComments((prev) => prev.map((c) => c.id === commentId ? { ...c, text: updated.text, edited_at: updated.edited_at } : c));
-    } catch {
-      showToast('Failed to save edit. Please try again.', 'error');
-    }
-  }
-
-  /** Render highlights in the iframe for comments with selected_text */
-  function renderHighlights(doc: Document, commentsToHighlight: Comment[]) {
-    commentsToHighlight.forEach((comment) => {
-      if (!comment.selected_text || comment.resolved || !comment.block_id) return;
-      if (!comment.parent_id) {
-        // Only render highlights for top-level comments (not replies)
-        if (doc.querySelector(`[data-comment-id="${comment.id}"]`)) return;
-
-        const blockEl = doc.querySelector(`[data-block-id="${comment.block_id}"]`);
-        if (!blockEl) return;
-
-        const color = getUserColor(comment.author_name || 'unknown');
-        highlightTextInElement(blockEl as HTMLElement, comment.selected_text, comment.id, color, doc);
-      }
-    });
-  }
-
-  /** Find and wrap matching text with a colored <mark> tag.
-   *
-   * Uses splitText() + replaceChild() per text node instead of
-   * Range.surroundContents() — works correctly across element boundaries
-   * (e.g. selections spanning <strong>, <em>, <span> siblings).
-   */
-  function highlightTextInElement(
-    root: HTMLElement,
-    searchText: string,
-    commentId: string,
-    color: { bg: string; border: string },
-    doc: Document,
-  ) {
-    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const textNodes: Text[] = [];
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      textNodes.push(node as Text);
-    }
-
-    // Build full text from all text nodes
-    let fullText = '';
-    const nodeMap: { node: Text; start: number; end: number }[] = [];
-    for (const tn of textNodes) {
-      const start = fullText.length;
-      fullText += tn.textContent || '';
-      nodeMap.push({ node: tn, start, end: fullText.length });
-    }
-
-    // Normalize whitespace for matching: collapse multiple spaces/newlines
-    const normalizedFull = fullText.replace(/\s+/g, ' ');
-    const normalizedSearch = searchText.replace(/\s+/g, ' ').trim();
-
-    // Try exact match first, then normalized, then case-insensitive
-    let matchIndex = fullText.indexOf(searchText);
-    let matchLength = searchText.length;
-
-    if (matchIndex === -1) {
-      matchIndex = normalizedFull.indexOf(normalizedSearch);
-      matchLength = normalizedSearch.length;
-    }
-    if (matchIndex === -1) {
-      matchIndex = normalizedFull.toLowerCase().indexOf(normalizedSearch.toLowerCase());
-      matchLength = normalizedSearch.length;
-    }
-    if (matchIndex === -1) return;
-
-    const matchEnd = matchIndex + matchLength;
-
-    // Find ALL text nodes that overlap with [matchIndex, matchEnd]
-    const overlapping = nodeMap.filter(({ start, end }) => !(end <= matchIndex || start >= matchEnd));
-
-    // Wrap each overlapping text node using splitText() — no surroundContents().
-    // This correctly handles selections that span multiple inline elements.
-    for (const { node: tn, start } of overlapping) {
-      try {
-        const localStart = Math.max(0, matchIndex - start);
-        const localEnd = Math.min((tn.textContent || '').length, matchEnd - start);
-
-        // Isolate the portion to highlight by splitting the text node
-        let nodeToWrap: Text = tn;
-        if (localStart > 0) nodeToWrap = tn.splitText(localStart);
-        const wrapLength = localEnd - localStart;
-        if (wrapLength < (nodeToWrap.textContent || '').length) nodeToWrap.splitText(wrapLength);
-
-        if (!nodeToWrap.parentNode) continue;
-
-        const mark = doc.createElement('mark');
-        mark.setAttribute('data-comment-id', commentId);
-        mark.className = 'ps-highlight';
-        mark.style.background = color.bg;
-        mark.style.borderBottom = `2px solid ${color.border}`;
-        mark.style.cursor = 'pointer';
-        mark.style.borderRadius = '2px';
-        mark.style.padding = '1px 0';
-        mark.style.transition = 'background 0.2s ease';
-
-        // Highlight click → open comment panel + scroll to comment thread
-        mark.addEventListener('click', () => {
-          setShowComments(true);
-          // Wait for panel animation before scrolling
-          setTimeout(() => {
-            const commentEl = document.querySelector(`[data-comment-thread="${commentId}"]`);
-            if (commentEl) {
-              commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              // Brief flash on the comment card so it's obvious which one
-              (commentEl as HTMLElement).style.transition = 'box-shadow 0.2s ease';
-              (commentEl as HTMLElement).style.boxShadow = '0 0 0 2px rgba(251,191,36,0.8)';
-              setTimeout(() => { (commentEl as HTMLElement).style.boxShadow = ''; }, 1200);
-            }
-          }, 180);
-        });
-
-        nodeToWrap.parentNode.replaceChild(mark, nodeToWrap);
-        mark.appendChild(nodeToWrap);
-      } catch {
-        // Skip on any DOM manipulation error
-      }
-    }
-  }
-
-  /** Scroll the iframe to a specific highlight by comment ID */
-  function scrollToHighlight(commentId: string) {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentDocument) return;
-
-    const mark = iframe.contentDocument.querySelector(`[data-comment-id="${commentId}"]`);
-    if (mark) {
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Flash effect
-      const el = mark as HTMLElement;
-      const originalBg = el.style.background;
-      el.style.background = 'rgba(255, 255, 0, 0.6)';
-      setTimeout(() => { el.style.background = originalBg; }, 1500);
-    }
-  }
-
-  async function handleResolveComment(commentId: string, resolved: boolean) {
-    try {
-      const res = await fetch('/api/comments', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: commentId, resolved }),
-      });
-
-      if (!res.ok) throw new Error('Failed to resolve comment');
-
-      setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? { ...c, resolved } : c))
-      );
-    } catch {
-      showToast('Failed to update comment. Please try again.', 'error');
-    }
-  }
-
-  async function handleReaction(commentId: string, emoji: string) {
-    if (!userEmail) return;
-    const reactor = userEmail.split('@')[0];
-
-    // Optimistic update
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id !== commentId) return c;
-        const reactions = { ...(c.reactions || {}) };
-        const users = reactions[emoji] || [];
-        if (users.includes(reactor)) {
-          reactions[emoji] = users.filter((u) => u !== reactor);
-          if (reactions[emoji].length === 0) delete reactions[emoji];
-        } else {
-          reactions[emoji] = [...users, reactor];
-        }
-        return { ...c, reactions };
-      })
-    );
-
-    // Persist
-    await fetch('/api/comments', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: commentId, reaction: emoji, reactor }),
-    });
   }
 
   if (!mounted || loading) {
@@ -1071,9 +686,7 @@ export default function EditPage({ params }: EditPageProps) {
         status={proposal.status}
         saveStatus={saveStatus}
         onToggleSections={() => setShowSections(!showSections)}
-        onToggleComments={() => setShowComments(!showComments)}
         onPublish={handlePublish}
-        onSetStatus={handleSetStatus}
         onExportPDF={() => iframeRef.current?.contentWindow?.print()}
         onBack={() => router.push('/')}
         slug={proposal.slug}
@@ -1092,37 +705,6 @@ export default function EditPage({ params }: EditPageProps) {
         onRevertBlock={handleRevertBlock}
         editingUsers={editingUsers}
       />
-
-      <CommentPanel
-        open={showComments}
-        comments={mergeComments(comments)}
-        blocks={blocks}
-        teamMembers={teamMembers}
-        onClose={() => setShowComments(false)}
-        onAddComment={handleAddComment}
-        onAddReply={handleAddReply}
-        onResolveComment={handleResolveComment}
-        onReaction={handleReaction}
-        onScrollToHighlight={scrollToHighlight}
-        onDeleteComment={handleDeleteComment}
-        onEditComment={handleEditComment}
-        typingUsers={typingUsers}
-        onTypingChange={setTyping}
-        currentUser={userEmail?.split('@')[0] || ''}
-        currentUserId={userId || ''}
-        isOwner={isOwner}
-      />
-
-      {/* Floating comment trigger — appears when text is selected */}
-      {selectionData && (
-        <CommentTrigger
-          selectionData={selectionData}
-          onSubmit={(blockId, commentText, selectedText) => {
-            handleAddComment(blockId, commentText, selectedText);
-          }}
-          onDismiss={() => setSelectionData(null)}
-        />
-      )}
 
       {/* H4: Media element compatibility warning */}
       {mediaWarning && (

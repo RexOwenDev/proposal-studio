@@ -8,11 +8,10 @@ import CreateProposalModal from '@/components/dashboard/create-proposal-modal';
 
 interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
-  unresolvedCounts: Record<string, number>;
   userEmail: string;
 }
 
-export default function DashboardShell({ proposals, unresolvedCounts, userEmail }: Props) {
+export default function DashboardShell({ proposals, userEmail }: Props) {
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -32,7 +31,7 @@ export default function DashboardShell({ proposals, unresolvedCounts, userEmail 
             </div>
             <h2 className="text-gray-900 text-lg font-semibold mb-2">No proposals yet</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Generate an AI proposal from your draft notes. Your team can then edit text, toggle sections, leave comments, and publish shareable links.
+              Generate an AI proposal from your draft notes. Your team can then edit text, toggle sections, and publish shareable links.
             </p>
             <button
               onClick={() => setShowModal(true)}
@@ -45,7 +44,7 @@ export default function DashboardShell({ proposals, unresolvedCounts, userEmail 
             </button>
           </div>
         ) : (
-          <ProposalGrid proposals={proposals} unresolvedCounts={unresolvedCounts} />
+          <ProposalGrid proposals={proposals} />
         )}
       </main>
 

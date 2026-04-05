@@ -6,12 +6,11 @@ import ProposalCard from '@/components/dashboard/proposal-card';
 
 interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
-  unresolvedCounts: Record<string, number>;
 }
 
-const ALL_STATUSES = ['draft', 'review', 'approved', 'published'] as const;
+const ALL_STATUSES = ['draft', 'published'] as const;
 
-export default function ProposalGrid({ proposals, unresolvedCounts }: Props) {
+export default function ProposalGrid({ proposals }: Props) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +101,6 @@ export default function ProposalGrid({ proposals, unresolvedCounts }: Props) {
               key={proposal.id}
               proposal={proposal}
               blockCount={proposal.content_blocks?.length || 0}
-              unresolvedComments={unresolvedCounts[proposal.id] || 0}
             />
           ))}
         </div>

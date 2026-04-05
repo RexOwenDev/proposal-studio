@@ -2,88 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Comment, ContentBlock } from '@/lib/types';
+import type { ContentBlock } from '@/lib/types';
 
 export interface PresenceUser {
   email: string;
   joinedAt: string;
   isTyping?: boolean;
   editingBlockId?: string; // R1: which block this user is currently editing
-}
-
-interface UseRealtimeCommentsOptions {
-  currentUserId?: string | null;
-  onNewCommentFromOther?: (comment: Comment) => void; // R3: notification callback
-}
-
-export function useRealtimeComments(
-  proposalId: string | null,
-  options: UseRealtimeCommentsOptions = {},
-) {
-  const [liveComments, setLiveComments] = useState<Comment[]>([]);
-  const optionsRef = useRef(options);
-  useEffect(() => { optionsRef.current = options; });
-
-  useEffect(() => {
-    if (!proposalId) return;
-
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel(`comments:${proposalId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `proposal_id=eq.${proposalId}`,
-        },
-        (payload) => {
-          const comment = payload.new as Comment;
-          setLiveComments((prev) => [...prev, comment]);
-
-          // R3: notify if the comment came from someone else
-          const { currentUserId, onNewCommentFromOther } = optionsRef.current;
-          if (onNewCommentFromOther && comment.author_id !== currentUserId) {
-            onNewCommentFromOther(comment);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'comments',
-          filter: `proposal_id=eq.${proposalId}`,
-        },
-        (payload) => {
-          setLiveComments((prev) =>
-            prev.map((c) => (c.id === (payload.new as Comment).id ? (payload.new as Comment) : c))
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [proposalId]);
-
-  const mergeComments = useCallback(
-    (initial: Comment[]): Comment[] => {
-      const map = new Map<string, Comment>();
-      initial.forEach((c) => map.set(c.id, c));
-      liveComments.forEach((c) => map.set(c.id, c));
-      return Array.from(map.values()).sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-    },
-    [liveComments]
-  );
-
-  return { liveComments, mergeComments };
 }
 
 /**

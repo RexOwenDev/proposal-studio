@@ -106,13 +106,12 @@ export async function PATCH(
   }
 
   // Validate status values
-  if ('status' in allowed && !['draft', 'review', 'approved', 'published'].includes(allowed.status as string)) {
+  if ('status' in allowed && !['draft', 'published'].includes(allowed.status as string)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Status-only updates (draft→review→approved→published) can be performed by any
-  // authenticated team member — approvals and review actions are not owner-gated.
-  // Title and other field updates still require the proposal creator.
+  // Status-only updates (draft↔published) can be performed by any authenticated
+  // team member. Title and other field updates still require the proposal creator.
   const isStatusOnly = Object.keys(allowed).length === 1 && 'status' in allowed;
 
   if (isStatusOnly) {
