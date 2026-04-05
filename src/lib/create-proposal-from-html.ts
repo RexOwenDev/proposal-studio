@@ -31,35 +31,44 @@ export async function createProposalFromHTML(
   const parsed = parseHTML(html);
   const title = options.title || parsed.title;
 
-  // Generate slug with collision check
-  let slug = slugify(title);
-  const { data: existing } = await supabase
-    .from('proposals')
-    .select('slug')
-    .eq('slug', slug)
-    .single();
+  // Generate slug, retrying up to 4 times on unique-constraint collision (race-safe)
+  const baseSlug = slugify(title);
+  let slug = baseSlug;
+  let proposal: Record<string, unknown> | null = null;
 
-  if (existing) {
-    slug = `${slug}-${Math.random().toString(36).substring(2, 6)}`;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) {
+      slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from('proposals')
+      .insert({
+        slug,
+        title,
+        original_html: html,
+        stylesheet: parsed.stylesheet,
+        scripts: parsed.scripts,
+        created_by: userId,
+        created_by_email: userEmail,
+      })
+      .select()
+      .single();
+
+    if (!insertError) {
+      proposal = data;
+      break;
+    }
+
+    // Postgres unique-violation code — retry with a new suffix
+    if (insertError.code === '23505') continue;
+
+    // Any other DB error is fatal
+    throw new Error('Failed to create proposal');
   }
 
-  // Create the proposal row
-  const { data: proposal, error: proposalError } = await supabase
-    .from('proposals')
-    .insert({
-      slug,
-      title,
-      original_html: html,
-      stylesheet: parsed.stylesheet,
-      scripts: parsed.scripts,
-      created_by: userId,
-      created_by_email: userEmail,
-    })
-    .select()
-    .single();
-
-  if (proposalError || !proposal) {
-    throw new Error('Failed to create proposal');
+  if (!proposal) {
+    throw new Error('Failed to create proposal after slug retries');
   }
 
   // Create content blocks

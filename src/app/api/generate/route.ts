@@ -61,6 +61,21 @@ export async function POST(request: Request) {
     );
   }
 
+  // Rate limit: max 10 generations per user per hour
+  const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('proposals')
+    .select('id', { count: 'exact', head: true })
+    .eq('created_by', user.id)
+    .gte('created_at', windowStart);
+
+  if (typeof count === 'number' && count >= 10) {
+    return NextResponse.json(
+      { error: 'Rate limit reached. You can generate up to 10 proposals per hour.' },
+      { status: 429 }
+    );
+  }
+
   try {
     // 1. Generate structured data from Claude
     let html: string;

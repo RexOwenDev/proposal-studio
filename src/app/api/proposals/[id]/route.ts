@@ -60,14 +60,8 @@ export async function GET(
     .eq('proposal_id', id)
     .order('block_order', { ascending: true });
 
-  const { data: comments } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('proposal_id', id)
-    .order('created_at', { ascending: true });
-
   return NextResponse.json(
-    { ...proposal, blocks: blocks || [], comments: comments || [] },
+    { ...proposal, blocks: blocks || [] },
     { headers: SECURITY_HEADERS }
   );
 }
@@ -110,26 +104,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Status-only updates (draft↔published) can be performed by any authenticated
-  // team member. Title and other field updates still require the proposal creator.
-  const isStatusOnly = Object.keys(allowed).length === 1 && 'status' in allowed;
-
-  if (isStatusOnly) {
-    const { data, error } = await supabase
-      .from('proposals')
-      .update(allowed)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
-    }
-    return NextResponse.json(data, { headers: SECURITY_HEADERS });
-  }
-
-  // Ownership check: only the proposal creator can update title and other fields.
-  // Adding created_by filter to the UPDATE itself is atomic — returns no rows if not owner.
+  // Ownership check: only the proposal creator can update any fields (title, status, etc.)
   const { data, error } = await supabase
     .from('proposals')
     .update(allowed)
