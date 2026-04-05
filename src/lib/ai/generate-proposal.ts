@@ -117,7 +117,7 @@ export const InternalDocSchema = z.object({
     date: z.string().describe('Date as "Month D, YYYY".'),
   }),
   goal: z.object({
-    summary: z.string().describe('1-sentence bold summary of what this project achieves.'),
+    summary: z.string().describe('1-sentence summary of what this project achieves. Plain text only — no markdown, no asterisks.'),
     problem: z.string().describe('1-2 sentences on the problem being solved.'),
     outcome: z.string().describe('1-2 sentences on the desired end state.'),
   }),
