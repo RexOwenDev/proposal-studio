@@ -706,9 +706,12 @@ img { max-width: 100%; display: block; }
   width: 10px; height: 10px; border-radius: 50%;
 }
 @media (max-width: 540px) {
-  /* min-width:0 removes the min-content floor so blocks shrink to their flex fraction.
-     overflow:hidden + white-space:nowrap (already set) clip text naturally — no need to hide it. */
-  .ps-tl-block { min-width: 0; font-size: 0.6rem; padding: 0 6px; }
+  /* Phase names are too long to fit in proportional bars at 375px — even at tiny font sizes
+     a 1-week bar (~65px) clips "Discovery & Setup" mid-character. Hide text on mobile;
+     the legend directly below already shows every phase name + duration in full. */
+  .ps-tl-block { min-width: 0; padding: 0; }
+  .ps-tl-block > span { display: none; }
+  .ps-tl-bar { height: 36px; border-radius: 6px; gap: 3px; }
   .ps-tl-legend-item { font-size: 0.82rem; }
   .ps-tl-legend { gap: 10px 16px; }
 }
