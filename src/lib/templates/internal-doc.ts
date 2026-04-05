@@ -179,6 +179,7 @@ a { color: inherit; text-decoration: none; }
   user-select: none; transition: background 0.15s;
 }
 .id-wf-header:hover { background: #f9fafb; }
+.id-wf-header:focus-visible { outline: 2px solid var(--purple); outline-offset: -2px; border-radius: 8px; }
 .id-wf-num {
   width: 24px; height: 24px; border-radius: 50%;
   background: var(--purple); color: #fff;
@@ -380,7 +381,7 @@ function buildWorkflow(data: InternalDocData): string {
         <div class="id-wf-num">${step.number}</div>
         <div class="id-wf-title">${esc(step.title)}</div>
         <span class="id-wf-type-badge ${typeClass}">${esc(step.type)}</span>
-        <svg class="id-wf-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="id-wf-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/>
         </svg>
       </div>

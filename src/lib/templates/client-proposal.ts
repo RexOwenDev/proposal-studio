@@ -133,6 +133,7 @@ function initCapabilityCards() {
     var front = card.querySelector('.ps-cap-front');
     var outcome = card.querySelector('.ps-cap-outcome');
     if (!front || !outcome) return;
+    // Desktop hover
     card.addEventListener('mouseenter', function() {
       front.style.opacity = '0';
       front.style.transform = 'translateY(-6px)';
@@ -144,6 +145,16 @@ function initCapabilityCards() {
       front.style.transform = 'translateY(0)';
       outcome.style.opacity = '0';
       outcome.style.transform = 'translateY(6px)';
+    });
+    // Touch device: tap to toggle outcome (hover: hover does not match touch-only)
+    card.addEventListener('click', function() {
+      if (window.matchMedia('(hover: hover)').matches) return;
+      var isFlipped = card.getAttribute('data-flipped') === 'true';
+      card.setAttribute('data-flipped', isFlipped ? 'false' : 'true');
+      front.style.opacity = isFlipped ? '1' : '0';
+      front.style.transform = isFlipped ? 'translateY(0)' : 'translateY(-6px)';
+      outcome.style.opacity = isFlipped ? '0' : '1';
+      outcome.style.transform = isFlipped ? 'translateY(6px)' : 'translateY(0)';
     });
   });
 }
@@ -159,11 +170,13 @@ function initFlowSteps() {
       var isOpen = step.getAttribute('data-open') === 'true';
       document.querySelectorAll('.ps-flow-step').forEach(function(s) {
         s.setAttribute('data-open', 'false');
+        s.setAttribute('aria-expanded', 'false');
         var t = s.querySelector('.ps-step-desc');
         if (t) t.style.maxHeight = '0';
       });
       if (!isOpen) {
         step.setAttribute('data-open', 'true');
+        step.setAttribute('aria-expanded', 'true');
         tooltip.style.maxHeight = tooltip.scrollHeight + 'px';
       }
     });
@@ -392,6 +405,10 @@ img { max-width: 100%; display: block; }
   letter-spacing: 0.06em;
   margin-top: 2px;
 }
+@media (max-width: 540px) {
+  .ps-stats-row { gap: 16px 20px; padding-top: 1.25rem; }
+  .ps-stat-val { font-size: 1.7rem; }
+}
 
 /* ── Solution ──────────────────────────────────────────────────────────────── */
 .ps-solution { background: var(--light); }
@@ -409,6 +426,7 @@ img { max-width: 100%; display: block; }
   position: relative;
   min-height: 160px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   transition: box-shadow 0.2s, border-color 0.2s;
 }
 .ps-cap-card:hover {
@@ -623,6 +641,8 @@ img { max-width: 100%; display: block; }
 .ps-phase-desc { font-size: 0.9rem; color: var(--muted); line-height: 1.65; margin-bottom: 16px; }
 .ps-phase-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 540px) { .ps-phase-lists { grid-template-columns: 1fr; } }
+.ps-phase-header:focus-visible { outline: 2px solid var(--purple); outline-offset: -2px; border-radius: 4px; }
+.ps-flow-step:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; border-radius: 8px; }
 .ps-phase-list-label {
   font-size: 0.65rem; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
@@ -662,7 +682,7 @@ img { max-width: 100%; display: block; }
   background: var(--dark); color: #fff;
   font-size: 0.7rem; font-weight: 400; line-height: 1.4;
   padding: 6px 10px; border-radius: 6px;
-  white-space: nowrap; max-width: 160px; white-space: normal;
+  max-width: 160px; white-space: normal;
   opacity: 0; visibility: hidden;
   transition: opacity 0.18s;
   pointer-events: none; z-index: 10;
@@ -676,6 +696,15 @@ img { max-width: 100%; display: block; }
 }
 .ps-tl-legend-dot {
   width: 10px; height: 10px; border-radius: 50%;
+}
+@media (max-width: 540px) {
+  /* Blocks have display:flex (also a flex container), so min-content from text forces overflow.
+     Setting min-width:0 removes that floor; hiding the span removes the min-content anchor.
+     The legend below already shows phase names, so bars become pure proportion swatches. */
+  .ps-tl-block { min-width: 0; }
+  .ps-tl-block > span { display: none; }
+  .ps-tl-legend-item { font-size: 0.82rem; }
+  .ps-tl-legend { gap: 10px 16px; }
 }
 
 /* ── Investment ────────────────────────────────────────────────────────────── */
@@ -756,6 +785,10 @@ img { max-width: 100%; display: block; }
 }
 .ps-footer-brand { font-family: 'Playfair Display', Georgia, serif; color: var(--text); font-size: 0.95rem; font-weight: 700; }
 .ps-footer-meta { font-size: 0.75rem; text-align: right; }
+@media (max-width: 480px) {
+  .ps-footer-inner { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .ps-footer-meta { text-align: left; }
+}
 `;
 
 // ─── Section builders ─────────────────────────────────────────────────────────
@@ -825,7 +858,7 @@ function buildFlowSection(data: ClientProposalData): string {
     const connectorHTML = i < flow.steps.length - 1
       ? '<div class="ps-flow-connector"></div>'
       : '';
-    return `<div class="ps-flow-step ps-step-${step.type} ps-reveal" data-delay="${i * 80}" data-open="false">
+    return `<div class="ps-flow-step ps-step-${step.type} ps-reveal" data-delay="${i * 80}" data-open="false" role="button" aria-expanded="false" tabindex="0">
       <div class="ps-step-node">${esc(step.icon)}</div>
       <div class="ps-step-title">${esc(step.title)}</div>
       <div class="ps-step-time">${esc(step.time)}</div>
@@ -889,7 +922,7 @@ function buildPhasesSection(data: ClientProposalData): string {
         <div class="ps-phase-number">${phase.number}</div>
         <div class="ps-phase-name">${esc(phase.title)}</div>
         <div class="ps-phase-duration">${esc(phase.duration)}</div>
-        <svg class="ps-phase-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="ps-phase-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/>
         </svg>
       </div>
