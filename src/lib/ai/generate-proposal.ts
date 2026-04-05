@@ -4,7 +4,7 @@
  * generateText + Output.object({ schema }) replaces the removed generateObject.
  * Zod schemas act as both TypeScript type sources AND structured output schemas.
  *
- * Model: claude-sonnet-4.6 via direct Anthropic provider.
+ * Model: claude-sonnet-4-6 via direct Anthropic provider.
  * Base URL is hardcoded to prevent ANTHROPIC_BASE_URL env var from stripping /v1.
  */
 
@@ -203,7 +203,7 @@ export async function generateClientProposal(
     : '';
 
   const { toolCalls } = await generateText({
-    model: anthropic('claude-sonnet-4.6'),
+    model: anthropic('claude-sonnet-4-6'),
     system: CLIENT_PROPOSAL_SYSTEM,
     prompt: `Here are the sales rep's draft notes for a client proposal:\n\n${draftText}${contextNote}`,
     tools: {
@@ -234,7 +234,7 @@ export async function generateInternalDoc(
     : '';
 
   const { toolCalls } = await generateText({
-    model: anthropic('claude-sonnet-4.6'),
+    model: anthropic('claude-sonnet-4-6'),
     system: INTERNAL_DOC_SYSTEM,
     prompt: `Here are the team notes for an internal automation doc:\n\n${draftText}${contextNote}`,
     tools: {
