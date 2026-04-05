@@ -373,9 +373,9 @@ img { max-width: 100%; display: block; }
   margin-bottom: 2.5rem;
 }
 .ps-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
   margin-top: auto;
   padding-top: 2rem;
   border-top: 1px solid var(--border-light);
@@ -387,6 +387,8 @@ img { max-width: 100%; display: block; }
   flex-direction: row;
   flex-wrap: wrap;
   row-gap: 4px;
+  min-width: 0;
+  padding-right: 24px;
 }
 .ps-stat-val {
   font-family: 'Playfair Display', Georgia, serif;
@@ -406,7 +408,9 @@ img { max-width: 100%; display: block; }
   margin-top: 2px;
 }
 @media (max-width: 540px) {
-  .ps-stats-row { gap: 16px 20px; padding-top: 1.25rem; }
+  /* Stack into 2+1 on narrow screens — 3 equal cols at 375px is too cramped for "24h → 0.5h" */
+  .ps-stats-row { grid-template-columns: repeat(2, 1fr); gap: 16px 0; padding-top: 1.25rem; }
+  .ps-stat { padding-right: 12px; }
   .ps-stat-val { font-size: 1.7rem; }
 }
 
@@ -414,8 +418,11 @@ img { max-width: 100%; display: block; }
 .ps-solution { background: var(--light); }
 .ps-cap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+}
+@media (max-width: 480px) {
+  .ps-cap-grid { grid-template-columns: 1fr; }
 }
 .ps-cap-card {
   background: #fff;
