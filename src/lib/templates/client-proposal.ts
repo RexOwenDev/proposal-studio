@@ -408,10 +408,11 @@ img { max-width: 100%; display: block; }
   margin-top: 2px;
 }
 @media (max-width: 540px) {
-  /* Stack into 2+1 on narrow screens — 3 equal cols at 375px is too cramped for "24h → 0.5h" */
-  .ps-stats-row { grid-template-columns: repeat(2, 1fr); gap: 16px 0; padding-top: 1.25rem; }
-  .ps-stat { padding-right: 12px; }
-  .ps-stat-val { font-size: 1.7rem; }
+  /* Single column — each stat full-width, values stay on one line, label below */
+  .ps-stats-row { grid-template-columns: 1fr; gap: 14px 0; padding-top: 1.25rem; }
+  .ps-stat { padding-right: 0; align-items: baseline; }
+  .ps-stat-val { font-size: 1.6rem; }
+  .ps-stat-label { font-size: 0.7rem; }
 }
 
 /* ── Solution ──────────────────────────────────────────────────────────────── */
@@ -421,7 +422,7 @@ img { max-width: 100%; display: block; }
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
-@media (max-width: 480px) {
+@media (max-width: 540px) {
   .ps-cap-grid { grid-template-columns: 1fr; }
 }
 .ps-cap-card {
@@ -705,11 +706,9 @@ img { max-width: 100%; display: block; }
   width: 10px; height: 10px; border-radius: 50%;
 }
 @media (max-width: 540px) {
-  /* Blocks have display:flex (also a flex container), so min-content from text forces overflow.
-     Setting min-width:0 removes that floor; hiding the span removes the min-content anchor.
-     The legend below already shows phase names, so bars become pure proportion swatches. */
-  .ps-tl-block { min-width: 0; }
-  .ps-tl-block > span { display: none; }
+  /* min-width:0 removes the min-content floor so blocks shrink to their flex fraction.
+     overflow:hidden + white-space:nowrap (already set) clip text naturally — no need to hide it. */
+  .ps-tl-block { min-width: 0; font-size: 0.6rem; padding: 0 6px; }
   .ps-tl-legend-item { font-size: 0.82rem; }
   .ps-tl-legend { gap: 10px 16px; }
 }
