@@ -83,10 +83,10 @@ export default function EditorToolbar({
           >
             Home
           </a>
-          <span className="text-white text-sm font-medium truncate max-w-[100px] sm:max-w-[200px]">
+          <span className="text-white text-sm font-medium truncate max-w-[72px] sm:max-w-[200px]">
             {title}
           </span>
-          <span className={`text-xs px-2 py-0.5 rounded border shrink-0 ${statusColors[status] || ''}`}>
+          <span className={`hidden sm:inline text-xs px-2 py-0.5 rounded border shrink-0 ${statusColors[status] || ''}`}>
             {status}
           </span>
         </div>

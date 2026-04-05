@@ -94,13 +94,13 @@ export default function CreateProposalModal({ onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget && status !== 'generating') onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[92vw] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-100">
           <div>
             <h2 className="text-gray-900 font-semibold text-base">New Proposal</h2>
-            <p className="text-gray-400 text-xs mt-0.5">AI generates your proposal from your draft notes</p>
+            <p className="text-gray-400 text-xs mt-0.5">Paste your notes — AI builds the proposal from them</p>
           </div>
           <button
             onClick={onClose}
@@ -133,7 +133,7 @@ export default function CreateProposalModal({ onClose }: Props) {
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-4 sm:space-y-5">
 
           {/* Template type selector */}
           <div>
@@ -141,37 +141,37 @@ export default function CreateProposalModal({ onClose }: Props) {
             <div className="flex gap-2">
               <button
                 onClick={() => setTemplateType('client')}
-                className={`flex-1 flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
+                className={`flex-1 flex items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl border-2 text-left transition-all ${
                   templateType === 'client'
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <span className="text-xl mt-0.5">📄</span>
+                <span className="text-lg sm:text-xl mt-0.5 shrink-0">📄</span>
                 <div>
-                  <div className={`text-sm font-semibold ${templateType === 'client' ? 'text-blue-700' : 'text-gray-800'}`}>Client Proposal</div>
-                  <div className="text-xs text-gray-400 mt-0.5">Branded, visual, sent to clients</div>
+                  <div className={`text-xs sm:text-sm font-semibold ${templateType === 'client' ? 'text-blue-700' : 'text-gray-800'}`}>Client Proposal</div>
+                  <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">Branded, visual, sent to clients</div>
                 </div>
               </button>
               <button
                 onClick={() => setTemplateType('internal')}
-                className={`flex-1 flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
+                className={`flex-1 flex items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl border-2 text-left transition-all ${
                   templateType === 'internal'
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <span className="text-xl mt-0.5">🗂️</span>
+                <span className="text-lg sm:text-xl mt-0.5 shrink-0">🗂️</span>
                 <div>
-                  <div className={`text-sm font-semibold ${templateType === 'internal' ? 'text-blue-700' : 'text-gray-800'}`}>Internal Doc</div>
-                  <div className="text-xs text-gray-400 mt-0.5">Technical reference for the team</div>
+                  <div className={`text-xs sm:text-sm font-semibold ${templateType === 'internal' ? 'text-blue-700' : 'text-gray-800'}`}>Internal Doc</div>
+                  <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">Technical reference for the team</div>
                 </div>
               </button>
             </div>
           </div>
 
           {/* Title + Client name */}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <div className="flex-1">
               <label htmlFor="ps-title" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                 Project Title <span className="text-gray-300 font-normal normal-case">(optional)</span>
@@ -207,15 +207,15 @@ export default function CreateProposalModal({ onClose }: Props) {
           {/* Draft text */}
           <div>
             <label htmlFor="ps-draft" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Your Draft Notes <span className="text-red-400">*</span>
+              Paste Your Notes <span className="text-red-400">*</span>
             </label>
             <textarea
               id="ps-draft"
               value={draftText}
               onChange={(e) => setDraftText(e.target.value)}
               placeholder={templateType === 'client'
-                ? "Describe the client's situation and what you're proposing. Include: client pain points, what we're building, rough timeline, price range, next steps...\n\nExample: Client is ACME Corp, they're losing leads because their follow-up is manual. We're building a 3-step n8n automation: lead capture → AI qualification email → CRM entry. 4 weeks. Around $8k. They liked the speed-quote tool demo."
-                : "Describe the automation project for the team. Include: client and goal, workflow steps, tools being used, phases and status, any key decisions or open questions...\n\nExample: Client is ACME. Goal is automated lead qualification. Using n8n + Claude + HubSpot. Phase 1 is discovery (done), Phase 2 is build (in progress). Key decision: using webhook trigger not email polling."
+                ? "Paste anything — emails, meeting notes, Slack threads, bullet points. Just include what you know about the client and the project.\n\nExample: Client is ACME Corp, losing leads because follow-up is manual. Building a 3-step automation: lead capture → AI qualification email → CRM entry. 4 weeks, around $8k. They liked the demo."
+                : "Paste anything — Slack threads, meeting notes, bullet points. Include the client, goal, tools involved, and current status.\n\nExample: Client is ACME. Goal is automated lead qualification. Using n8n + Claude + HubSpot. Phase 1 done, Phase 2 in progress. Key decision: webhook trigger not email polling."
               }
               rows={9}
               maxLength={20000}
@@ -242,7 +242,7 @@ export default function CreateProposalModal({ onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-100 bg-gray-50/60">
           <button
             onClick={onClose}
             disabled={status === 'generating'}

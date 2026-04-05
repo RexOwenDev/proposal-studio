@@ -989,7 +989,7 @@ function buildInvestmentSection(data: ClientProposalData): string {
 }
 
 function buildNextStepsSection(data: ClientProposalData): string {
-  const { nextSteps, cta } = data;
+  const { nextSteps } = data;
   if (!nextSteps?.length) return '';
 
   const stepsHTML = nextSteps.map((step, i) => `
@@ -1001,20 +1001,11 @@ function buildNextStepsSection(data: ClientProposalData): string {
       </div>
     </div>`).join('');
 
-  const ctaHTML = cta?.label
-    ? `<div class="ps-cta-wrap ps-reveal">
-        <a href="${safeHref(cta.href)}" target="_blank" rel="noopener noreferrer" class="ps-cta-btn">
-          ${esc(cta.label)} <span class="ps-cta-arrow">→</span>
-        </a>
-      </div>`
-    : '';
-
   return `<section id="next-steps" class="ps-next-steps">
   <div class="ps-inner">
     <div class="ps-overline ps-reveal">Getting Started</div>
     <h2 class="ps-section-title ps-reveal">Next Steps</h2>
     <div class="ps-steps-list">${stepsHTML}</div>
-    ${ctaHTML}
   </div>
 </section>`;
 }
