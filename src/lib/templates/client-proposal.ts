@@ -712,12 +712,11 @@ img { max-width: 100%; display: block; }
   width: 10px; height: 10px; border-radius: 50%;
 }
 @media (max-width: 540px) {
-  /* Phase names are too long to fit in proportional bars at 375px — even at tiny font sizes
-     a 1-week bar (~65px) clips "Discovery & Setup" mid-character. Hide text on mobile;
-     the legend directly below already shows every phase name + duration in full. */
-  .ps-tl-block { min-width: 0; padding: 0; }
-  .ps-tl-block > span { display: none; }
-  .ps-tl-bar { height: 36px; border-radius: 6px; gap: 3px; }
+  /* Stack timeline blocks vertically on mobile so phase names have full width and never clip. */
+  .ps-tl-bar { flex-direction: column; height: auto; overflow: visible; border-radius: 8px; gap: 4px; }
+  .ps-tl-block { flex: none !important; width: 100%; min-width: 0; height: 44px; border-radius: 6px; justify-content: flex-start; padding: 0 14px; font-size: 0.75rem; }
+  .ps-tl-block > span { display: block; }
+  .ps-tl-tip { display: none !important; }
   .ps-tl-legend-item { font-size: 0.82rem; }
   .ps-tl-legend { gap: 10px 16px; }
 }
