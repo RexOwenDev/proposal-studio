@@ -46,6 +46,15 @@ export interface ViewStats {
   last_viewed_at: string | null;
 }
 
+export interface ProposalAcceptance {
+  id: string;
+  proposal_id: string;
+  client_name: string;
+  client_email: string | null;
+  accepted_at: string;
+  // ip_address intentionally excluded — server-only field, never sent to client
+}
+
 export interface Comment {
   id: string;
   proposal_id: string;
