@@ -13,9 +13,11 @@ const statusColors: Record<string, string> = {
 interface Props {
   proposal: Proposal;
   blockCount: number;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export default function ProposalCard({ proposal, blockCount }: Props) {
+export default function ProposalCard({ proposal, blockCount, isSelected, onToggleSelect }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
@@ -86,9 +88,28 @@ export default function ProposalCard({ proposal, blockCount }: Props) {
   return (
     <>
       <div
-        onClick={() => router.push(`/p/${proposal.slug}/edit`)}
-        className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all duration-200 ease-out group cursor-pointer relative flex flex-col hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+        onClick={() => !onToggleSelect && router.push(`/p/${proposal.slug}/edit`)}
+        className={`bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all duration-200 ease-out group cursor-pointer relative flex flex-col hover:-translate-y-0.5 active:translate-y-0 active:shadow-none ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
       >
+        {onToggleSelect && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(proposal.id); }}
+            className={`absolute top-2 left-2 z-10 w-5 h-5 rounded border-2 transition-colors flex items-center justify-center ${
+              isSelected
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-white border-gray-300 hover:border-blue-400'
+            }`}
+            aria-label={isSelected ? 'Deselect proposal' : 'Select proposal'}
+            aria-pressed={isSelected}
+          >
+            {isSelected && (
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 12 12">
+                <path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        )}
+
         <div className="flex items-start justify-between mb-3">
           <h2 className="text-gray-900 font-semibold group-hover:text-blue-600 transition-colors duration-150 truncate pr-2 text-sm leading-snug">
             {proposal.title}
