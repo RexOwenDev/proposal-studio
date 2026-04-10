@@ -1085,6 +1085,11 @@ function buildFooter(data: ClientProposalData): string {
 </footer>`;
 }
 
+// NOTE: Stylesheet is light-theme only (as of 2026-04-05 refactor).
+// Proposals generated before this date have a dark stylesheet stored in the DB.
+// Workaround: delete the old proposal and regenerate with the same notes.
+// If this recurs, add a `template_version` column to the `proposals` table.
+
 // ─── Main assembler ───────────────────────────────────────────────────────────
 
 export function buildClientProposalHTML(data: ClientProposalData): string {
