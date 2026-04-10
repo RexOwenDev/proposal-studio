@@ -39,3 +39,18 @@ export interface ParsedBlock {
   html: string;
   wrapperClass?: string;
 }
+
+export interface Comment {
+  id: string;
+  proposal_id: string;
+  block_id: string | null;
+  parent_id: string | null;
+  author_id: string;
+  author_name: string;
+  text: string;
+  selected_text: string | null;
+  resolved: boolean;
+  reactions: Record<string, string[]>;
+  created_at: string;
+  edited_at: string | null;
+}
