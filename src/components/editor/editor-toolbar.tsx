@@ -25,6 +25,7 @@ interface EditorToolbarProps {
   isPublishing?: boolean;
   lastSavedAt?: Date | null;
   onToggleComments?: () => void;
+  onShowShortcuts?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -49,6 +50,7 @@ export default function EditorToolbar({
   isPublishing = false,
   lastSavedAt,
   onToggleComments,
+  onShowShortcuts,
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
@@ -213,6 +215,17 @@ export default function EditorToolbar({
               className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
             >
               Export HTML
+            </button>
+          )}
+
+          {onShowShortcuts && (
+            <button
+              onClick={onShowShortcuts}
+              className="hidden sm:inline-flex px-2 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700"
+              aria-label="Keyboard shortcuts"
+              title="Keyboard shortcuts (?)"
+            >
+              ?
             </button>
           )}
 

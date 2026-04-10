@@ -8,6 +8,7 @@ import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
 import CommentTrigger, { type SelectionData } from '@/components/editor/comment-trigger';
 import CommentPanel from '@/components/editor/comment-panel';
+import KeyboardShortcuts from '@/components/editor/keyboard-shortcuts';
 import { useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
 import { useToast, ToastContainer } from '@/components/ui/toast';
 import { wrapScripts } from '@/lib/utils/wrap-scripts';
@@ -39,6 +40,8 @@ export default function EditPage({ params }: EditPageProps) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<SelectionData | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const activeEditRef = useRef<{ blockId: string; doc: Document } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -463,6 +466,7 @@ export default function EditPage({ params }: EditPageProps) {
     el.focus();
     setEditingBlockId(blockId);
     setEditingBlock(blockId); // R1: broadcast to teammates
+    activeEditRef.current = { blockId, doc };
 
     // Save on blur
     const handleBlur = () => {
@@ -474,6 +478,7 @@ export default function EditPage({ params }: EditPageProps) {
       saveBlockContent(blockId, doc);
       setEditingBlockId(null);
       setEditingBlock(null); // R1: clear editing lock
+      activeEditRef.current = null;
     };
 
     // Cancel on Escape
@@ -583,6 +588,12 @@ export default function EditPage({ params }: EditPageProps) {
     },
     []
   );
+
+  const forceSave = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    const active = activeEditRef.current;
+    if (active) saveBlockContent(active.blockId, active.doc);
+  }, [saveBlockContent]);
 
   // R2: Keep ref in sync with the latest saveBlockContent closure (declared above)
   useEffect(() => { saveBlockRef.current = saveBlockContent; }, [saveBlockContent]);
@@ -755,6 +766,7 @@ export default function EditPage({ params }: EditPageProps) {
         isPublishing={isPublishing}
         lastSavedAt={lastSavedAt}
         onToggleComments={() => setShowComments((v) => !v)}
+        onShowShortcuts={() => setShowShortcuts((v) => !v)}
       />
 
       {/* Sidebar panels */}
@@ -811,6 +823,13 @@ export default function EditPage({ params }: EditPageProps) {
           onClose={() => { setShowComments(false); setPendingSelection(null); }}
         />
       )}
+
+      <KeyboardShortcuts
+        onForceSave={forceSave}
+        onToggleSections={() => setShowSections((v) => !v)}
+        onToggleShortcuts={() => setShowShortcuts((v) => !v)}
+        showOverlay={showShortcuts}
+      />
     </div>
   );
 }
