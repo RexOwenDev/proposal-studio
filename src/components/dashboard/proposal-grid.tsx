@@ -2,18 +2,19 @@
 
 import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Proposal } from '@/lib/types';
+import type { Proposal, ViewStats } from '@/lib/types';
 import ProposalCard from '@/components/dashboard/proposal-card';
 
 interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
+  viewStatsMap?: Map<string, ViewStats>;
 }
 
 const ALL_STATUSES = ['draft', 'published'] as const;
 
 type SortKey = 'newest' | 'oldest' | 'title-az';
 
-export default function ProposalGrid({ proposals }: Props) {
+export default function ProposalGrid({ proposals, viewStatsMap }: Props) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -188,6 +189,7 @@ export default function ProposalGrid({ proposals }: Props) {
               blockCount={proposal.content_blocks?.length || 0}
               isSelected={bulkMode ? selectedIds.has(proposal.id) : undefined}
               onToggleSelect={bulkMode ? toggleSelect : undefined}
+              viewStats={viewStatsMap?.get(proposal.id)}
             />
           ))}
         </div>

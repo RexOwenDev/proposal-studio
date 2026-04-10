@@ -40,6 +40,12 @@ export interface ParsedBlock {
   wrapperClass?: string;
 }
 
+export interface ViewStats {
+  total_views: number;
+  unique_views: number;
+  last_viewed_at: string | null;
+}
+
 export interface Comment {
   id: string;
   proposal_id: string;

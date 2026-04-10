@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Proposal } from '@/lib/types';
+import type { Proposal, ViewStats } from '@/lib/types';
 import DashboardHeader from '@/components/dashboard/dashboard-header';
 import ProposalGrid from '@/components/dashboard/proposal-grid';
 import CreateProposalModal from '@/components/dashboard/create-proposal-modal';
@@ -9,9 +9,10 @@ import CreateProposalModal from '@/components/dashboard/create-proposal-modal';
 interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
   userEmail: string;
+  viewStatsMap?: Map<string, ViewStats>;
 }
 
-export default function DashboardShell({ proposals, userEmail }: Props) {
+export default function DashboardShell({ proposals, userEmail, viewStatsMap }: Props) {
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -44,7 +45,7 @@ export default function DashboardShell({ proposals, userEmail }: Props) {
             </button>
           </div>
         ) : (
-          <ProposalGrid proposals={proposals} />
+          <ProposalGrid proposals={proposals} viewStatsMap={viewStatsMap} />
         )}
       </main>
 

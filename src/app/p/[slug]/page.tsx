@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import type { ContentBlock } from '@/lib/types';
 import ProposalRenderer from '@/components/proposal/proposal-renderer';
+import { recordView } from '@/lib/analytics/record-view';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -40,6 +42,11 @@ export default async function PublicProposalPage({ params }: Props) {
   if (!proposal) {
     notFound();
   }
+
+  // Record view — non-blocking, must not delay page render
+  const hdrs = await headers();
+  const rawIp = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
+  void recordView(proposal.id, rawIp);
 
   const { data: blocks } = await supabase
     .from('content_blocks')
