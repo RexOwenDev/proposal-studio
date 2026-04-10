@@ -580,7 +580,11 @@ export default function EditPage({ params }: EditPageProps) {
         const updatedHtml = blockClone.innerHTML;
 
         // Guard: if the block is now empty, do not save — restore and warn instead
-        const visibleText = updatedHtml.replace(/<[^>]+>/g, '').trim();
+        // Strip tags, then decode HTML entities via browser-native textarea trick
+        const stripped = updatedHtml.replace(/<[^>]+>/g, '');
+        const tempEl = document.createElement('textarea');
+        tempEl.innerHTML = stripped;
+        const visibleText = tempEl.value.trim();
         if (!visibleText) {
           showToast(
             'Block is empty — content not saved. Add text to keep changes.',
