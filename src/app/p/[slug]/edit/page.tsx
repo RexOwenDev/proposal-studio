@@ -574,7 +574,10 @@ export default function EditPage({ params }: EditPageProps) {
           saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
         } catch {
           setSaveStatus('error');
-          showToast('Failed to save changes. Please try again.', 'error');
+          showToast('Save failed — click to retry.', 'error', {
+            label: 'Retry',
+            onClick: () => saveBlockContent(blockId, doc),
+          });
         }
       }, 500); // 500ms debounce
     },
