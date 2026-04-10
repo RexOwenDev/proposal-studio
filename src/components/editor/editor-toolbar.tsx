@@ -146,8 +146,8 @@ export default function EditorToolbar({
 
         {/* Typing indicator */}
         {typingUsers && typingUsers.length > 0 && (
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
-            <span className="flex gap-0.5 items-end">
+          <div aria-live="polite" aria-atomic="true" className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
+            <span aria-hidden="true" className="flex gap-0.5 items-end">
               <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:0ms]" />
               <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:150ms]" />
               <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:300ms]" />

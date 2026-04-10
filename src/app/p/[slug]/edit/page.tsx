@@ -31,6 +31,7 @@ export default function EditPage({ params }: EditPageProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
+  const typingClearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -302,6 +303,7 @@ export default function EditPage({ params }: EditPageProps) {
     const iframe = iframeRef.current;
     if (!iframe || !proposal) return;
 
+    clearTimeout(typingClearTimerRef.current);
     const html = buildEditorHTML();
     iframe.srcdoc = html;
 
@@ -430,11 +432,10 @@ export default function EditPage({ params }: EditPageProps) {
       e.stopPropagation();
       startEditing(el, blockId, doc);
     });
-    let typingClearTimer: ReturnType<typeof setTimeout>;
     el.addEventListener('input', () => {
       setTyping(true);
-      clearTimeout(typingClearTimer);
-      typingClearTimer = setTimeout(() => setTyping(false), 2000);
+      clearTimeout(typingClearTimerRef.current);
+      typingClearTimerRef.current = setTimeout(() => setTyping(false), 2000);
     });
   }
 
@@ -593,6 +594,15 @@ export default function EditPage({ params }: EditPageProps) {
       document.removeEventListener('visibilitychange', saveIfEditing);
       window.removeEventListener('beforeunload', saveIfEditing);
     };
+  }, []);
+
+  // Cleanup: cancel typing clear timer on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(typingClearTimerRef.current);
+      setTyping(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleToggleVisibility(blockId: string, visible: boolean) {
