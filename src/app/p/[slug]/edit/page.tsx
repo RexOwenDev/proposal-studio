@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import type { Proposal, ContentBlock } from '@/lib/types';
 import EditorToolbar from '@/components/editor/editor-toolbar';
 import SectionSidebar from '@/components/editor/section-sidebar';
+import CommentTrigger, { type SelectionData } from '@/components/editor/comment-trigger';
+import CommentPanel from '@/components/editor/comment-panel';
 import { useRealtimeBlocks, usePresence } from '@/lib/hooks/use-realtime';
 import { useToast, ToastContainer } from '@/components/ui/toast';
 import { wrapScripts } from '@/lib/utils/wrap-scripts';
@@ -33,6 +35,8 @@ export default function EditPage({ params }: EditPageProps) {
   const iframeRenderedRef = useRef(false);
   const typingClearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<SelectionData | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -678,6 +682,11 @@ export default function EditPage({ params }: EditPageProps) {
     await handleSetStatus(publish ? 'published' : 'draft');
   }
 
+  function handleAddComment(data: SelectionData) {
+    setPendingSelection(data);
+    setShowComments(true);
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-zinc-950">
@@ -703,7 +712,7 @@ export default function EditPage({ params }: EditPageProps) {
   if (!proposal) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-zinc-950" style={{ position: 'relative' }}>
       <EditorToolbar
         title={proposal.title}
         status={proposal.status}
@@ -719,6 +728,7 @@ export default function EditPage({ params }: EditPageProps) {
         typingUsers={typingUsers.filter(email => email !== userEmail)}
         currentUserEmail={userEmail}
         isPublishing={isPublishing}
+        onToggleComments={() => setShowComments((v) => !v)}
       />
 
       {/* Sidebar panels */}
@@ -757,6 +767,24 @@ export default function EditPage({ params }: EditPageProps) {
       </div>
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {isOwner && (
+        <CommentTrigger
+          iframeRef={iframeRef}
+          onAddComment={handleAddComment}
+        />
+      )}
+
+      {proposal && (
+        <CommentPanel
+          open={showComments}
+          proposalId={proposal.id}
+          currentUserEmail={userEmail}
+          currentUserId={userId}
+          pendingSelection={pendingSelection}
+          onClose={() => { setShowComments(false); setPendingSelection(null); }}
+        />
+      )}
     </div>
   );
 }
