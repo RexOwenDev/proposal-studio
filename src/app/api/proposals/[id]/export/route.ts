@@ -12,6 +12,15 @@ const SECURITY_HEADERS = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function getSupabase() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -125,7 +134,7 @@ export async function GET(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${proposal.title.replace(/</g, '&lt;')}</title>
+  <title>${escapeHtml(proposal.title)}</title>
   ${headLinks}
   <style>${css}</style>
 </head>
@@ -155,6 +164,7 @@ export async function GET(
     'Content-Type': 'text/html; charset=utf-8',
     'Content-Disposition': `attachment; filename="${filename}.html"`,
     'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
   };
   if (hasScripts) headers['X-Has-Scripts'] = '1';
