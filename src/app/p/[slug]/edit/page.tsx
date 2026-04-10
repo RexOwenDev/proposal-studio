@@ -579,6 +579,32 @@ export default function EditPage({ params }: EditPageProps) {
 
         const updatedHtml = blockClone.innerHTML;
 
+        // Guard: if the block is now empty, do not save — restore and warn instead
+        const visibleText = updatedHtml.replace(/<[^>]+>/g, '').trim();
+        if (!visibleText) {
+          showToast(
+            'Block is empty — content not saved. Add text to keep changes.',
+            'warning'
+          );
+          // Restore the element from last saved state in React state
+          const savedBlock = blocksRef.current.find((b) => b.id === blockId);
+          if (savedBlock && iframeRef.current?.contentDocument) {
+            const target = iframeRef.current.contentDocument.querySelector(
+              `[data-editable][data-block-id-ref="${blockId}"]`
+            ) as HTMLElement | null;
+            if (target) {
+              const parser = new (iframeRef.current.contentWindow as Window & typeof globalThis).DOMParser();
+              const parsed = parser.parseFromString(
+                `<body>${savedBlock.current_html}</body>`,
+                'text/html'
+              );
+              target.replaceChildren(...Array.from(parsed.body.childNodes) as Node[]);
+            }
+          }
+          setSaveStatus('idle');
+          return;
+        }
+
         try {
           // Include expected_updated_at for conflict detection
           // Use blocksRef (not the closed-over 'blocks') so we always read the
