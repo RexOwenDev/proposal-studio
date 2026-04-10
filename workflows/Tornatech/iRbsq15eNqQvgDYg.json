@@ -1,0 +1,836 @@
+{
+  "id": "iRbsq15eNqQvgDYg",
+  "name": "TORNATECH - Translation Phase 2 (Automated)",
+  "active": true,
+  "isArchived": false,
+  "updatedAt": "2026-03-23T18:56:36.641Z",
+  "createdAt": "2026-03-16T17:15:02.781Z",
+  "versionId": "0e09f07c-ab70-4572-b478-0854e4834af8",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 60
+            }
+          ]
+        }
+      },
+      "id": "t2-001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -1808,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://www.tornatech.com/wp-json/wp/v2/posts?tags=985&status=publish&per_page=20",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "options": {}
+      },
+      "id": "t2-002",
+      "name": "Fetch Tagged Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1504,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\n\n// Case 1: HTTP Request already split the array — input is a single post object\nif (!Array.isArray(input)) {\n  if (!input || typeof input !== 'object' || !input.id) return [];\n  return [{ json: input }];\n}\n\n// Case 2: HTTP Request returned the full array as one item\nif (input.length === 0) return [];\nreturn input.map(post => ({ json: post }));"
+      },
+      "id": "t2-003",
+      "name": "Split Posts into Items",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1200,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "t2-004",
+      "name": "Loop Over Posts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -896,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.tornatech.com/wp-json/wp/v2/posts/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "options": {}
+      },
+      "id": "t2-005",
+      "name": "Fetch Full Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -608,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-5.4-mini",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a professional technical translator specializing in industrial fire protection and pump systems. You translate English WordPress post content to Canadian French (Québécois French) with 95%+ accuracy.\n\nCORE TRANSLATION RULES:\n1. Translate ONLY visible human-readable text. NEVER alter HTML tags, attributes, CSS classes, IDs, or href values.\n2. Preserve ALL HTML entities exactly as written: &amp; &nbsp; &mdash; &ndash; &lt; &gt; &quot; — do not decode or re-encode them.\n3. Preserve ALL heading tags (h1–h6), paragraph tags, list items, table cells — translate only the text inside them.\n4. Do NOT translate content inside <code>, <pre>, <script>, or <style> tags.\n5. Translate alt text inside <img alt=\"...\"> tags, but leave src, width, height, class, id unchanged.\n6. Keep ALL hyperlinks (href values) in English — only translate the visible anchor text if it is a plain English phrase.\n7. Keep brand names in English without exception: Tornatech, NFPA, UL, FM, IBC, ULC, CSA, ISO.\n8. Keep ALL model numbers, part numbers, standards references in English: \"NFPA 20-2022\", \"UL 448\", \"FM 1319\".\n9. Keep ALL numbers, units, measurements, and technical specifications unchanged.\n10. Maintain formal technical tone — do not soften, simplify, or paraphrase. Match the register of the original.\n11. For ambiguous technical terms with no Québécois equivalent, keep English and add French in parentheses on first use only.\n12. Return ONLY a valid JSON object — no markdown, no preamble:\n    {\"title\": \"<plain text translated title>\", \"content\": \"<full translated HTML>\"}\n\nTORNATECH GLOSSARY — use these exact translations every time:\n- fire pump → pompe à incendie\n- fire pump system → système de pompe à incendie\n- pump controller → contrôleur de pompe\n- diesel fire pump → pompe à incendie diesel\n- electric fire pump → pompe à incendie électrique\n- pressure relief valve → soupape de décharge\n- jockey pump → pompe pilote\n- pressure maintenance pump → pompe de maintien de pression\n- suction header → collecteur d'aspiration\n- discharge header → collecteur de refoulement\n- flow rate → débit\n- working pressure → pression de service\n- rated pressure → pression nominale\n- shutoff pressure → pression d'arrêt\n- horsepower (HP) → puissance (ch)\n- impeller → roue\n- priming → amorçage\n- alarm → alarme\n- fire protection → protection incendie\n- fire suppression → suppression d'incendie\n- sprinkler system → système de gicleurs\n- fire hydrant → borne d'incendie\n- standpipe system → système de colonne montante\n- wet standpipe → colonne montante humide\n- dry standpipe → colonne montante sèche\n- test header → collecteur d'essai\n- flow test → essai de débit\n- annual test → essai annuel\n- commissioning → mise en service\n- maintenance → entretien\n- inspection → inspection\n- listed / approved → homologué / approuvé\n- authority having jurisdiction (AHJ) → autorité compétente\n- end suction pump → pompe à aspiration axiale\n- horizontal split case → pompe à boîtier fendu horizontal\n- vertical turbine → pompe turbine verticale\n- booster pump → surpresseur"
+            },
+            {
+              "content": "=Translate the following WordPress post from English to Canadian French (Québécois French).\nReturn ONLY a valid JSON object with exactly two keys:\n- \"title\": the translated post title as plain text\n- \"content\": the full translated post body as HTML with all tags preserved\n\nDo not include any text outside the JSON object.\n\nTitle: {{ $json.title.rendered }}\n\nContent:\n{{ $json.content.rendered }}"
+            }
+          ]
+        },
+        "simplifyOutput": false,
+        "options": {
+          "maxTokens": 16000,
+          "temperature": 0.2
+        },
+        "requestOptions": {}
+      },
+      "id": "t2-006",
+      "name": "Translate to French",
+      "type": "n8n-nodes-base.openAi",
+      "position": [
+        -304,
+        0
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "bGDlX6HiAGhitXLG",
+          "name": "CMCA"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msgContent = $input.item.json.choices?.[0]?.message?.content;\nlet parsed;\nif (typeof msgContent === 'object' && msgContent !== null) {\n  parsed = msgContent;\n} else {\n  try {\n    const cleaned = String(msgContent).replace(/^```json\\n?/, '').replace(/\\n?```$/, '').trim();\n    parsed = JSON.parse(cleaned);\n  } catch (e) {\n    throw new Error('FR Translation returned invalid JSON: ' + String(msgContent).substring(0, 200));\n  }\n}\nif (!parsed.title || !parsed.content) {\n  throw new Error('FR Translation JSON missing required keys. Got: ' + Object.keys(parsed).join(', '));\n}\nconst originalLength = $('Fetch Full Post').item.json.content.rendered.length;\nif (parsed.content.length < originalLength * 0.4) {\n  throw new Error('FR translated content suspiciously short (' + parsed.content.length + ' vs original ' + originalLength + ')');\n}\nreturn [{ json: { title_fr: parsed.title, content_fr: parsed.content } }];"
+      },
+      "id": "t2-007",
+      "name": "Validate FR JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-5.4-mini",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a professional technical translator specializing in industrial fire protection and pump systems. You translate English WordPress post content to Latin American Spanish (neutral professional Spanish for Mexico, Colombia, Chile, Argentina, Peru) with 95%+ accuracy.\n\nCORE TRANSLATION RULES:\n1. Translate ONLY visible human-readable text. NEVER alter HTML tags, attributes, CSS classes, IDs, or href values.\n2. Preserve ALL HTML entities exactly as written: &amp; &nbsp; &mdash; &ndash; &lt; &gt; &quot; — do not decode or re-encode them.\n3. Preserve ALL heading tags (h1–h6), paragraph tags, list items, table cells — translate only the text inside them.\n4. Do NOT translate content inside <code>, <pre>, <script>, or <style> tags.\n5. Translate alt text inside <img alt=\"...\"> tags, but leave src, width, height, class, id unchanged.\n6. Keep ALL hyperlinks (href values) in English — only translate the visible anchor text if it is a plain English phrase.\n7. Keep brand names in English without exception: Tornatech, NFPA, UL, FM, IBC, ULC, CSA, ISO.\n8. Keep ALL model numbers, part numbers, standards references in English: \"NFPA 20-2022\", \"UL 448\", \"FM 1319\".\n9. Keep ALL numbers, units, measurements, and technical specifications unchanged.\n10. Maintain formal technical tone — do not soften, simplify, or paraphrase. Match the register of the original.\n11. Use Latin American Spanish conventions — use neutral LatAm vocabulary, not Spain-specific terms.\n12. For ambiguous terms, keep English and add Spanish in parentheses on first use only.\n13. Return ONLY a valid JSON object — no markdown, no preamble:\n    {\"title\": \"<plain text translated title>\", \"content\": \"<full translated HTML>\"}\n\nTORNATECH GLOSSARY — use these exact translations every time:\n- fire pump → bomba contra incendios\n- fire pump system → sistema de bombas contra incendios\n- pump controller → controlador de bomba\n- diesel fire pump → bomba contra incendios diésel\n- electric fire pump → bomba contra incendios eléctrica\n- pressure relief valve → válvula de alivio de presión\n- jockey pump → bomba jockey\n- pressure maintenance pump → bomba de mantenimiento de presión\n- suction header → colector de succión\n- discharge header → colector de descarga\n- flow rate → caudal\n- working pressure → presión de trabajo\n- rated pressure → presión nominal\n- shutoff pressure → presión de cierre\n- horsepower (HP) → potencia (HP / CV)\n- impeller → impulsor\n- priming → cebado\n- alarm → alarma\n- fire protection → protección contra incendios\n- fire suppression → supresión de incendios\n- sprinkler system → sistema de rociadores\n- fire hydrant → hidrante\n- standpipe system → sistema de columna de agua\n- wet standpipe → columna húmeda\n- dry standpipe → columna seca\n- test header → colector de prueba\n- flow test → prueba de flujo\n- annual test → prueba anual\n- commissioning → puesta en marcha\n- maintenance → mantenimiento\n- inspection → inspección\n- listed / approved → listado / aprobado\n- authority having jurisdiction (AHJ) → autoridad competente (AHJ)\n- end suction pump → bomba de succión final\n- horizontal split case → carcasa partida horizontal\n- vertical turbine → turbina vertical\n- booster pump → bomba de refuerzo"
+            },
+            {
+              "content": "=Translate the following WordPress post from English to Latin American Spanish.\nReturn ONLY a valid JSON object with exactly two keys:\n- \"title\": the translated post title as plain text\n- \"content\": the full translated post body as HTML with all tags preserved\n\nDo not include any text outside the JSON object.\n\nTitle: {{ $('Fetch Full Post').item.json.title.rendered }}\n\nContent:\n{{ $('Fetch Full Post').item.json.content.rendered }}"
+            }
+          ]
+        },
+        "simplifyOutput": false,
+        "options": {
+          "maxTokens": 16000,
+          "temperature": 0.2
+        },
+        "requestOptions": {}
+      },
+      "id": "t2-008",
+      "name": "Translate to Spanish",
+      "type": "n8n-nodes-base.openAi",
+      "position": [
+        304,
+        0
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "bGDlX6HiAGhitXLG",
+          "name": "CMCA"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msgContent = $input.item.json.choices?.[0]?.message?.content;\nlet parsed;\nif (typeof msgContent === 'object' && msgContent !== null) {\n  parsed = msgContent;\n} else {\n  try {\n    const cleaned = String(msgContent).replace(/^```json\\n?/, '').replace(/\\n?```$/, '').trim();\n    parsed = JSON.parse(cleaned);\n  } catch (e) {\n    throw new Error('ES Translation returned invalid JSON: ' + String(msgContent).substring(0, 200));\n  }\n}\nif (!parsed.title || !parsed.content) {\n  throw new Error('ES Translation JSON missing required keys. Got: ' + Object.keys(parsed).join(', '));\n}\nconst originalLength = $('Fetch Full Post').item.json.content.rendered.length;\nif (parsed.content.length < originalLength * 0.4) {\n  throw new Error('ES translated content suspiciously short (' + parsed.content.length + ' vs original ' + originalLength + ')');\n}\nreturn [{ json: { title_es: parsed.title, content_es: parsed.content } }];"
+      },
+      "id": "t2-009",
+      "name": "Validate ES JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        608,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-5.4-nano",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are an SEO specialist and translator. Translate SEO metadata from English to both French (Canadian) and Spanish (Latin American). Keep translations concise and SEO-friendly. Keep brand names (Tornatech, NFPA, etc.) in English.\nRespond ONLY with this exact JSON, nothing else:\n{\"title_fr\": \"\", \"title_es\": \"\", \"desc_fr\": \"\", \"desc_es\": \"\"}"
+            },
+            {
+              "content": "=SEO Title: {{ ($('Fetch Full Post').item.json.yoast_head_json || {}).title || $('Fetch Full Post').item.json.title.rendered }}\nSEO Description: {{ ($('Fetch Full Post').item.json.yoast_head_json || {}).description || '' }}"
+            }
+          ]
+        },
+        "simplifyOutput": false,
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0.2
+        },
+        "requestOptions": {}
+      },
+      "id": "t2-010",
+      "name": "Translate Yoast SEO",
+      "type": "n8n-nodes-base.openAi",
+      "position": [
+        912,
+        0
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "bGDlX6HiAGhitXLG",
+          "name": "CMCA"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\nconst msgContent = input.choices?.[0]?.message?.content;\nlet seo = {};\nif (msgContent !== null) {\n  if (typeof msgContent === 'object' && msgContent !== null) {\n    seo = msgContent;\n  } else {\n    try {\n      const cleaned = String(msgContent).replace(/^```json\\n?/, '').replace(/\\n?```$/, '').trim();\n      seo = JSON.parse(cleaned);\n    } catch (e) {\n      seo = {};\n    }\n  }\n}\nreturn [{\n  json: {\n    seo_title_fr: seo.title_fr || '',\n    seo_desc_fr: seo.desc_fr || '',\n    seo_title_es: seo.title_es || '',\n    seo_desc_es: seo.desc_es || ''\n  }\n}];"
+      },
+      "id": "t2-010b",
+      "name": "Validate Yoast JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1056,
+        0
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.tornatech.com/wp-json/wp/v2/posts?lang=fr",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Validate FR JSON').item.json.title_fr, content: $('Validate FR JSON').item.json.content_fr, status: 'draft' }) }}",
+        "options": {}
+      },
+      "id": "t2-011",
+      "name": "Create FR Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1200,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.tornatech.com/wp-json/tornatech/v1/link-translation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ original_id: $('Fetch Full Post').item.json.id, translation_id: $('Create FR Draft').item.json.id, lang: 'fr' }) }}",
+        "options": {}
+      },
+      "id": "t2-011b",
+      "name": "Link FR Translation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1360,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.tornatech.com/wp-json/wp/v2/posts?lang=es",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $('Validate ES JSON').item.json.title_es, content: $('Validate ES JSON').item.json.content_es, status: 'draft' }) }}",
+        "options": {}
+      },
+      "id": "t2-012",
+      "name": "Create ES Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1504,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.tornatech.com/wp-json/tornatech/v1/link-translation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ original_id: $('Fetch Full Post').item.json.id, translation_id: $('Create ES Draft').item.json.id, lang: 'es' }) }}",
+        "options": {}
+      },
+      "id": "t2-012b",
+      "name": "Link ES Translation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1664,
+        0
+      ],
+      "typeVersion": 4.4,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "postId": "={{ $('Fetch Full Post').item.json.id }}",
+        "updateFields": {
+          "tags": "={{ $('Fetch Full Post').item.json.tags.filter(t => t !== 985) }}"
+        }
+      },
+      "id": "t2-013",
+      "name": "Remove Translate Tag",
+      "type": "n8n-nodes-base.wordpress",
+      "position": [
+        1808,
+        0
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "18M5kXYvM_VmyJ9uRzfTWyyPdgkB1ViSL61rYFRfBzuQ",
+          "mode": "list",
+          "cachedResultName": "Translation Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18M5kXYvM_VmyJ9uRzfTWyyPdgkB1ViSL61rYFRfBzuQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18M5kXYvM_VmyJ9uRzfTWyyPdgkB1ViSL61rYFRfBzuQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.toISO() }}",
+            "Post ID": "={{ $('Fetch Full Post').item.json.id }}",
+            "Post Title EN": "={{ $('Fetch Full Post').item.json.title.rendered }}",
+            "Post URL": "={{ $('Fetch Full Post').item.json.link }}",
+            "Title FR": "={{ $('Validate FR JSON').item.json.title_fr }}",
+            "Title ES": "={{ $('Validate ES JSON').item.json.title_es }}",
+            "SEO Title FR": "={{ $('Validate Yoast JSON').item.json.seo_title_fr }}",
+            "SEO Desc FR": "={{ $('Validate Yoast JSON').item.json.seo_desc_fr }}",
+            "SEO Title ES": "={{ $('Validate Yoast JSON').item.json.seo_title_es }}",
+            "SEO Desc ES": "={{ $('Validate Yoast JSON').item.json.seo_desc_es }}",
+            "FR Draft ID": "={{ $('Create FR Draft').item.json.id }}",
+            "FR Draft URL": "={{ 'https://www.tornatech.com/wp-admin/post.php?post=' + $('Create FR Draft').item.json.id + '&action=edit' }}",
+            "ES Draft ID": "={{ $('Create ES Draft').item.json.id }}",
+            "ES Draft URL": "={{ 'https://www.tornatech.com/wp-admin/post.php?post=' + $('Create ES Draft').item.json.id + '&action=edit' }}",
+            "Status": "Translated - Pending Review"
+          },
+          "matchingColumns": [
+            "Post ID"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Post ID",
+              "displayName": "Post ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Post Title EN",
+              "displayName": "Post Title EN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Post URL",
+              "displayName": "Post URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title FR",
+              "displayName": "Title FR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title ES",
+              "displayName": "Title ES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEO Title FR",
+              "displayName": "SEO Title FR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEO Desc FR",
+              "displayName": "SEO Desc FR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEO Title ES",
+              "displayName": "SEO Title ES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEO Desc ES",
+              "displayName": "SEO Desc ES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FR Draft ID",
+              "displayName": "FR Draft ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FR Draft URL",
+              "displayName": "FR Draft URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ES Draft ID",
+              "displayName": "ES Draft ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ES Draft URL",
+              "displayName": "ES Draft URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2112,
+        0
+      ],
+      "id": "87e242a8-2bdd-4ac5-920c-c19b4789d88d",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "8UYwvprhMGHKF6ra",
+          "name": "automation@spilledmilkagency.com"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "owen.quintenta@designshopp.com,melissa@designshopp.com, melissar@tornatech.com",
+        "subject": "=Translation Ready for Review: {{ $('Fetch Full Post').item.json.title.rendered }}",
+        "message": "=<p>Hi Team,</p>\n\n<p>A post has been automatically translated to <strong>French</strong> and <strong>Spanish</strong> and is ready for review.</p>\n\n<h3>Original Post</h3>\n<p><strong>Title:</strong> {{ $('Fetch Full Post').item.json.title.rendered }}<br>\n<strong>URL:</strong> <a href=\"{{ $('Fetch Full Post').item.json.link }}\">{{ $('Fetch Full Post').item.json.link }}</a></p>\n\n<h3>French Draft</h3>\n<p><strong>Title:</strong> {{ $('Validate FR JSON').item.json.title_fr }}<br>\n<strong>Edit Link:</strong> <a href=\"https://www.tornatech.com/wp-admin/post.php?post={{ $('Create FR Draft').item.json.id }}&action=edit\">Review &amp; Edit French Draft</a><br>\n<em>Reviewer: HR team / Marketing</em></p>\n\n<h3>Spanish Draft</h3>\n<p><strong>Title:</strong> {{ $('Validate ES JSON').item.json.title_es }}<br>\n<strong>Edit Link:</strong> <a href=\"https://www.tornatech.com/wp-admin/post.php?post={{ $('Create ES Draft').item.json.id }}&action=edit\">Review &amp; Edit Spanish Draft</a><br>\n<em>Reviewer: Sales team</em></p>\n\n<h3>After Review</h3>\n<p>All translations are also logged in the <a href=\"https://docs.google.com/spreadsheets/d/18M5kXYvM_VmyJ9uRzfTWyyPdgkB1ViSL61rYFRfBzuQ\">Translation Sheet</a>.</p>\n\n<p style=\"font-size:12px;color:#888;\">Automated by Spilled Milk Agency</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        -32
+      ],
+      "id": "3178b8e6-f30e-4436-9867-7da74d647c2f",
+      "name": "Send a message",
+      "webhookId": "4c54c2d8-fe7b-4b12-b6a5-e48ce937bd77",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Tagged Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Tagged Posts": {
+      "main": [
+        [
+          {
+            "node": "Split Posts into Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Posts into Items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Posts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch Full Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Post": {
+      "main": [
+        [
+          {
+            "node": "Translate to French",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate to French": {
+      "main": [
+        [
+          {
+            "node": "Validate FR JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate FR JSON": {
+      "main": [
+        [
+          {
+            "node": "Translate to Spanish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate to Spanish": {
+      "main": [
+        [
+          {
+            "node": "Validate ES JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate ES JSON": {
+      "main": [
+        [
+          {
+            "node": "Translate Yoast SEO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Yoast SEO": {
+      "main": [
+        [
+          {
+            "node": "Validate Yoast JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Yoast JSON": {
+      "main": [
+        [
+          {
+            "node": "Create FR Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create FR Draft": {
+      "main": [
+        [
+          {
+            "node": "Link FR Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link FR Translation": {
+      "main": [
+        [
+          {
+            "node": "Create ES Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create ES Draft": {
+      "main": [
+        [
+          {
+            "node": "Link ES Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link ES Translation": {
+      "main": [
+        [
+          {
+            "node": "Remove Translate Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Translate Tag": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Toronto",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "qvfDo35OOWGGpZmWbbfm7",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "tags": []
+}

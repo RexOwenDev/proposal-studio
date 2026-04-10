@@ -1,0 +1,145 @@
+{
+  "id": "qvfDo35OOWGGpZmWbbfm7",
+  "name": "Tornatech - Error Handler",
+  "active": true,
+  "isArchived": false,
+  "updatedAt": "2026-03-30T18:36:24.434Z",
+  "createdAt": "2026-01-23T20:36:07.411Z",
+  "versionId": "474ab9ef-c422-481c-ac1a-c471308c0639",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "09804958-b236-4e76-af88-5cd01c3afbc0",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "analyn.alvario@designshopp.com",
+        "subject": "=Tornatech Workflow Failed: {{ $json.workflow.name }}",
+        "message": "=<p>A Tornatech workflow has failed.</p>\n\n<p><strong>Workflow:</strong> {{ $json.workflow.name }}<br>\n\n<strong>Failed Node:</strong> {{ $json.execution?.error?.node?.name ?? 'Trigger (workflow did not start)' }}<br>\n<strong>Error Message:</strong> {{ $json.execution?.error?.message ?? $json.trigger?.error?.message ?? 'Unknown' }}<br><br>\n<strong>Execution ID:</strong> {{ $json.execution?.id ?? 'N/A (trigger failure)' }}<br>\n<strong>Time:</strong> {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }} EST</p>\n\n<p><strong>View Execution:</strong> {{ $json.execution?.url ?? 'N/A (trigger failure)' }}</p>\n\n<p>Please check the execution log for details.</p>\n\n<p>---</p>\n<p style=\"font-size: 12px;font-style: italic;\">Powered by Spilled Milk Agency</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "268e6788-6393-4350-8143-8427d30e7068",
+      "name": "Send a message",
+      "webhookId": "2e22469a-4b93-4ae9-842a-66f48c338625",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SgIDsShQhrA71npJ",
+          "name": "[Test Gmail - analyn.alvario@designshopp.com] Gmail account"
+        }
+      }
+    },
+    {
+      "id": "sheets-tornatech-normalize",
+      "name": "Normalize Error Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nlet errorMessage = '', failedNode = '', executionId = '', executionUrl = '', mode = '';\nlet workflowName = item.workflow?.name || 'Unknown';\nlet workflowId = item.workflow?.id || 'Unknown';\nif (item.execution) {\n  errorMessage = item.execution.error?.message || 'Unknown';\n  failedNode = item.execution.lastNodeExecuted || 'Unknown';\n  executionId = item.execution.id || 'N/A';\n  executionUrl = item.execution.url || 'N/A';\n  mode = item.execution.mode || 'Unknown';\n} else if (item.trigger) {\n  errorMessage = item.trigger.error?.message || 'Unknown';\n  failedNode = 'Trigger Node (workflow did not execute)';\n  executionId = 'N/A (trigger-level failure)';\n  executionUrl = 'N/A (trigger-level failure)';\n  mode = item.trigger.mode || 'trigger';\n}\nreturn [{ json: { workflowName, workflowId, errorMessage, failedNode, executionId, executionUrl, mode } }];"
+      }
+    },
+    {
+      "id": "sheets-tornatech-buglog",
+      "name": "Log to Bug Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        432,
+        200
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "11yWjBmTvO_-cHHcWPJ2jT4PiRDN3nsjWyqSEnc7P_PI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=2084648493",
+          "mode": "list",
+          "cachedResultName": "Bug Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "Time": "={{ $now.format('HH:mm:ss') }}",
+            "Client": "Tornatech",
+            "Workflow Name": "={{ $json.workflowName }}",
+            "Error Type": "={{ $json.mode === 'trigger' ? 'Trigger Failure' : 'Execution Error' }}",
+            "Error Message/Description": "={{ $json.errorMessage }}",
+            "Node Where Error Occurred": "={{ $json.failedNode }}",
+            "Triggered By": "Auto",
+            "Status": "Open",
+            "Assigned To": "Owen",
+            "Resolution Notes": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NuvxHNUd8fNqRvXJ",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Normalize Error Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Data": {
+      "main": [
+        [
+          {
+            "node": "Log to Bug Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "tags": []
+}

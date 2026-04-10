@@ -1,0 +1,353 @@
+{
+  "id": "f7q3P6RvdF1C5A7I",
+  "name": "Tornatech - Translation (EN → FR + ES)",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2026-03-12T16:26:54.197Z",
+  "createdAt": "2026-03-11T17:42:46.780Z",
+  "versionId": "24753a9f-4e61-4453-a6b9-fcc7ad1e44cf",
+  "nodes": [
+    {
+      "id": "a1000001-0000-0000-0000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000002",
+      "name": "Set Test Post ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -500,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b2000001-0000-0000-0000-000000000001",
+              "name": "post_id",
+              "value": "REPLACE_WITH_TEST_POST_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000003",
+      "name": "Fetch Published Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -200,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.tornatech.com/wp-json/wp/v2/posts/{{ $json.post_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "options": {}
+      },
+      "credentials": {
+        "wordpressApi": {
+          "id": "KDpoFaRvQy32gJv9",
+          "name": "[DS] Tornatech WP Admin Account - designshopp"
+        }
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000004",
+      "name": "Translate to French",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        100,
+        0
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional translator specializing in technical and industrial content, specifically fire protection and pump systems. You translate English to French (Canadian French).\n\nCRITICAL RULES:\n1. Translate ONLY the human-readable text content.\n2. NEVER modify, remove, or add any HTML tags.\n3. NEVER modify CSS class names, IDs, href values, or attributes.\n4. Preserve all heading levels (h1, h2, h3, etc.) exactly as-is.\n5. Preserve all hyperlinks (href values stay unchanged in English).\n6. Keep brand names in English: Tornatech, NFPA 20, UL, FM, IBC.\n7. Keep technical model numbers and standards in English.\n8. Return a JSON object with exactly two keys: \"title\" and \"content\".\n9. No explanations, no preamble, no markdown wrapping."
+            },
+            {
+              "content": "=Translate the following from English to French (Canadian French).\nReturn ONLY a valid JSON object with two keys:\n\"title\" (plain text translated title) and\n\"content\" (translated HTML, all tags preserved).\n\nTitle: {{ $json.title.rendered }}\n\nContent:\n{{ $json.content.rendered }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 16000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000005",
+      "name": "Translate to Spanish",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional translator specializing in technical and industrial content, specifically fire protection and pump systems. You translate English to Spanish (Latin American Spanish).\n\nCRITICAL RULES:\n1. Translate ONLY the human-readable text content.\n2. NEVER modify, remove, or add any HTML tags.\n3. NEVER modify CSS class names, IDs, href values, or attributes.\n4. Preserve all heading levels (h1, h2, h3, etc.) exactly as-is.\n5. Preserve all hyperlinks (href values stay unchanged in English).\n6. Keep brand names in English: Tornatech, NFPA 20, UL, FM, IBC.\n7. Keep technical model numbers and standards in English.\n8. Return a JSON object with exactly two keys: \"title\" and \"content\".\n9. No explanations, no preamble, no markdown wrapping."
+            },
+            {
+              "content": "=Translate the following from English to Spanish (Latin American Spanish).\nReturn ONLY a valid JSON object with two keys:\n\"title\" (plain text translated title) and\n\"content\" (translated HTML, all tags preserved).\n\nTitle: {{ $('Fetch Published Post').item.json.title.rendered }}\n\nContent:\n{{ $('Fetch Published Post').item.json.content.rendered }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 16000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000006",
+      "name": "Translate Yoast SEO",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an SEO specialist and translator. Translate the following SEO metadata from English to both French and Spanish. Keep translations concise and SEO-friendly. Keep brand names (Tornatech, NFPA, etc.) in English.\nRespond ONLY with this exact JSON, nothing else:\n{\"title_fr\": \"\", \"title_es\": \"\", \"desc_fr\": \"\", \"desc_es\": \"\"}"
+            },
+            {
+              "content": "=SEO Title: {{ $('Fetch Published Post').item.json.yoast_head_json.title }}\nSEO Description: {{ $('Fetch Published Post').item.json.yoast_head_json.description }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 2000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000007",
+      "name": "Save to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_TORNATECH_TRANSLATIONS_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Translations"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.toISO() }}",
+            "Post ID": "={{ $('Fetch Published Post').item.json.id }}",
+            "Type": "={{ $('Fetch Published Post').item.json.type }}",
+            "Title EN": "={{ $('Fetch Published Post').item.json.title.rendered }}",
+            "Title FR": "={{ $('Translate to French').item.json.message.content.title }}",
+            "Title ES": "={{ $('Translate to Spanish').item.json.message.content.title }}",
+            "Content EN": "={{ $('Fetch Published Post').item.json.content.rendered }}",
+            "Content FR": "={{ $('Translate to French').item.json.message.content.content }}",
+            "Content ES": "={{ $('Translate to Spanish').item.json.message.content.content }}",
+            "SEO Title FR": "={{ $('Translate Yoast SEO').item.json.message.content.title_fr }}",
+            "SEO Title ES": "={{ $('Translate Yoast SEO').item.json.message.content.title_es }}",
+            "SEO Desc FR": "={{ $('Translate Yoast SEO').item.json.message.content.desc_fr }}",
+            "SEO Desc ES": "={{ $('Translate Yoast SEO').item.json.message.content.desc_es }}",
+            "Status": "Translated"
+          },
+          "matchingColumns": [
+            "Post ID"
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cEd9FhgfccbmNQQA",
+          "name": "[DS - analyn.alvario@designshopp.com] - Google Sheet account"
+        }
+      }
+    },
+    {
+      "id": "a1000001-0000-0000-0000-000000000008",
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "owen.quintenta@designshopp.com",
+        "subject": "=Translation Ready: {{ $('Fetch Published Post').item.json.title.rendered }}",
+        "message": "=<p>Hi Owen,</p>\n\n<p>A post has been translated to French and Spanish and is ready for review:</p>\n\n<p><strong>Post:</strong> {{ $('Fetch Published Post').item.json.title.rendered }}<br>\n<strong>Post ID:</strong> {{ $('Fetch Published Post').item.json.id }}<br>\n<strong>Post Type:</strong> {{ $('Fetch Published Post').item.json.type }}</p>\n\n<p>Translations are available in the Google Sheet:<br>\n<a href=\"https://docs.google.com/spreadsheets/d/REPLACE_WITH_SHEET_ID\" target=\"_blank\">Tornatech - Translations</a></p>\n\n<p>Please review and notify when approved for WPML upload.</p>\n\n<p>---</p>\n<p style=\"font-size: 12px; font-style: italic;\">Powered by Spilled Milk Agency</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Post ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Post ID": {
+      "main": [
+        [
+          {
+            "node": "Fetch Published Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Published Post": {
+      "main": [
+        [
+          {
+            "node": "Translate to French",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate to French": {
+      "main": [
+        [
+          {
+            "node": "Translate to Spanish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate to Spanish": {
+      "main": [
+        [
+          {
+            "node": "Translate Yoast SEO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate Yoast SEO": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "qvfDo35OOWGGpZmWbbfm7",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "tags": []
+}

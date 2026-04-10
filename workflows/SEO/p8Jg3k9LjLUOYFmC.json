@@ -1,0 +1,811 @@
+{
+  "id": "p8Jg3k9LjLUOYFmC",
+  "name": "SEO Report Automation — Phase 1",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2026-03-13T15:02:50.569Z",
+  "createdAt": "2026-03-09T14:40:49.272Z",
+  "versionId": "27e39ead-7dd1-41ec-89c2-af38de79225a",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "**Node 1 — Google Drive Trigger**\nPolls 'Incoming CSVs' folder every 1 min. Sophia must upload via drive.google.com — desktop sync won't trigger reliably.",
+        "width": 260,
+        "color": 4
+      },
+      "id": "sticky-trigger",
+      "name": "Note: Trigger",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1cWUA8tstonkGvMcFBEAxb5TzsQqiC5Na"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "node-trigger",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VpFaCV9rKYuTzbXv",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**Node 2 — File Validation**\nChecks filename ends with .csv. Rejects non-CSV files to false branch (Invalid File Alert). Pattern: {domain}_issues_{YYYYMMDD}.csv",
+        "width": 280,
+        "color": 4
+      },
+      "id": "sticky-validation",
+      "name": "Note: Validation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        496,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "csv-check",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": ".csv",
+              "operator": {
+                "type": "string",
+                "operation": "endsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if",
+      "name": "File Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**Node 2b — Invalid File Alert**\nFalse branch only. Emails Owen if a non-CSV file is uploaded. No report generated.",
+        "height": 120,
+        "width": 260,
+        "color": 2
+      },
+      "id": "sticky-invalid",
+      "name": "Note: Invalid Alert",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        560,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "owen.quintenta@designshopp.com",
+        "subject": "=SEO Automation: Invalid file uploaded — {{ $json.name }}",
+        "emailType": "text",
+        "message": "=A file named \"{{ $json.name }}\" was uploaded to the SEO automation folder but is not a CSV.\n\nNo report was generated. Please check the file and re-upload a valid .csv export from SEMrush.",
+        "options": {}
+      },
+      "id": "node-invalid-alert",
+      "name": "Invalid File Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        656
+      ],
+      "webhookId": "6cf5b1d6-cec5-4851-9ea8-57ff9e6ef44b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "node-download",
+      "name": "Download CSV",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        704,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VpFaCV9rKYuTzbXv",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "delimiter": ",",
+          "headerRow": true
+        }
+      },
+      "id": "node-parse",
+      "name": "Parse CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        912,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**Node 5 — Data Extraction (CORE)**\nMatches CSV rows by 'Issue' column, reads 'Failed checks'. 20 output fields. Client name mapped from filename domain. Add new clients to nameMap object.",
+        "width": 280,
+        "color": 5
+      },
+      "id": "sticky-extraction",
+      "name": "Note: Core Logic",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        992,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// SEO Report Automation — Data Extraction & Transformation\n// Input: parsed CSV rows | Output: all report placeholder values (counts + dynamic fix text)\n\nconst items = $input.all();\nconst rows = items.map(item => item.json);\n\n// Get filename from trigger node\nconst filename = $('Google Drive Trigger').first().json.name;\n\n// Parse filename: dneresources.com_issues_20260309.csv\nconst parts = filename.replace('.csv', '').split('_issues_');\nconst clientUrl = parts[0] || 'Unknown';\nconst dateRaw = parts[1] || '';\n\n// Format date: 20260309 -> March 9, 2026\nlet reportDate = dateRaw;\nif (dateRaw && dateRaw.length === 8) {\n  const y = dateRaw.substring(0, 4);\n  const m = parseInt(dateRaw.substring(4, 6));\n  const d = parseInt(dateRaw.substring(6, 8));\n  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];\n  reportDate = months[m - 1] + ' ' + d + ', ' + y;\n}\n\n// Client name mapping — ADD MORE CLIENTS HERE\nconst nameMap = {\n  'dneresources.com': 'DNE Resources'\n};\nconst clientName = nameMap[clientUrl] || clientUrl;\n\n// Helper: get Failed checks count by issue name (case-insensitive)\nfunction fc(name) {\n  const r = rows.find(x => x['Issue'] && x['Issue'].trim().toLowerCase() === name.toLowerCase());\n  return r ? (parseInt(r['Failed checks']) || 0) : 0;\n}\n\n// Helper: build detail text for grouped issues\nfunction detail(names) {\n  const lines = names.filter(n => fc(n) > 0).map(n => '- ' + n + ': ' + fc(n));\n  return lines.length > 0 ? lines.join('\\n') : 'No issues found.';\n}\n\n// === HREFLANG ===\nconst hreflangNames = [\n  'Hreflang conflicts within page source code',\n  'Issues with incorrect hreflang links',\n  'Issues with hreflang values',\n  'Hreflang language mismatch issues'\n];\nconst hreflangCount = hreflangNames.reduce((s, n) => s + fc(n), 0);\n\n// === SITEMAP ===\nconst sitemapNames = [\n  'Invalid sitemap.xml format',\n  'Incorrect pages found in sitemap.xml',\n  'Sitemap file too large',\n  'Sitemap.xml not specified in robots.txt',\n  'Sitemap.xml not found',\n  'HTTP URLs in sitemap.xml for HTTPS site'\n];\nconst sitemapCount = sitemapNames.reduce((s, n) => s + fc(n), 0);\n\n// === HSTS ===\nconst hstsCount = fc('No HSTS support');\n\n// ============================================================\n// === DYNAMIC FIX TEXT (targeted per issue, clear if none) ===\n// ============================================================\n\n// fix_4xx\nconst fix4xx = fc('4xx errors') > 0\n  ? \"Identify each broken URL in SEMrush's 4xx report. Set up 301 redirects from the broken URL to the correct live destination. Update internal links on your site that point directly to 4xx URLs \\u2014 don't rely solely on the redirect. Resubmit your sitemap after fixes are in place.\"\n  : '\\u2705 No 4xx errors detected.';\n\n// fix_broken_links\nconst fixBrokenLinks = fc('Broken internal links') > 0\n  ? \"For each broken link, either restore the missing page, set up a 301 redirect to the correct destination, or update the anchor link on the source page to point to a valid URL. Avoid using redirects as a permanent fix where the original content can be restored.\"\n  : '\\u2705 No broken internal links detected.';\n\n// fix_hreflang \\u2014 dynamically includes only the sub-issues present\nlet fixHreflang = '';\nconst hreflangConflictsCount = fc('Hreflang conflicts within page source code');\nconst hreflangIncorrectCount = fc('Issues with incorrect hreflang links');\nif (hreflangConflictsCount > 0) {\n  fixHreflang += \"Hreflang conflicts (page source): Resolve conflicting hreflang annotations \\u2014 ensure only one hreflang annotation per language-region per page. Audit each affected page's HTML head section for duplicate or contradictory hreflang tags and remove conflicts.\";\n}\nif (hreflangIncorrectCount > 0) {\n  if (fixHreflang) fixHreflang += '\\n\\n';\n  fixHreflang += \"Incorrect hreflang links: Fix broken hreflang URLs that return non-200 status codes. Fix hreflang redirects \\u2014 hreflang attributes must point to the final destination URL, not a redirected one. Replace any relative URLs with absolute URLs including the full domain.\";\n}\nif (!fixHreflang) fixHreflang = '\\u2705 No hreflang issues detected.';\n\n// fix_sitemap\nconst fixSitemap = sitemapCount > 0\n  ? \"Review your sitemap.xml for any redirected, non-canonical, or non-200 URLs. Each URL in your sitemap should be the canonical version of the page and return a 200 status code. Remove URLs that lead to duplicate content, redirect chains, or 4xx responses \\u2014 provide only final destination URLs that Google should index.\"\n  : '\\u2705 No sitemap issues detected.';\n\n// fix_missing_alt\nconst fixMissingAlt = fc('Missing ALT attributes') > 0\n  ? 'Add descriptive ALT text to every image flagged. ALT text should accurately describe the image content in 5\\u201315 words and naturally incorporate relevant keywords where appropriate. Avoid keyword stuffing or generic values like \"image\" or the filename.'\n  : '\\u2705 No missing ALT attributes detected.';\n\n// fix_single_link\nconst fixSingleLink = fc('Pages with only one internal link') > 0\n  ? 'Pages with a single inbound internal link are poorly integrated into your site structure and receive minimal link equity. Identify related content and add contextual internal links pointing to these pages. Consider adding them to category pages, navigation menus, or related-content blocks.'\n  : '\\u2705 No under-linked pages detected.';\n\n// fix_hsts\nconst fixHsts = hstsCount > 0\n  ? 'Enable HTTP Strict Transport Security by adding the Strict-Transport-Security header to your server configuration with a minimum max-age of 31536000 (1 year). This instructs browsers to connect only via HTTPS and prevents SSL-stripping attacks.'\n  : '\\u2705 HSTS is properly configured.';\n\n// fix_duplicate_meta\nconst fixDuplicateMeta = fc('Duplicate meta descriptions') > 0\n  ? \"Each page must have a unique meta description between 150\\u2013160 characters. Duplicate meta descriptions confuse search engines about which page to surface for a given query. Rewrite duplicates to accurately summarize each page's unique content and include its primary target keyword.\"\n  : '\\u2705 No duplicate meta descriptions detected.';\n\n// fix_duplicate_h1\nconst dupH1Count = fc('Multiple h1 tags') + fc('Duplicate content in h1 and title');\nconst fixDuplicateH1 = dupH1Count > 0\n  ? \"Ensure each page has exactly one H1 tag, and that it is distinct from the page's title tag. The H1 and title serve different purposes \\u2014 the title is the SERP headline, the H1 is the on-page heading. Duplicating them wastes an opportunity to target additional keyword variations.\"\n  : '\\u2705 No duplicate H1 issues detected.';\n\n// fix_duplicate_title\nconst fixDuplicateTitle = fc('Duplicate title tag') > 0\n  ? \"Each page must have a unique title tag. Duplicate titles signal to Google that pages contain similar or identical content, suppressing rankings for both. Rewrite duplicates to reflect each page's specific content and primary keyword \\u2014 keep titles between 50\\u201360 characters.\"\n  : '\\u2705 No duplicate title tags detected.';\n\n// fix_missing_meta\nconst fixMissingMeta = fc('Missing meta description') > 0\n  ? \"Add a unique meta description (150\\u2013160 characters) to every page flagged. While meta descriptions are not a direct ranking factor, they influence click-through rate from the SERP. Each description should summarize the page's content, include the primary keyword naturally, and include a call to action where relevant.\"\n  : '\\u2705 No pages are missing meta descriptions.';\n\n// fix_title_length\nconst titleShort = fc('Title element is too short');\nconst titleLong = fc('Title element is too long');\nconst fixTitleLength = (titleShort > 0 || titleLong > 0)\n  ? 'Keep title tags between 50\\u201360 characters. Titles under 30 characters miss keyword opportunities and appear sparse in search results. Titles over 60 characters are truncated by Google in the SERP. Rewrite outliers to be descriptive, keyword-rich, and within the optimal range.'\n  : '\\u2705 All title tag lengths are within optimal range.';\n\n// fix_underscores\nconst fixUnderscores = fc('Underscores in URL') > 0\n  ? 'Replace underscores (_) with hyphens (-) in all URL slugs flagged. Google treats hyphens as word separators but treats underscores as word joiners \\u2014 meaning seo_tips is read as one word, while seo-tips is correctly read as two words. This impacts keyword matching in URL-based ranking signals.'\n  : '\\u2705 No underscores in URL slugs detected.';\n\n// fix_anchor_text\nconst fixAnchorText = fc('Links with non-descriptive anchor text') > 0\n  ? 'Replace generic anchor text phrases (\"click here\", \"read more\", \"learn more\") with descriptive text that reflects the content of the destination page. Anchor text is a relevancy signal \\u2014 descriptive anchors help search engines understand the topic of the linked page and improve internal link equity distribution.'\n  : '\\u2705 No non-descriptive anchor text detected.';\n\n// fix_redirects\nconst fixRedirects = fc('Permanent redirects') > 0\n  ? \"Update internal links that currently point to redirected URLs so they link directly to the final destination. Redirect chains add latency and dilute link equity \\u2014 each additional hop reduces the amount of PageRank passed. Fix the source link; don't rely solely on the redirect being in place.\"\n  : '\\u2705 No redirect chain issues detected.';\n\nreturn [{\n  json: {\n    // === EXISTING 22 PLACEHOLDERS ===\n    report_date: reportDate,\n    client_name: clientName,\n    client_url: clientUrl,\n    site_health_score: '[ENTER SITE HEALTH SCORE]',\n    hreflang_conflicts_count: String(hreflangCount),\n    hreflang_conflicts_detail: detail(hreflangNames),\n    sitemap_issues_count: String(sitemapCount),\n    sitemap_issues_detail: detail(sitemapNames),\n    broken_internal_links_count: String(fc('Broken internal links')),\n    missing_alt_count: String(fc('Missing ALT attributes')),\n    single_incoming_link_count: String(fc('Pages with only one internal link')),\n    hsts_issues: hstsCount > 0 ? 'No HSTS support: ' + hstsCount + ' issue(s)' : 'No issues found.',\n    duplicate_meta_desc_count: String(fc('Duplicate meta descriptions')),\n    duplicate_h1_count: String(fc('Multiple h1 tags') + fc('Duplicate content in h1 and title')),\n    duplicate_title_count: String(fc('Duplicate title tag')),\n    missing_meta_desc_count: String(fc('Missing meta description')),\n    title_length_short_count: String(fc('Title element is too short')),\n    title_length_long_count: String(fc('Title element is too long')),\n    url_underscore_count: String(fc('Underscores in URL')),\n    non_descriptive_anchor_count: String(fc('Links with non-descriptive anchor text')),\n    errors_4xx_count: String(fc('4xx errors')),\n    permanent_redirects_count: String(fc('Permanent redirects')),\n    // === 15 DYNAMIC FIX TEXT PLACEHOLDERS ===\n    fix_4xx: fix4xx,\n    fix_broken_links: fixBrokenLinks,\n    fix_hreflang: fixHreflang,\n    fix_sitemap: fixSitemap,\n    fix_missing_alt: fixMissingAlt,\n    fix_single_link: fixSingleLink,\n    fix_hsts: fixHsts,\n    fix_duplicate_meta: fixDuplicateMeta,\n    fix_duplicate_h1: fixDuplicateH1,\n    fix_duplicate_title: fixDuplicateTitle,\n    fix_missing_meta: fixMissingMeta,\n    fix_title_length: fixTitleLength,\n    fix_underscores: fixUnderscores,\n    fix_anchor_text: fixAnchorText,\n    fix_redirects: fixRedirects\n  }\n}];"
+      },
+      "id": "node-extract",
+      "name": "Data Extraction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**Node 6+7 — Copy & Populate Template**\nCopies master Google Doc to Report Drafts folder, replaces all 20 {{placeholders}}. Plain text only. Template ID: 1n3_hajw-ACLMJ-xM3qeuSMPSaCEZb7UqyJZzVK6xrnc",
+        "width": 300,
+        "color": 4
+      },
+      "id": "sticky-template",
+      "name": "Note: Template",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1n3_hajw-ACLMJ-xM3qeuSMPSaCEZb7UqyJZzVK6xrnc"
+        },
+        "name": "=SEO Report Draft — {{ $json.client_name }} — {{ $json.report_date }}",
+        "sameFolder": false,
+        "driveId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "myDrive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1h-EEQq3J4Hdt_rAwJU8rD58SPe0bZ6Ey"
+        },
+        "options": {}
+      },
+      "id": "node-copy-template",
+      "name": "Copy Template",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VpFaCV9rKYuTzbXv",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "{{report_date}}",
+              "replaceText": "={{ $('Data Extraction').first().json.report_date }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{client_name}}",
+              "replaceText": "={{ $('Data Extraction').first().json.client_name }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{client_url}}",
+              "replaceText": "={{ $('Data Extraction').first().json.client_url }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{site_health_score}}",
+              "replaceText": "={{ $('Data Extraction').first().json.site_health_score }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{hreflang_conflicts_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.hreflang_conflicts_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{hreflang_conflicts_detail}}",
+              "replaceText": "={{ $('Data Extraction').first().json.hreflang_conflicts_detail }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{sitemap_issues_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.sitemap_issues_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{sitemap_issues_detail}}",
+              "replaceText": "={{ $('Data Extraction').first().json.sitemap_issues_detail }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{broken_internal_links_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.broken_internal_links_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{missing_alt_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.missing_alt_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{single_incoming_link_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.single_incoming_link_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{hsts_issues}}",
+              "replaceText": "={{ $('Data Extraction').first().json.hsts_issues }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{duplicate_meta_desc_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.duplicate_meta_desc_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{duplicate_h1_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.duplicate_h1_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{duplicate_title_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.duplicate_title_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{missing_meta_desc_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.missing_meta_desc_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{title_length_short_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.title_length_short_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{title_length_long_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.title_length_long_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{url_underscore_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.url_underscore_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{non_descriptive_anchor_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.non_descriptive_anchor_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{errors_4xx_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.errors_4xx_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{permanent_redirects_count}}",
+              "replaceText": "={{ $('Data Extraction').first().json.permanent_redirects_count }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_4xx}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_4xx }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_broken_links}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_broken_links }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_hreflang}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_hreflang }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_sitemap}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_sitemap }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_missing_alt}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_missing_alt }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_single_link}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_single_link }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_hsts}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_hsts }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_duplicate_meta}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_duplicate_meta }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_duplicate_h1}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_duplicate_h1 }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_duplicate_title}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_duplicate_title }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_missing_meta}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_missing_meta }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_title_length}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_title_length }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_underscores}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_underscores }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_anchor_text}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_anchor_text }}",
+              "matchCase": true
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{fix_redirects}}",
+              "replaceText": "={{ $('Data Extraction').first().json.fix_redirects }}",
+              "matchCase": true
+            }
+          ]
+        }
+      },
+      "id": "node-populate",
+      "name": "Populate Template",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        304
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Rowcq7rTCiyfehVc",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**Node 8 — Success Notification**\nEmails Sophia with link to draft. Owen CC'd. Sophia then reviews, adds health score, applies branding, exports PDF.",
+        "height": 140,
+        "width": 280,
+        "color": 3
+      },
+      "id": "sticky-notify",
+      "name": "Note: Notification",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "sophia.pinto@designshopp.com",
+        "subject": "=SEO Report Draft Ready — {{ $('Data Extraction').first().json.client_name }} — {{ $('Data Extraction').first().json.report_date }}",
+        "message": "=<p>Hi Sophia,</p><p>Your SEO Report draft for <strong>{{ $('Data Extraction').first().json.client_name }}</strong> ({{ $('Data Extraction').first().json.client_url }}) is ready for review.</p><p><a href=\"https://docs.google.com/document/d/{{ $('Copy Template').first().json.id }}/edit\">Open the report draft in Google Docs</a></p><p><strong>Next steps:</strong></p><ul><li>Review all auto-populated values</li><li>Enter the Site Health Score from SEMrush</li><li>Add your analysis and recommendations</li><li>Apply branding and export as PDF</li></ul><p><em>This is an automated notification from the SEO Report Automation system.</em></p>",
+        "options": {
+          "ccList": "owen.quintenta@designshopp.com"
+        }
+      },
+      "id": "node-notify",
+      "name": "Notify Sophia",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        304
+      ],
+      "webhookId": "ae06b8fa-b4e2-498d-ae7b-83b94d2b9be2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**Node 9 — Global Error Handler**\nCatches ANY unhandled error across the workflow. Emails Owen with node name, error, and execution ID. FAIL LOUDLY — no silent failures.",
+        "height": 140,
+        "width": 300,
+        "color": 2
+      },
+      "id": "sticky-error",
+      "name": "Note: Error Handler",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        112,
+        528
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "owen.quintenta@designshopp.com",
+        "subject": "=SEO Automation ERROR — {{ $now.format('yyyy-MM-dd HH:mm') }}",
+        "message": "=<p><strong>SEO Report Automation — Error Alert</strong></p><p>An error occurred in the workflow.</p><p><strong>Error:</strong> {{ $json.execution.error.message || 'No details available' }}</p><p><strong>Execution ID:</strong> {{ $json.execution.id || 'N/A' }}</p><p>Check the n8n execution log for details.</p>",
+        "options": {}
+      },
+      "id": "node-error-alert",
+      "name": "Error Alert to Owen",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        816
+      ],
+      "webhookId": "3e463e57-e7a2-4e5c-8df7-7b620a0805b9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "id": "node-dedup",
+      "name": "Dedup Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        304
+      ],
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst item = $input.first();\nconst fileId = item.json.id;\nconst now = Date.now();\n\nif (!staticData.seenFiles) {\n  staticData.seenFiles = {};\n}\n\n// Clean up entries older than 1 hour\nfor (const id of Object.keys(staticData.seenFiles)) {\n  if (now - staticData.seenFiles[id] > 3600000) {\n    delete staticData.seenFiles[id];\n  }\n}\n\n// If same file ID seen within last 10 minutes, stop execution\nif (staticData.seenFiles[fileId] && (now - staticData.seenFiles[fileId]) < 600000) {\n  return [];\n}\n\n// New file — mark as seen and continue\nstaticData.seenFiles[fileId] = now;\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "node-seo-normalize",
+      "name": "Normalize Error Data (SEO)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1020
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nlet errorMessage = '', failedNode = '', executionId = '', executionUrl = '', mode = '';\nlet workflowName = item.workflow?.name || 'Unknown';\nlet workflowId = item.workflow?.id || 'Unknown';\nif (item.execution) {\n  errorMessage = item.execution.error?.message || 'Unknown';\n  failedNode = item.execution.lastNodeExecuted || 'Unknown';\n  executionId = item.execution.id || 'N/A';\n  executionUrl = item.execution.url || 'N/A';\n  mode = item.execution.mode || 'Unknown';\n} else if (item.trigger) {\n  errorMessage = item.trigger.error?.message || 'Unknown';\n  failedNode = 'Trigger Node (workflow did not execute)';\n  executionId = 'N/A (trigger-level failure)';\n  executionUrl = 'N/A (trigger-level failure)';\n  mode = item.trigger.mode || 'trigger';\n}\nreturn [{ json: { workflowName, workflowId, errorMessage, failedNode, executionId, executionUrl, mode } }];"
+      }
+    },
+    {
+      "id": "node-seo-buglog",
+      "name": "Log to Bug Log (SEO)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        704,
+        1020
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "11yWjBmTvO_-cHHcWPJ2jT4PiRDN3nsjWyqSEnc7P_PI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=2084648493",
+          "mode": "list",
+          "cachedResultName": "Bug Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "Time": "={{ $now.format('HH:mm:ss') }}",
+            "Client": "Internal",
+            "Workflow Name": "={{ $json.workflowName }}",
+            "Error Type": "={{ $json.mode === 'trigger' ? 'Trigger Failure' : 'Execution Error' }}",
+            "Error Message/Description": "={{ $json.errorMessage }}",
+            "Node Where Error Occurred": "={{ $json.failedNode }}",
+            "Triggered By": "Auto",
+            "Status": "Open",
+            "Assigned To": "Owen",
+            "Resolution Notes": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NuvxHNUd8fNqRvXJ",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "File Validation": {
+      "main": [
+        [
+          {
+            "node": "Download CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalid File Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download CSV": {
+      "main": [
+        [
+          {
+            "node": "Parse CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSV": {
+      "main": [
+        [
+          {
+            "node": "Data Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Extraction": {
+      "main": [
+        [
+          {
+            "node": "Copy Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Template": {
+      "main": [
+        [
+          {
+            "node": "Populate Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Populate Template": {
+      "main": [
+        [
+          {
+            "node": "Notify Sophia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Alert to Owen",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Normalize Error Data (SEO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Dedup Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup Check": {
+      "main": [
+        [
+          {
+            "node": "File Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Data (SEO)": {
+      "main": [
+        [
+          {
+            "node": "Log to Bug Log (SEO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "tags": []
+}

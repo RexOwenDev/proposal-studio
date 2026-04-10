@@ -2,7 +2,7 @@
 
 ## My n8n Instance
 - URL: https://designshopp.app.n8n.cloud
-- MCP: n8n-mcp (czlonkowski) — 1,084 nodes available
+- MCP: n8n-mcp (czlonkowski) — 1,239 nodes available
 - Platform: n8n Cloud (hosted)
 
 ## Mandatory Rules — Follow Every Session
@@ -47,14 +47,18 @@
 - Previous node data: `{{ $node["NodeName"].json.fieldName }}`
 - Current timestamp: `{{ $now }}`
 - Environment variable: `{{ $env.VAR_NAME }}`
-- All items from node: `{{ $items("NodeName") }}`
+- All items from node: `{{ $("NodeName").all() }}`
 
 ## MCP Tools Priority Order
 1. `search_nodes` — find correct node before anything else
-2. `get_node` — get full node schema and properties
-3. `n8n_validate_workflow` — validate before every deploy
-4. `n8n_update_partial_workflow` — preferred update method
-5. `n8n_create_workflow` — only for new workflows
+2. `search_templates` — check templates before building from scratch
+3. `get_node` — get full node schema (`summary` level for quick checks, full for details)
+4. `n8n_validate_workflow` / `validate_workflow` — validate before every deploy
+5. `n8n_autofix_workflow` — auto-detect and fix workflow errors
+6. `n8n_update_partial_workflow` — preferred update method
+7. `n8n_update_full_workflow` — full workflow replacement (use sparingly)
+8. `n8n_workflow_versions` — view/restore version history if something breaks
+9. `n8n_create_workflow` — only for new workflows
 
 ### CUAL
 - Error notification handler active: foILvSy2LhUGBqkQ

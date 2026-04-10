@@ -1,0 +1,80 @@
+{
+  "id": "TwsAvyiuXhx5pYBQ",
+  "name": "Fetch IMGs to Google Sheet",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2026-03-18T12:08:11.506Z",
+  "createdAt": "2026-03-18T12:05:32.413Z",
+  "versionId": "36cd9389-06a9-4e1d-b296-c9f03f8469a3",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0f262a30-9fdf-433e-aacd-c02df47c1efe",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.dneresources.com/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        0
+      ],
+      "id": "73e22a50-aa67-4559-8203-b7802574a678",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body;\n\n// Load the cheerio library\nconst cheerio = require('cheerio');\n\n// Parse HTML using cheerio\nconst $ = cheerio.load(html);\n\n// Get all <img> elements\nconst images = $('img');\n\nlet results = [];\n\nimages.forEach(img => {\n    results.push({\n        src: $(img).attr('src') || '',\n        alt: $(img).attr('alt') || ''\n    });\n});\n\n// Return as n8n items\nreturn results.map(item => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "58824ce9-2e8b-4817-a171-0cc938b3ac72",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "tags": []
+}

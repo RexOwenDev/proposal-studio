@@ -1,0 +1,1707 @@
+{
+  "updatedAt": "2026-03-23T18:54:18.333Z",
+  "createdAt": "2026-01-02T19:46:36.185Z",
+  "id": "wbLgyQrVlroyVo0f",
+  "name": "P3 + P4 + P5: Create draft posts and Google Docs from approved articles in Google Sheets",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -768,
+        -208
+      ],
+      "id": "fad9ad68-01bb-4bc6-93e3-d11291a31479",
+      "name": "Loop Over Items: APPROVED"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Today's date: {{ $now.toFormat('MMMM d, yyyy') }}\n\nYou are a content writer for Canadian Merchant Cash Advance (CMCA), a Canadian small business lender. Write a blog post based on the source material below.\n\nVOICE AND STYLE:\n- Audience: Canadian small business owners (restaurants, retail, hospitality, trades, services) — NOT investors, economists, or corporate executives\n- Tone: Practical, empathetic, advisory. The reader is under pressure. Acknowledge that first.\n- Language: Plain English. Short sentences. No jargon. Write like explaining to a friend who owns a business.\n- Do NOT copy-paste from the source. Do NOT write a news summary.\n- Filter EVERYTHING through: “How does this affect a Canadian SME’s cash flow or ability to access financing?”\n- Avoid: alarmist language, vague corporate-speak, passive voice, generic advice that could apply to any country\n- ALWAYS write in English even if the source material is in French\n\nMANDATORY 4-SECTION STRUCTURE:\n\n## [Section 1 — HOOK: 60–90 words]\nOpen with a specific fact, statistic, or business scenario from the source. Must be about Canada specifically. Make it concrete — name a sector, a dollar amount, a percentage, or a recognizable Canadian situation. Do NOT open with “In today’s economy”, “As a small business owner”, or similar generic openers.\n\n## [Section 2 — CANADIAN SME CONTEXT: 150–200 words]\nWhat does this news mean specifically for Canadian small businesses? Focus ONLY on: cash flow, operating costs, access to credit, seasonal revenue, or regulatory compliance. Ignore anything in the source about: foreign markets, large corporations, investors, or abstract macro trends. If source is French, extract the relevant facts and write this section in English.\n\n## [Section 3 — BUSINESS IMPLICATIONS + PRACTICAL STEPS: 200–250 words]\nGive 2–3 concrete, actionable steps the business owner can take. Be specific. Connect at least one step to cash flow management or business financing. Example: “Review your fixed costs before the quarter ends”, “Consider a short-term cash advance to bridge the gap before your busy season”.\n\n## [Section 4 — CTA CLOSE: 80–100 words]\nClose with CMCA’s value proposition. Use these facts EXACTLY as written — do not change them:\n- “95% approval rate”\n- “funding available in as little as 24 hours”\n- “BBB accredited”\n- “CLA member”\n- “5.0 Google Reviews rating”\nInclude two CTAs: one to email (“Send us an email”), one to apply (“Apply for a Cash Advance”). Frame CMCA as the logical next step after this article — not a generic ad.\n\nCONTENT RULES:\n- Minimum 550 words, target 600–700\n- All content must relate to Canadian SMEs — remove anything about foreign economies, large corporations, or investment markets\n- Write in English always, even if source is in French\n- No crypto, stock market, pension fund, or wealth management content even if in source\n\nCANADIAN RELEVANCE SCORE — evaluate this BEFORE writing anything.\n\nScore +0.5 for each that applies:\n- The article directly affects Canadian businesses, workers, consumers, or the Canadian economy\n- The article describes a US/international policy, tariff, rate decision, or economic event that explicitly names Canadian impact (e.g., “US tariffs on Canadian goods”, “Fed rate hike affecting Canadian borrowing costs”)\n- The article references Canadian institutions, provinces, cities, or government programs in the context of business impact\n\nScore -0.5 for each that applies:\n- The article is exclusively about US domestic affairs with zero mention of Canada\n- The article is about another country’s internal economy (India, UK, EU, etc.) with no Canadian connection\n- The article is about investment products (ETFs, hedge funds, pension funds, portfolios, crypto) with no small business angle\n\nKEY RULE: A US or international article that MENTIONS Canada or Canadian businesses = relevant. An article ONLY about the US, India, or another country with no Canadian angle = not relevant.\n\nFAILURE CONDITION:\nIf total score ≤ 0, OR if source content is empty, under 100 words, or has zero relevance to Canadian small business cash flow or financing, return this exact JSON and nothing else:\n{\"error\": \"insufficient_content\", \"title\": \"\", \"slug\": \"\", \"content\": \"\", \"wp_content\": \"\", \"category\": \"\", \"meta_description\": \"\"}\n\nOUTPUT FORMAT:\nReturn valid JSON only. No markdown. No explanation. No text outside the JSON.\n{\n  \"title\": \"Blog post title — specific and benefit-focused, under 70 characters, no clickbait\",\n  \"slug\": \"url-slug-with-hyphens\",\n  \"meta_description\": \"150-160 character meta description for SEO\",\n  \"category\": \"One of: Small Business Tips | Cash Flow | Business Financing | Industry News | Tax & Compliance\",\n  \"content\": \"Full blog post in plain text with section headings marked as ## Heading\",\n  \"wp_content\": \"Full blog post in WordPress-ready HTML: use <h2> for headings, <p> for paragraphs, <strong> for emphasis\"\n}\n\nSOURCE MATERIAL:\nTitle: {{ $('Read Sheet').item.json.TITLE }}\nSource URL: {{ $('Read Sheet').item.json.URL }}\nSource Content: {{ $json.CONTENT }}"
+            },
+            {
+              "content": "You are a blog writer for CMCA Finance (Canadian Merchant Cash Advance), writing for Canadian small business owners. Return ONLY valid JSON with no text before or after:\n\n{\n  \"title\": \"\",\n  \"slug\": \"\",\n  \"content\": \"\",\n  \"wp_content\": \"\",\n  \"category\": \"\",\n  \"meta_description\": \"\"\n}\n\nOUTPUT FORMAT RULES:\n- \"slug\": Convert title to lowercase, replace spaces with dashes, remove special characters.\n- \"content\": Plain text version of the article for Google Docs. Must be 550-700 words. Force minimum 550 words.\n- \"wp_content\": HTML version for WordPress. Same article as \"content\" but wrapped in HTML tags (<p>, <h2>, <h3>, <strong>, <a>, <ol>, <li>). Must be 550-700 words. Force minimum 550 words. Do NOT include the headline title in wp_content (it is added separately by WordPress). Do NOT include meta_description in the article body.\n- \"category\": Select the best fit from: Financial Advice (ID: 5), Restaurants (ID: 13), Small Business (ID: 6). Output the ID number only.\n- \"meta_description\": 150-160 characters. SEO-optimized summary. This goes in the JSON only, NOT inside the article body.\n\nCONTENT DEPTH RULES:\nYour job is NOT to summarize the source article. Your job is to EXTRACT the business lesson and convert it into actionable guidance for Canadian SME owners. For every article:\n1. Identify the core issue affecting Canadian small businesses.\n2. Explain WHY it matters to a business owner's cash flow, operations, or growth — with specific detail, not vague generalities.\n3. Provide concrete, actionable advice they can implement this week — not abstract principles.\n4. Connect naturally to CMCA's services ONLY in the closing paragraph.\n\nWRITING STYLE — MATCH THIS TONE:\nWrite like a knowledgeable Canadian business advisor talking directly to a small business owner. Study these patterns from approved CMCA articles:\n\nGOOD (match this): \"Labour shortages are already hitting the sector hard, making it difficult to maintain consistent service. This reality forces businesses to re-evaluate recruiting, retention, and training strategies, often at a higher operational cost.\"\nWHY IT WORKS: Specific problem, concrete consequence, practical implication. No buzzwords.\n\nGOOD (match this): \"Inflation has increased expenses for fuel, food supplies, and other essentials, putting pressure on profit margins. Labour shortages can further limit your ability to meet demand during busy periods.\"\nWHY IT WORKS: Names specific cost categories. Connects cause to business effect.\n\nGOOD (match this): \"Reassess your budget regularly to reflect changing costs and revenues, adjusting plans to protect your cash flow.\"\nWHY IT WORKS: Actionable, specific, one sentence. Not padded with filler.\n\nBAD (never do this): \"In the dynamic landscape of entrepreneurship, businesses are navigating challenges and seizing opportunities.\"\nWHY IT'S BAD: Empty buzzwords, says nothing specific, sounds AI-generated.\n\nANTI-AI WRITING RULES (CRITICAL — FOLLOW STRICTLY):\n- NEVER start the article with \"In today's...\", \"In the dynamic...\", \"In the ever-evolving...\", \"In an increasingly...\", or \"In the world of...\"\n- NEVER use \"navigate\", \"landscape\", \"realm\", \"paradigm\", \"leverage\", \"spearhead\", \"delve\", \"robust\", \"synergy\", \"holistic\", \"streamline\" or \"game-changer\"\n- NEVER use \"This is where [X] comes in\" or \"This is where [X] steps in\"\n- NEVER label sections \"Introduction\" or \"Conclusion\"\n- NEVER end with \"In conclusion...\" or \"To sum up...\"\n- NEVER use three adjectives in a row (\"innovative, dynamic, and comprehensive\")\n- NEVER pad sentences with filler like \"It's important to note that...\" or \"It goes without saying...\"\n- Vary sentence length. Mix short punchy sentences with longer explanatory ones.\n- Use concrete nouns and specific numbers where possible, not abstract concepts.\n- Write as if you are explaining this to a real person sitting across from you.\n\nBRAND VOICE REQUIREMENTS:\n- Voice: Supportive, trustworthy, straightforward, Canadian, empowering\n- Tone: Informative, clear, helpful, professional, factual, reassuring\n- NEVER use the word \"loan\" or \"loans\" — CMCA provides merchant cash advances, not loans\n- Brand name: Use \"CMCA\" or \"CMCA Finance\" only. Never invent variations.\n- Service terms: Use \"merchant cash advance,\" \"cash advance,\" \"funding,\" or \"working capital\"\n- Use Canadian spelling: colour, centre, favour, honour, analyse, programme, catalogue\n- Reference Canadian context (regulations, economy, seasons), not American\n\nWRITING RULES:\n- Write in second person (\"you\", \"your business\")\n- Keep sentences concise and paragraphs short (3-4 sentences max per paragraph)\n- Use simple, clear language accessible to a general audience\n- No aggressive sales language or unrealistic promises\n- No overly technical financial terminology\n- Do not be condescending or preachy\n\nTRUST SIGNALS (weave ONE naturally into the CTA paragraph — do not list all of them):\n- BBB Accredited Business (use this exact phrase only — do not modify, abbreviate, or add prefixes like 'AAA')\n- Canadian Lenders Association (CLA) member\n- 95% approval rate\n- Headquartered in Montreal\n- 5.0 Google Reviews rating\n\nKEY MESSAGES (use where naturally relevant — do not force all of them):\n- Speed: \"funding in as little as 24 hours\"\n- Simplicity: \"quick and easy process\"\n- Flexibility: \"tailored to your business needs\"\n- Canadian: \"proudly Canadian\", headquartered in Montreal\n\nCTA RULES:\n- Include the CTA ONLY ONCE, in a separate closing paragraph AFTER the advice section\n- Do NOT embed CTA language within numbered advice points\n- Keep advice points focused on actionable tips, not promotional content\n- Use one of these CTAs, adapted to the article topic:\n  * \"If your business is facing cash flow challenges, CMCA Finance can help with flexible, short-term funding solutions.\"\n  * \"Need working capital to navigate these changes? CMCA Finance offers fast, flexible funding for Canadian businesses.\"\n  * \"CMCA Finance helps Canadian small businesses access the funds they need, when they need them.\"\n\nIMPORTANT: Count your words before outputting. If \"content\" or \"wp_content\" is under 550 words, expand the middle section with more specific detail about business impact. Do NOT pad with filler phrases — add substance.",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -272
+      ],
+      "id": "29293643-70a8-4480-b357-b37bd5f9aeac",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "bGDlX6HiAGhitXLG",
+          "name": "CMCA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+          "mode": "list",
+          "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "={{ $('Extract Article Text').item.json.URL }}",
+            "STATUS LOG": "={{ $('Convert DateTime format').item.json.date }} {{ $('Convert DateTime format').item.json.time }} | Google Doc created and WordPress draft post created",
+            "LINK TO WORDPRESS BACKEND": "=https://canadianmerchantcashadvance.ca/wp-admin/post.php?post={{ $json.id }}&action=edit&lang=en",
+            "LINK TO GOOGLE DOC": "=https://docs.google.com/document/d/{{ $('Insert text to document').item.json.documentId }}"
+          },
+          "matchingColumns": [
+            "URL"
+          ],
+          "schema": [
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TITLE",
+              "displayName": "TITLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "DATE PUBLISHED",
+              "displayName": "DATE PUBLISHED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ADMIN ACTION",
+              "displayName": "ADMIN ACTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "STATUS LOG",
+              "displayName": "STATUS LOG",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LINK TO GOOGLE DOC",
+              "displayName": "LINK TO GOOGLE DOC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LINK TO WORDPRESS BACKEND",
+              "displayName": "LINK TO WORDPRESS BACKEND",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1376,
+        -208
+      ],
+      "id": "ca884285-f327-4467-aaf4-adba4225b3fe",
+      "name": "Updated Status Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jr25MKfV6H2zSwxO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "simple": false,
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Refine Article').item.json.message.content.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -272
+      ],
+      "id": "d1fe7ffe-0642-4b05-a1e3-c8e4acd857eb",
+      "name": "Insert text to document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Vdifwq9lKoSXdEIj",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -272
+      ],
+      "id": "a8c5bf4c-533f-4c14-8b74-590b41061d53",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.currentDate;\n\n// Parse original datetime\nconst date = new Date(input);\n\n// Formatter for Canada Eastern Time\nconst formatter = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false,\n});\n\nconst parts = formatter.formatToParts(date);\nconst get = (type) => parts.find(p => p.type === type).value;\n\nreturn {\n  date: `${get('year')}-${get('month')}-${get('day')}`,\n  time: `${get('hour')}:${get('minute')}`\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -272
+      ],
+      "id": "0a45df0a-1d6e-4f94-83bd-e4292dc31518",
+      "name": "Convert DateTime format"
+    },
+    {
+      "parameters": {
+        "title": "=[DRAFT] {{ $('Refine Article').item.json.message.content.title }}",
+        "additionalFields": {
+          "content": "={{ $('Refine Article').item.json.message.content.wp_content }}",
+          "slug": "={{ $('Refine Article').item.json.message.content.slug }}",
+          "categories": "={{ $('Refine Article').item.json.message.content.category }}"
+        }
+      },
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -272
+      ],
+      "id": "f3b758a6-6ac5-4526-8887-58d3ee48f13d",
+      "name": "Create a post",
+      "credentials": {
+        "wordpressApi": {
+          "id": "apu6UY3Ke6WNXjpp",
+          "name": "[CMCA - dstheme] Wordpress account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst filtered = items.filter(item => {\n  const row = item.json;\n\n  return (\n    row[\"ADMIN ACTION\"] === \"Approve\" &&\n    (!row[\"STATUS LOG\"] ||\n    row[\"STATUS LOG\"].trim() === \"\" ||\n    row[\"STATUS LOG\"].toLowerCase().startsWith(\"rejected\") ||\n    row[\"STATUS LOG\"].toLowerCase() === \"ready for review\") &&\n    (!row[\"LINK TO GOOGLE DOC\"] || row[\"LINK TO GOOGLE DOC\"].trim() === \"\") &&\n    (!row[\"LINK TO WORDPRESS BACKEND\"] || row[\"LINK TO WORDPRESS BACKEND\"].trim() === \"\")\n  );\n});\n\nreturn filtered;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        -208
+      ],
+      "id": "11b8a563-326f-407d-b1d2-e8a9dfebef11",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "folderId": "1w46IETmauIkWMqTrNaE3tJFx4uk0cszQ",
+        "title": "=[{{ $('Convert DateTime format').item.json.date }}] {{ $json.message.content.title }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -272
+      ],
+      "id": "8584b9dc-2e88-4601-be35-79d94a3e0845",
+      "name": "Create a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Vdifwq9lKoSXdEIj",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; CMCABot/1.0)"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -544,
+        -272
+      ],
+      "id": "d289511e-8cff-4234-aed6-b4402acf92aa",
+      "name": "Fetch Article Page",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the HTTP response (may be empty if fetch failed/timed out)\nconst httpResponse = $input.first();\nconst html = (httpResponse.json.data || httpResponse.json.body || \"\");\n\n// Get original sheet data from the loop node\nconst originalData = $('Loop Over Items: APPROVED').item.json;\n\nlet cleanContent = \"\";\n\n// --- Try to use fetched HTML first ---\nif (html && html.length >= 100) {\n  let cleaned = html\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, \"\")\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, \"\")\n    .replace(/<nav[\\s\\S]*?<\\/nav>/gi, \"\")\n    .replace(/<header[\\s\\S]*?<\\/header>/gi, \"\")\n    .replace(/<footer[\\s\\S]*?<\\/footer>/gi, \"\")\n    .replace(/<aside[\\s\\S]*?<\\/aside>/gi, \"\")\n    .replace(/<figure[\\s\\S]*?<\\/figure>/gi, \"\");\n\n  const articleMatch = cleaned.match(/<article[\\s\\S]*?<\\/article>/i);\n  if (articleMatch) cleaned = articleMatch[0];\n\n  cleaned = cleaned\n    .replace(/<[^>]+>/g, \" \")\n    .replace(/&nbsp;/g, \" \")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\")\n    .replace(/&#39;/g, \"'\")\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, \" \")\n    .trim();\n\n  if (cleaned.length >= 200) {\n    cleanContent = cleaned.substring(0, 4000);\n  }\n}\n\n// --- Fallback: use existing CONTENT from the sheet (written by P0) ---\nif (!cleanContent || cleanContent.length < 200) {\n  const sheetContent = originalData.CONTENT || \"\";\n  const stripped = sheetContent\n    .replace(/<[^>]+>/g, \" \")\n    .replace(/\\s+/g, \" \")\n    .trim();\n\n  if (stripped.length >= 200) {\n    cleanContent = stripped.substring(0, 4000);\n  }\n}\n\n// --- If still no usable content, flag as failed ---\nif (!cleanContent || cleanContent.length < 100) {\n  return [{ json: { ...originalData, _extractFailed: true } }];\n}\n\n// --- Return with usable content ---\nreturn [{\n  json: {\n    ...originalData,\n    _extractFailed: false,\n    CONTENT: cleanContent\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -272
+      ],
+      "id": "183ea8b0-8f86-4cb2-8b59-8286036a00ec",
+      "name": "Extract Article Text"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1456,
+        -208
+      ],
+      "id": "f1e2d3c4-b5a6-7891-1234-567890abcde1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1216,
+        -208
+      ],
+      "id": "a9b8c7d6-e5f4-3210-9876-543210fedcb1",
+      "name": "Read Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jr25MKfV6H2zSwxO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+          "mode": "list",
+          "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "={{ $('Extract Article Text').item.json.URL }}",
+            "STATUS LOG": "={{ $now.setZone('America/Toronto').toFormat('yyyy-MM-dd HH:mm') }} | ERROR - WordPress post creation failed"
+          },
+          "matchingColumns": [
+            "URL"
+          ],
+          "schema": [
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TITLE",
+              "displayName": "TITLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "DATE PUBLISHED",
+              "displayName": "DATE PUBLISHED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ADMIN ACTION",
+              "displayName": "ADMIN ACTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "STATUS LOG",
+              "displayName": "STATUS LOG",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LINK TO GOOGLE DOC",
+              "displayName": "LINK TO GOOGLE DOC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "LINK TO WORDPRESS BACKEND",
+              "displayName": "LINK TO WORDPRESS BACKEND",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e1a2b3c4-d5e6-7f89-ab01-cd23ef456789",
+      "name": "Error: WP Post Failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1152,
+        -48
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jr25MKfV6H2zSwxO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-extract-failed-p3",
+              "leftValue": "={{ $json._extractFailed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Check Content Extracted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -96,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+          "mode": "list",
+          "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "={{ $json.URL }}",
+            "STATUS LOG": "={{ $now.setZone('America/Toronto').toFormat('yyyy-MM-dd HH:mm') }} | Failed — could not extract content from URL"
+          },
+          "matchingColumns": [
+            "URL"
+          ],
+          "schema": [
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "STATUS LOG",
+              "displayName": "STATUS LOG",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "name": "Write content failure",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        160,
+        -96
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jr25MKfV6H2zSwxO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f01234567890",
+      "name": "Refine Article",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        528,
+        -272
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a senior content editor for CMCA Finance, a Canadian small business lender. Your job is to rewrite and refine the following AI-generated draft article until it reads like it was written by an experienced Canadian business operator — not an AI.\n\nCritically assess the draft before rewriting:\n- Does it actually say something meaningful, or is it generic?\n- Does it reflect real business pressure, or just describe it abstractly?\n- Where does it feel weak, repetitive, or surface-level?\n\nThen rewrite it to be at least 95% stronger in clarity, depth, realism, and impact.\n\n1. TONE & STYLE\nWrite like an experienced operator, not a marketer. Use varied sentence lengths — short punchy lines for emphasis, longer ones for context. Include contrast statements where natural (e.g., \"Costs adjust quickly. Pricing rarely does.\").\nNever use: \"in today's economic environment,\" \"feeling the squeeze,\" \"uncertain times,\" \"navigate,\" \"landscape,\" \"leverage,\" \"robust,\" \"synergy,\" \"streamline,\" \"game-changer,\" \"holistic,\" \"paradigm.\"\n\n2. STRUCTURE\nStart with a strong, specific opening — no fluff. Build logically: real-world problem → operational impact → business reality → practical actions → funding position. Each section must deepen the insight, not restate it.\nNever label sections \"Introduction\" or \"Conclusion.\" Never start with \"In today's…\", \"In the dynamic…\", or \"In the ever-evolving…\"\n\n3. REALISM & DEPTH\nInclude at least one concrete, relatable business scenario or example. Focus on how the issue shows up in real operations: cash flow, payroll, inventory, margins. Make the reader feel: \"this is exactly what I'm dealing with.\"\n\n4. CANADIAN CONTEXT\nAnchor the article in Canada where relevant — CFIB, Statistics Canada, labour costs, inflation, CRA obligations. Any statistics or claims must be realistic and appropriate for a Canadian SME audience.\n\n5. LANGUAGE REFINEMENT\nRemove corporate filler and generic phrasing. Replace soft statements with direct, grounded language. Keep it clear, concise, and confident — not dramatic or exaggerated.\n\n6. CMCA POSITIONING\nPosition funding as a tool for managing timing gaps and maintaining operational stability — not a cure-all. The CTA must feel like a natural, logical next step — not a sales pitch. Keep ONE trust signal naturally woven into the closing paragraph. Remove overly promotional language.\nNEVER use the word \"loan\" or \"loans\" — use \"merchant cash advance,\" \"funding,\" or \"working capital.\"\nUse Canadian spelling throughout: colour, centre, favour, honour, analyse.\n\n7. CLOSING\nEnd with a strong, grounded takeaway. Keep the CTA subtle, relevant, and aligned with the article's core problem. Include the CTA link to https://canadianmerchantcashadvance.ca/ naturally in the closing paragraph.\n\nWORD COUNT: Minimum 550 words, target 600–700. If the draft is under 550 words, expand the business impact section with specific real-world detail — do NOT pad with filler.\n\nOUTPUT FORMAT — return ONLY valid JSON, no text before or after:\n{\n  \"title\": \"\",\n  \"slug\": \"\",\n  \"content\": \"\",\n  \"wp_content\": \"\",\n  \"category\": \"\",\n  \"meta_description\": \"\"\n}\n\nFIELD RULES:\n- \"title\": Refined SEO title. Specific, benefit-focused, under 70 characters. No clickbait.\n- \"slug\": Lowercase, hyphens only, no special characters.\n- \"content\": Plain text refined article, 550–700 words. For Google Docs. Use ## for section headings.\n- \"wp_content\": HTML version — use <h2>, <p>, <strong>, <a>, <ol>, <li>. Do NOT include the title. Do NOT include meta_description in the body.\n- \"category\": Use the EXACT same category value from the draft. Do not change it.\n- \"meta_description\": 150–160 character SEO summary. JSON field only — never inside the article body."
+            },
+            {
+              "content": "Here is the draft article to refine:\n\nTitle: {{ $json.message.content.title }}\nSlug: {{ $json.message.content.slug }}\nCategory: {{ $json.message.content.category }}\nMeta Description: {{ $json.message.content.meta_description }}\n\nDRAFT ARTICLE (plain text):\n{{ $json.message.content.content }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cGgSXZ6cb8m5Q3gj",
+          "name": "[SpilledMilk - billing@spilledmilk.com] OpenAi account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Loop Over Items: APPROVED": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Fetch Article Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Refine Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Updated Status Log": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items: APPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert text to document": {
+      "main": [
+        [
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "main": [
+        [
+          {
+            "node": "Convert DateTime format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert DateTime format": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a post": {
+      "main": [
+        [
+          {
+            "node": "Updated Status Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error: WP Post Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items: APPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document": {
+      "main": [
+        [
+          {
+            "node": "Insert text to document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Article Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Article Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error: WP Post Failed": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items: APPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Article Text": {
+      "main": [
+        [
+          {
+            "node": "Check Content Extracted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Content Extracted": {
+      "main": [
+        [
+          {
+            "node": "Write content failure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Date & Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write content failure": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items: APPROVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refine Article": {
+      "main": [
+        [
+          {
+            "node": "Create a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "bg8o5L8lUqPtR450cJsEu"
+  },
+  "staticData": {
+    "node:Google Sheets Trigger": {
+      "documentId": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+      "sheetId": 0,
+      "lastRevision": 652,
+      "lastRevisionLink": "https://docs.google.com/spreadsheets/export?id=1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas&revision=652&exportFormat=xlsx"
+    },
+    "node:Google Sheets Trigger1": {
+      "documentId": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+      "sheetId": 0,
+      "lastRevision": 423,
+      "lastRevisionLink": "https://docs.google.com/spreadsheets/export?id=1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas&revision=423&exportFormat=xlsx"
+    },
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "0ff075fd-2266-4ec4-9d05-0b9ddca67379",
+  "activeVersionId": "0ff075fd-2266-4ec4-9d05-0b9ddca67379",
+  "versionCounter": 359,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-01-02T19:46:36.190Z",
+      "createdAt": "2026-01-02T19:46:36.190Z",
+      "role": "workflow:owner",
+      "workflowId": "wbLgyQrVlroyVo0f",
+      "projectId": "hAjZa5KBJiO84BJN",
+      "project": {
+        "updatedAt": "2025-10-02T18:41:09.537Z",
+        "createdAt": "2025-10-02T18:41:06.328Z",
+        "id": "hAjZa5KBJiO84BJN",
+        "name": "DesignShopp   <n8n@designshopp.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "00770771-8b12-4aae-95b8-5cd8ec787ce1"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-23T18:54:22.000Z",
+    "createdAt": "2026-03-23T18:54:18.334Z",
+    "versionId": "0ff075fd-2266-4ec4-9d05-0b9ddca67379",
+    "workflowId": "wbLgyQrVlroyVo0f",
+    "nodes": [
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          -768,
+          -208
+        ],
+        "id": "fad9ad68-01bb-4bc6-93e3-d11291a31479",
+        "name": "Loop Over Items: APPROVED"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-5.4-mini",
+            "mode": "list",
+            "cachedResultName": "GPT-5.4-MINI"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "Today's date: {{ $now.toFormat('MMMM d, yyyy') }}\n\nYou are a content writer for Canadian Merchant Cash Advance (CMCA), a Canadian small business lender. Write a blog post based on the source material below.\n\nVOICE AND STYLE:\n- Audience: Canadian small business owners (restaurants, retail, hospitality, trades, services) — NOT investors, economists, or corporate executives\n- Tone: Practical, empathetic, advisory. The reader is under pressure. Acknowledge that first.\n- Language: Plain English. Short sentences. No jargon. Write like explaining to a friend who owns a business.\n- Do NOT copy-paste from the source. Do NOT write a news summary.\n- Filter EVERYTHING through: “How does this affect a Canadian SME’s cash flow or ability to access financing?”\n- Avoid: alarmist language, vague corporate-speak, passive voice, generic advice that could apply to any country\n- ALWAYS write in English even if the source material is in French\n\nMANDATORY 4-SECTION STRUCTURE:\n\n## [Section 1 — HOOK: 60–90 words]\nOpen with a specific fact, statistic, or business scenario from the source. Must be about Canada specifically. Make it concrete — name a sector, a dollar amount, a percentage, or a recognizable Canadian situation. Do NOT open with “In today’s economy”, “As a small business owner”, or similar generic openers.\n\n## [Section 2 — CANADIAN SME CONTEXT: 150–200 words]\nWhat does this news mean specifically for Canadian small businesses? Focus ONLY on: cash flow, operating costs, access to credit, seasonal revenue, or regulatory compliance. Ignore anything in the source about: foreign markets, large corporations, investors, or abstract macro trends. If source is French, extract the relevant facts and write this section in English.\n\n## [Section 3 — BUSINESS IMPLICATIONS + PRACTICAL STEPS: 200–250 words]\nGive 2–3 concrete, actionable steps the business owner can take. Be specific. Connect at least one step to cash flow management or business financing. Example: “Review your fixed costs before the quarter ends”, “Consider a short-term cash advance to bridge the gap before your busy season”.\n\n## [Section 4 — CTA CLOSE: 80–100 words]\nClose with CMCA’s value proposition. Use these facts EXACTLY as written — do not change them:\n- “95% approval rate”\n- “funding available in as little as 24 hours”\n- “BBB accredited”\n- “CLA member”\n- “5.0 Google Reviews rating”\nInclude two CTAs: one to email (“Send us an email”), one to apply (“Apply for a Cash Advance”). Frame CMCA as the logical next step after this article — not a generic ad.\n\nCONTENT RULES:\n- Minimum 550 words, target 600–700\n- All content must relate to Canadian SMEs — remove anything about foreign economies, large corporations, or investment markets\n- Write in English always, even if source is in French\n- No crypto, stock market, pension fund, or wealth management content even if in source\n\nCANADIAN RELEVANCE SCORE — evaluate this BEFORE writing anything.\n\nScore +0.5 for each that applies:\n- The article directly affects Canadian businesses, workers, consumers, or the Canadian economy\n- The article describes a US/international policy, tariff, rate decision, or economic event that explicitly names Canadian impact (e.g., “US tariffs on Canadian goods”, “Fed rate hike affecting Canadian borrowing costs”)\n- The article references Canadian institutions, provinces, cities, or government programs in the context of business impact\n\nScore -0.5 for each that applies:\n- The article is exclusively about US domestic affairs with zero mention of Canada\n- The article is about another country’s internal economy (India, UK, EU, etc.) with no Canadian connection\n- The article is about investment products (ETFs, hedge funds, pension funds, portfolios, crypto) with no small business angle\n\nKEY RULE: A US or international article that MENTIONS Canada or Canadian businesses = relevant. An article ONLY about the US, India, or another country with no Canadian angle = not relevant.\n\nFAILURE CONDITION:\nIf total score ≤ 0, OR if source content is empty, under 100 words, or has zero relevance to Canadian small business cash flow or financing, return this exact JSON and nothing else:\n{\"error\": \"insufficient_content\", \"title\": \"\", \"slug\": \"\", \"content\": \"\", \"wp_content\": \"\", \"category\": \"\", \"meta_description\": \"\"}\n\nOUTPUT FORMAT:\nReturn valid JSON only. No markdown. No explanation. No text outside the JSON.\n{\n  \"title\": \"Blog post title — specific and benefit-focused, under 70 characters, no clickbait\",\n  \"slug\": \"url-slug-with-hyphens\",\n  \"meta_description\": \"150-160 character meta description for SEO\",\n  \"category\": \"One of: Small Business Tips | Cash Flow | Business Financing | Industry News | Tax & Compliance\",\n  \"content\": \"Full blog post in plain text with section headings marked as ## Heading\",\n  \"wp_content\": \"Full blog post in WordPress-ready HTML: use <h2> for headings, <p> for paragraphs, <strong> for emphasis\"\n}\n\nSOURCE MATERIAL:\nTitle: {{ $('Read Sheet').item.json.TITLE }}\nSource URL: {{ $('Read Sheet').item.json.URL }}\nSource Content: {{ $json.CONTENT }}"
+              },
+              {
+                "content": "You are a blog writer for CMCA Finance (Canadian Merchant Cash Advance), writing for Canadian small business owners. Return ONLY valid JSON with no text before or after:\n\n{\n  \"title\": \"\",\n  \"slug\": \"\",\n  \"content\": \"\",\n  \"wp_content\": \"\",\n  \"category\": \"\",\n  \"meta_description\": \"\"\n}\n\nOUTPUT FORMAT RULES:\n- \"slug\": Convert title to lowercase, replace spaces with dashes, remove special characters.\n- \"content\": Plain text version of the article for Google Docs. Must be 550-700 words. Force minimum 550 words.\n- \"wp_content\": HTML version for WordPress. Same article as \"content\" but wrapped in HTML tags (<p>, <h2>, <h3>, <strong>, <a>, <ol>, <li>). Must be 550-700 words. Force minimum 550 words. Do NOT include the headline title in wp_content (it is added separately by WordPress). Do NOT include meta_description in the article body.\n- \"category\": Select the best fit from: Financial Advice (ID: 5), Restaurants (ID: 13), Small Business (ID: 6). Output the ID number only.\n- \"meta_description\": 150-160 characters. SEO-optimized summary. This goes in the JSON only, NOT inside the article body.\n\nCONTENT DEPTH RULES:\nYour job is NOT to summarize the source article. Your job is to EXTRACT the business lesson and convert it into actionable guidance for Canadian SME owners. For every article:\n1. Identify the core issue affecting Canadian small businesses.\n2. Explain WHY it matters to a business owner's cash flow, operations, or growth — with specific detail, not vague generalities.\n3. Provide concrete, actionable advice they can implement this week — not abstract principles.\n4. Connect naturally to CMCA's services ONLY in the closing paragraph.\n\nWRITING STYLE — MATCH THIS TONE:\nWrite like a knowledgeable Canadian business advisor talking directly to a small business owner. Study these patterns from approved CMCA articles:\n\nGOOD (match this): \"Labour shortages are already hitting the sector hard, making it difficult to maintain consistent service. This reality forces businesses to re-evaluate recruiting, retention, and training strategies, often at a higher operational cost.\"\nWHY IT WORKS: Specific problem, concrete consequence, practical implication. No buzzwords.\n\nGOOD (match this): \"Inflation has increased expenses for fuel, food supplies, and other essentials, putting pressure on profit margins. Labour shortages can further limit your ability to meet demand during busy periods.\"\nWHY IT WORKS: Names specific cost categories. Connects cause to business effect.\n\nGOOD (match this): \"Reassess your budget regularly to reflect changing costs and revenues, adjusting plans to protect your cash flow.\"\nWHY IT WORKS: Actionable, specific, one sentence. Not padded with filler.\n\nBAD (never do this): \"In the dynamic landscape of entrepreneurship, businesses are navigating challenges and seizing opportunities.\"\nWHY IT'S BAD: Empty buzzwords, says nothing specific, sounds AI-generated.\n\nANTI-AI WRITING RULES (CRITICAL — FOLLOW STRICTLY):\n- NEVER start the article with \"In today's...\", \"In the dynamic...\", \"In the ever-evolving...\", \"In an increasingly...\", or \"In the world of...\"\n- NEVER use \"navigate\", \"landscape\", \"realm\", \"paradigm\", \"leverage\", \"spearhead\", \"delve\", \"robust\", \"synergy\", \"holistic\", \"streamline\" or \"game-changer\"\n- NEVER use \"This is where [X] comes in\" or \"This is where [X] steps in\"\n- NEVER label sections \"Introduction\" or \"Conclusion\"\n- NEVER end with \"In conclusion...\" or \"To sum up...\"\n- NEVER use three adjectives in a row (\"innovative, dynamic, and comprehensive\")\n- NEVER pad sentences with filler like \"It's important to note that...\" or \"It goes without saying...\"\n- Vary sentence length. Mix short punchy sentences with longer explanatory ones.\n- Use concrete nouns and specific numbers where possible, not abstract concepts.\n- Write as if you are explaining this to a real person sitting across from you.\n\nBRAND VOICE REQUIREMENTS:\n- Voice: Supportive, trustworthy, straightforward, Canadian, empowering\n- Tone: Informative, clear, helpful, professional, factual, reassuring\n- NEVER use the word \"loan\" or \"loans\" — CMCA provides merchant cash advances, not loans\n- Brand name: Use \"CMCA\" or \"CMCA Finance\" only. Never invent variations.\n- Service terms: Use \"merchant cash advance,\" \"cash advance,\" \"funding,\" or \"working capital\"\n- Use Canadian spelling: colour, centre, favour, honour, analyse, programme, catalogue\n- Reference Canadian context (regulations, economy, seasons), not American\n\nWRITING RULES:\n- Write in second person (\"you\", \"your business\")\n- Keep sentences concise and paragraphs short (3-4 sentences max per paragraph)\n- Use simple, clear language accessible to a general audience\n- No aggressive sales language or unrealistic promises\n- No overly technical financial terminology\n- Do not be condescending or preachy\n\nTRUST SIGNALS (weave ONE naturally into the CTA paragraph — do not list all of them):\n- BBB Accredited Business (use this exact phrase only — do not modify, abbreviate, or add prefixes like 'AAA')\n- Canadian Lenders Association (CLA) member\n- 95% approval rate\n- Headquartered in Montreal\n- 5.0 Google Reviews rating\n\nKEY MESSAGES (use where naturally relevant — do not force all of them):\n- Speed: \"funding in as little as 24 hours\"\n- Simplicity: \"quick and easy process\"\n- Flexibility: \"tailored to your business needs\"\n- Canadian: \"proudly Canadian\", headquartered in Montreal\n\nCTA RULES:\n- Include the CTA ONLY ONCE, in a separate closing paragraph AFTER the advice section\n- Do NOT embed CTA language within numbered advice points\n- Keep advice points focused on actionable tips, not promotional content\n- Use one of these CTAs, adapted to the article topic:\n  * \"If your business is facing cash flow challenges, CMCA Finance can help with flexible, short-term funding solutions.\"\n  * \"Need working capital to navigate these changes? CMCA Finance offers fast, flexible funding for Canadian businesses.\"\n  * \"CMCA Finance helps Canadian small businesses access the funds they need, when they need them.\"\n\nIMPORTANT: Count your words before outputting. If \"content\" or \"wp_content\" is under 550 words, expand the middle section with more specific detail about business impact. Do NOT pad with filler phrases — add substance.",
+                "role": "system"
+              }
+            ]
+          },
+          "jsonOutput": true,
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1,
+        "position": [
+          352,
+          -272
+        ],
+        "id": "29293643-70a8-4480-b357-b37bd5f9aeac",
+        "name": "Message a model",
+        "credentials": {
+          "openAiApi": {
+            "id": "bGDlX6HiAGhitXLG",
+            "name": "CMCA"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+            "mode": "list",
+            "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "URL": "={{ $('Extract Article Text').item.json.URL }}",
+              "STATUS LOG": "={{ $('Convert DateTime format').item.json.date }} {{ $('Convert DateTime format').item.json.time }} | Google Doc created and WordPress draft post created",
+              "LINK TO WORDPRESS BACKEND": "=https://canadianmerchantcashadvance.ca/wp-admin/post.php?post={{ $json.id }}&action=edit&lang=en",
+              "LINK TO GOOGLE DOC": "=https://docs.google.com/document/d/{{ $('Insert text to document').item.json.documentId }}"
+            },
+            "matchingColumns": [
+              "URL"
+            ],
+            "schema": [
+              {
+                "id": "URL",
+                "displayName": "URL",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "TITLE",
+                "displayName": "TITLE",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "DATE PUBLISHED",
+                "displayName": "DATE PUBLISHED",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "ADMIN ACTION",
+                "displayName": "ADMIN ACTION",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "STATUS LOG",
+                "displayName": "STATUS LOG",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "LINK TO GOOGLE DOC",
+                "displayName": "LINK TO GOOGLE DOC",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "LINK TO WORDPRESS BACKEND",
+                "displayName": "LINK TO WORDPRESS BACKEND",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          1376,
+          -208
+        ],
+        "id": "ca884285-f327-4467-aaf4-adba4225b3fe",
+        "name": "Updated Status Log",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "jr25MKfV6H2zSwxO",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentURL": "={{ $json.id }}",
+          "simple": false,
+          "actionsUi": {
+            "actionFields": [
+              {
+                "action": "insert",
+                "text": "={{ $('Message a model').item.json.message.content.content }}"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.googleDocs",
+        "typeVersion": 2,
+        "position": [
+          928,
+          -272
+        ],
+        "id": "d1fe7ffe-0642-4b05-a1e3-c8e4acd857eb",
+        "name": "Insert text to document",
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "Vdifwq9lKoSXdEIj",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.dateTime",
+        "typeVersion": 2,
+        "position": [
+          -96,
+          -272
+        ],
+        "id": "a8c5bf4c-533f-4c14-8b74-590b41061d53",
+        "name": "Date & Time"
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json.currentDate;\n\n// Parse original datetime\nconst date = new Date(input);\n\n// Formatter for Canada Eastern Time\nconst formatter = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'America/Toronto',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  hour12: false,\n});\n\nconst parts = formatter.formatToParts(date);\nconst get = (type) => parts.find(p => p.type === type).value;\n\nreturn {\n  date: `${get('year')}-${get('month')}-${get('day')}`,\n  time: `${get('hour')}:${get('minute')}`\n};\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          128,
+          -272
+        ],
+        "id": "0a45df0a-1d6e-4f94-83bd-e4292dc31518",
+        "name": "Convert DateTime format"
+      },
+      {
+        "parameters": {
+          "title": "=[DRAFT] {{ $('Message a model').item.json.message.content.title }}",
+          "additionalFields": {
+            "content": "={{ $('Message a model').item.json.message.content.wp_content }}",
+            "slug": "={{ $('Message a model').item.json.message.content.slug }}",
+            "categories": "={{ $('Message a model').item.json.message.content.category }}"
+          }
+        },
+        "type": "n8n-nodes-base.wordpress",
+        "typeVersion": 1,
+        "position": [
+          1152,
+          -272
+        ],
+        "id": "f3b758a6-6ac5-4526-8887-58d3ee48f13d",
+        "name": "Create a post",
+        "credentials": {
+          "wordpressApi": {
+            "id": "apu6UY3Ke6WNXjpp",
+            "name": "[CMCA - dstheme] Wordpress account"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "const items = $input.all();\n\nconst filtered = items.filter(item => {\n  const row = item.json;\n\n  return (\n    row[\"ADMIN ACTION\"] === \"Approve\" &&\n    (!row[\"STATUS LOG\"] ||\n    row[\"STATUS LOG\"].trim() === \"\" ||\n    row[\"STATUS LOG\"].toLowerCase().startsWith(\"rejected\") ||\n    row[\"STATUS LOG\"].toLowerCase() === \"ready for review\") &&\n    (!row[\"LINK TO GOOGLE DOC\"] || row[\"LINK TO GOOGLE DOC\"].trim() === \"\") &&\n    (!row[\"LINK TO WORDPRESS BACKEND\"] || row[\"LINK TO WORDPRESS BACKEND\"].trim() === \"\")\n  );\n});\n\nreturn filtered;\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -992,
+          -208
+        ],
+        "id": "11b8a563-326f-407d-b1d2-e8a9dfebef11",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "folderId": "1w46IETmauIkWMqTrNaE3tJFx4uk0cszQ",
+          "title": "=[{{ $('Convert DateTime format').item.json.date }}] {{ $json.message.content.title }}"
+        },
+        "type": "n8n-nodes-base.googleDocs",
+        "typeVersion": 2,
+        "position": [
+          704,
+          -272
+        ],
+        "id": "8584b9dc-2e88-4601-be35-79d94a3e0845",
+        "name": "Create a document",
+        "credentials": {
+          "googleDocsOAuth2Api": {
+            "id": "Vdifwq9lKoSXdEIj",
+            "name": "Google Docs account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "={{ $json.URL }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "User-Agent",
+                "value": "Mozilla/5.0 (compatible; CMCABot/1.0)"
+              }
+            ]
+          },
+          "options": {
+            "redirect": {
+              "redirect": {}
+            },
+            "response": {
+              "response": {
+                "responseFormat": "text"
+              }
+            },
+            "timeout": 30000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -544,
+          -272
+        ],
+        "id": "d289511e-8cff-4234-aed6-b4402acf92aa",
+        "name": "Fetch Article Page",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Get the HTTP response (may be empty if fetch failed/timed out)\nconst httpResponse = $input.first();\nconst html = (httpResponse.json.data || httpResponse.json.body || \"\");\n\n// Get original sheet data from the loop node\nconst originalData = $('Loop Over Items: APPROVED').item.json;\n\nlet cleanContent = \"\";\n\n// --- Try to use fetched HTML first ---\nif (html && html.length >= 100) {\n  let cleaned = html\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, \"\")\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, \"\")\n    .replace(/<nav[\\s\\S]*?<\\/nav>/gi, \"\")\n    .replace(/<header[\\s\\S]*?<\\/header>/gi, \"\")\n    .replace(/<footer[\\s\\S]*?<\\/footer>/gi, \"\")\n    .replace(/<aside[\\s\\S]*?<\\/aside>/gi, \"\")\n    .replace(/<figure[\\s\\S]*?<\\/figure>/gi, \"\");\n\n  const articleMatch = cleaned.match(/<article[\\s\\S]*?<\\/article>/i);\n  if (articleMatch) cleaned = articleMatch[0];\n\n  cleaned = cleaned\n    .replace(/<[^>]+>/g, \" \")\n    .replace(/&nbsp;/g, \" \")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\")\n    .replace(/&#39;/g, \"'\")\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, \" \")\n    .trim();\n\n  if (cleaned.length >= 200) {\n    cleanContent = cleaned.substring(0, 4000);\n  }\n}\n\n// --- Fallback: use existing CONTENT from the sheet (written by P0) ---\nif (!cleanContent || cleanContent.length < 200) {\n  const sheetContent = originalData.CONTENT || \"\";\n  const stripped = sheetContent\n    .replace(/<[^>]+>/g, \" \")\n    .replace(/\\s+/g, \" \")\n    .trim();\n\n  if (stripped.length >= 200) {\n    cleanContent = stripped.substring(0, 4000);\n  }\n}\n\n// --- If still no usable content, flag as failed ---\nif (!cleanContent || cleanContent.length < 100) {\n  return [{ json: { ...originalData, _extractFailed: true } }];\n}\n\n// --- Return with usable content ---\nreturn [{\n  json: {\n    ...originalData,\n    _extractFailed: false,\n    CONTENT: cleanContent\n  }\n}];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -320,
+          -272
+        ],
+        "id": "183ea8b0-8f86-4cb2-8b59-8286036a00ec",
+        "name": "Extract Article Text"
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 30
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -1456,
+          -208
+        ],
+        "id": "f1e2d3c4-b5a6-7891-1234-567890abcde1",
+        "name": "Schedule Trigger"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          -1216,
+          -208
+        ],
+        "id": "a9b8c7d6-e5f4-3210-9876-543210fedcb1",
+        "name": "Read Sheet",
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "jr25MKfV6H2zSwxO",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+            "mode": "list",
+            "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "URL": "={{ $('Extract Article Text').item.json.URL }}",
+              "STATUS LOG": "={{ $now.setZone('America/Toronto').toFormat('yyyy-MM-dd HH:mm') }} | ERROR - WordPress post creation failed"
+            },
+            "matchingColumns": [
+              "URL"
+            ],
+            "schema": [
+              {
+                "id": "URL",
+                "displayName": "URL",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "TITLE",
+                "displayName": "TITLE",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "DATE PUBLISHED",
+                "displayName": "DATE PUBLISHED",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "ADMIN ACTION",
+                "displayName": "ADMIN ACTION",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "STATUS LOG",
+                "displayName": "STATUS LOG",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "LINK TO GOOGLE DOC",
+                "displayName": "LINK TO GOOGLE DOC",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "LINK TO WORDPRESS BACKEND",
+                "displayName": "LINK TO WORDPRESS BACKEND",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "e1a2b3c4-d5e6-7f89-ab01-cd23ef456789",
+        "name": "Error: WP Post Failed",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          1152,
+          -48
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "jr25MKfV6H2zSwxO",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 3,
+              "leftValue": "",
+              "caseSensitive": true,
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "check-extract-failed-p3",
+                "leftValue": "={{ $json._extractFailed }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "name": "Check Content Extracted",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          -96,
+          -208
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "appendOrUpdate",
+          "documentId": {
+            "__rl": true,
+            "value": "1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas",
+            "mode": "list",
+            "cachedResultName": "CMCA Blog Topics - AUTOMATION TEST",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O7jBME_Vmh0ORs5vchKfWvAo0Ayn0wjWeBJbDJdpfas/edit#gid=0"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "URL": "={{ $json.URL }}",
+              "STATUS LOG": "={{ $now.setZone('America/Toronto').toFormat('yyyy-MM-dd HH:mm') }} | Failed — could not extract content from URL"
+            },
+            "matchingColumns": [
+              "URL"
+            ],
+            "schema": [
+              {
+                "id": "URL",
+                "displayName": "URL",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "STATUS LOG",
+                "displayName": "STATUS LOG",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "name": "Write content failure",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          160,
+          -96
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "jr25MKfV6H2zSwxO",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Loop Over Items: APPROVED": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Fetch Article Page",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Message a model": {
+        "main": [
+          [
+            {
+              "node": "Create a document",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Updated Status Log": {
+        "main": [
+          [
+            {
+              "node": "Loop Over Items: APPROVED",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Insert text to document": {
+        "main": [
+          [
+            {
+              "node": "Create a post",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Date & Time": {
+        "main": [
+          [
+            {
+              "node": "Convert DateTime format",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Convert DateTime format": {
+        "main": [
+          [
+            {
+              "node": "Message a model",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create a post": {
+        "main": [
+          [
+            {
+              "node": "Updated Status Log",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Error: WP Post Failed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Loop Over Items: APPROVED",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create a document": {
+        "main": [
+          [
+            {
+              "node": "Insert text to document",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch Article Page": {
+        "main": [
+          [
+            {
+              "node": "Extract Article Text",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Error: WP Post Failed": {
+        "main": [
+          [
+            {
+              "node": "Loop Over Items: APPROVED",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Read Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Sheet": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Article Text": {
+        "main": [
+          [
+            {
+              "node": "Check Content Extracted",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Content Extracted": {
+        "main": [
+          [
+            {
+              "node": "Write content failure",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Date & Time",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write content failure": {
+        "main": [
+          [
+            {
+              "node": "Loop Over Items: APPROVED",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "DesignShopp  ",
+    "name": "Version 0ff075fd",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-23T18:54:22.049Z",
+        "id": 298,
+        "workflowId": "wbLgyQrVlroyVo0f",
+        "versionId": "0ff075fd-2266-4ec4-9d05-0b9ddca67379",
+        "event": "activated",
+        "userId": "00770771-8b12-4aae-95b8-5cd8ec787ce1"
+      }
+    ]
+  }
+}

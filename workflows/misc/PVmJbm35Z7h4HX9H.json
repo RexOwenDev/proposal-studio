@@ -1,0 +1,703 @@
+{
+  "id": "PVmJbm35Z7h4HX9H",
+  "name": "TEST SANDBOX",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2026-02-11T11:01:51.338Z",
+  "createdAt": "2026-02-11T10:42:15.039Z",
+  "versionId": "15c9d542-3c58-4bd8-8e13-0cd9a490cc47",
+  "nodes": [
+    {
+      "parameters": {
+        "managerCustomerId": "8761312891",
+        "clientCustomerId": "8761312891",
+        "additionalOptions": {
+          "dateRange": "LAST_7_DAYS"
+        },
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.googleAds",
+      "typeVersion": 1,
+      "position": [
+        -2816,
+        160
+      ],
+      "id": "5e3d84f4-e4ff-432a-bae7-05897377bdd8",
+      "name": "Google Ads: YouTube",
+      "credentials": {
+        "googleAdsOAuth2Api": {
+          "id": "clDJ7KWsNd0vqAr4",
+          "name": "[CUAL - cookingupalegacy@gmail.com] Google Ads account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/17841461428303569/insights",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n    \"access_token\":\"EAAUT3CZAvdJ4BQkAPr3AAE4GnmrIW9ma03N0nE3ZCQKz6CK99LmoDKLPgNCY26mfeEtYuiDLVI0LDqU8b8KE3gzlhIZBHQcWcjXDEzzVOviZA013HA55TfZAY7kggRHBCThEoZBuZA6AHgsABuqxNAZAs2HOgN7dsYi5kKgZAeCDqXngnpxDvJxEruTcQAhV1htDoiMAyl8F2S7zbEBiSODLHEtszpJ9uswJ878FI\",\n    \"metric\":\"reach,follower_count\",\n    \"period\":\"day\",\n    \"since\":\"{{ $json.start_date }}\",\n    \"until\":\"{{ $json.end_date }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3040,
+        352
+      ],
+      "id": "72dd2645-880d-4253-8ba6-50fec2b3576c",
+      "name": "FB Organic: Views and Followers"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/17841461428303569/insights",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n    \"access_token\":\"EAAUT3CZAvdJ4BQkAPr3AAE4GnmrIW9ma03N0nE3ZCQKz6CK99LmoDKLPgNCY26mfeEtYuiDLVI0LDqU8b8KE3gzlhIZBHQcWcjXDEzzVOviZA013HA55TfZAY7kggRHBCThEoZBuZA6AHgsABuqxNAZAs2HOgN7dsYi5kKgZAeCDqXngnpxDvJxEruTcQAhV1htDoiMAyl8F2S7zbEBiSODLHEtszpJ9uswJ878FI\",\n    \"metric\":\"likes, shares\",\n    \"metric_type\":\"total_value\",\n    \"period\":\"day\",\n    \"since\":\"{{ $('Set Date Range + Context').item.json.start_date }}\",\n    \"until\":\"{{ $('Set Date Range + Context').item.json.end_date }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2816,
+        352
+      ],
+      "id": "ad9be026-eb9e-4ef6-aefb-3f6eb4aebd2d",
+      "name": "FB Organic: Likes and Shares"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- JSON 1: Reach & Followers ----------\n\nconst json1 = $('FB Organic: Views and Followers').first().json.data; // json1 is an array\n\nlet FBOrganic_totalViews = 0;\nlet FBOrganic_totalFollowers = 0;\n\nfor (const metric of json1) {\n  if (metric.name === \"reach\") {\n    FBOrganic_totalViews = metric.values.reduce((sum, v) => sum + v.value, 0);\n  }\n  if (metric.name === \"follower_count\") {\n    FBOrganic_totalFollowers = metric.values.reduce((sum, v) => sum + v.value, 0);\n  }\n}\n\n// ---------- JSON 2: Likes & Shares ----------\nconst json2 = $input.first().json.data; // json2 is an array\n\nlet FBOrganic_totalLikes = 0;\nlet FBOrganic_totalShares = 0;\n\nfor (const metric of json2) {\n  if (metric.name === \"likes\") {\n    FBOrganic_totalLikes = metric.total_value.value;\n  }\n  if (metric.name === \"shares\") {\n    FBOrganic_totalShares = metric.total_value.value;\n  }\n}\n\n// ---------- Return totals ----------\nreturn [\n  {\n    json: {\n      FBOrganic_totalViews,\n      FBOrganic_totalFollowers,\n      FBOrganic_totalLikes,\n      FBOrganic_totalShares,\n      //FBOrganic_totalEngagement: FBOrganic_totalLikes + FBOrganic_totalShares\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        352
+      ],
+      "id": "c8f7bdc1-5630-4c47-80fb-dad6d6e05144",
+      "name": "Format Data: FB Organic Likes, Views, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/17841461428303569/insights",
+        "sendQuery": true,
+        "specifyQuery": "=json",
+        "queryParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonQuery": "={\n  \"access_token\": \"EAAUT3CZAvdJ4BQkAPr3AAE4GnmrIW9ma03N0nE3ZCQKz6CK99LmoDKLPgNCY26mfeEtYuiDLVI0LDqU8b8KE3gzlhIZBHQcWcjXDEzzVOviZA013HA55TfZAY7kggRHBCThEoZBuZA6AHgsABuqxNAZAs2HOgN7dsYi5kKgZAeCDqXngnpxDvJxEruTcQAhV1htDoiMAyl8F2S7zbEBiSODLHEtszpJ9uswJ878FI\",\n  \"metric\": \"reach,follower_count\",\n  \"period\": \"day\",\n  \"level\": \"account\",\n  \"time_increment\": 1,\n  \"use_account_attribution_setting\": \"true\",\n  \"action_breakdowns\": \"action_type\",\n  \"filtering\": \"[{\\\"field\\\":\\\"publisher_platform\\\",\\\"operator\\\":\\\"IN\\\",\\\"value\\\":[\\\"instagram\\\"]}]\",\n  \"time_range\": {\n    \"since\":\"{{ $json.start_date }}\",\n    \"until\":\"{{ $json.end_date }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3040,
+        544
+      ],
+      "id": "e5d229fe-2a1c-46a7-bc28-8e9ee2666b7d",
+      "name": "IG Organic: Views and Followers"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/17841461428303569/insights",
+        "sendQuery": true,
+        "specifyQuery": "=json",
+        "queryParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonQuery": "={\n  \"access_token\": \"EAAUT3CZAvdJ4BQkAPr3AAE4GnmrIW9ma03N0nE3ZCQKz6CK99LmoDKLPgNCY26mfeEtYuiDLVI0LDqU8b8KE3gzlhIZBHQcWcjXDEzzVOviZA013HA55TfZAY7kggRHBCThEoZBuZA6AHgsABuqxNAZAs2HOgN7dsYi5kKgZAeCDqXngnpxDvJxEruTcQAhV1htDoiMAyl8F2S7zbEBiSODLHEtszpJ9uswJ878FI\",\n  \"metric\":\"likes, shares\",\n    \"metric_type\":\"total_value\",\n    \"period\":\"day\",\n  \"level\": \"account\",\n  \"time_increment\": 1,\n  \"use_account_attribution_setting\": \"true\",\n  \"action_breakdowns\": \"action_type\",\n  \"filtering\": \"[{\\\"field\\\":\\\"publisher_platform\\\",\\\"operator\\\":\\\"IN\\\",\\\"value\\\":[\\\"instagram\\\"]}]\",\n  \"time_range\": {\n    \"since\":\"{{ $('Set Date Range + Context').item.json.start_date }}\",\n    \"until\":\"{{ $('Set Date Range + Context').item.json.end_date }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2816,
+        544
+      ],
+      "id": "35b50036-2a58-412f-b06d-88f07fb641f8",
+      "name": "IG Organic: Likes and Shares"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- JSON 1: Reach & Followers ----------\n\nconst json1 = $('IG Organic: Views and Followers').first().json.data; // json1 is an array\n\nlet IGOrganic_totalViews = 0;\nlet IGOrganic_totalFollowers = 0;\n\nfor (const metric of json1) {\n  if (metric.name === \"reach\") {\n    IGOrganic_totalViews = metric.values.reduce((sum, v) => sum + v.value, 0);\n  }\n  if (metric.name === \"follower_count\") {\n    IGOrganic_totalFollowers = metric.values.reduce((sum, v) => sum + v.value, 0);\n  }\n}\n\n// ---------- JSON 2: Likes & Shares ----------\nconst json2 = $input.first().json.data; // json2 is an array\n\nlet IGOrganic_totalLikes = 0;\nlet IGOrganic_totalShares = 0;\n\nfor (const metric of json2) {\n  if (metric.name === \"likes\") {\n    IGOrganic_totalLikes = metric.total_value.value;\n  }\n  if (metric.name === \"shares\") {\n    IGOrganic_totalShares = metric.total_value.value;\n  }\n}\n\n// ---------- Return totals ----------\nreturn [\n  {\n    json: {\n      IGOrganic_totalViews,\n      IGOrganic_totalFollowers,\n      IGOrganic_totalLikes,\n      IGOrganic_totalShares,\n      //IGOrganic_totalEngagement: IGOrganic_totalLikes + IGOrganic_totalShares\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        544
+      ],
+      "id": "168de683-2dad-44b8-a29e-3d0d90820faa",
+      "name": "Format Data: IG Organic Likes, Views, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.start_date }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.end_date }}"
+            },
+            {
+              "name": "metrics",
+              "value": "=views"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3040,
+        160
+      ],
+      "id": "7136b1ff-7c01-4e2a-8261-f23fefdeaaa1",
+      "name": "YT Paid: Views",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "Gnjz9LZnjDBoeLp9",
+          "name": "[CUAL - cookingupalegacy@gmail.com] Google account"
+        }
+      },
+      "notes": "views,estimatedMinutesWatched,averageViewDuration"
+    },
+    {
+      "parameters": {
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "metrics",
+              "value": "=views,likes,shares,subscribersGained,estimatedMinutesWatched"
+            },
+            {
+              "name": "dimensions",
+              "value": "=day"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.start_date }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.end_date }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3040,
+        -32
+      ],
+      "id": "b1078705-a507-42c6-9154-00b80f3ff195",
+      "name": "YT Organic: Views, Likes, Shares, Subscriber Count, and Ave Minutes Watched",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "Gnjz9LZnjDBoeLp9",
+          "name": "[CUAL - cookingupalegacy@gmail.com] Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = items[0].json; // Your resultTable object\n\nif (!data || !data.rows) {\n  throw new Error(\"Data or data.rows is undefined\");\n}\n\nlet YTOrganic_totalViews = 0;\nlet YTOrganic_totalLikes = 0;\nlet YTOrganic_totalShares = 0;\nlet YTOrganic_totalSubscribers = 0;\nlet YTOrganic_estMinsWatched = 0;\n\nfor (const row of data.rows) {\n  YTOrganic_totalViews += row[1];\n  YTOrganic_totalLikes += row[2];        // likes\n  YTOrganic_totalShares += row[3];       // shares\n  YTOrganic_totalSubscribers += row[4];  // subscribersGained\n  YTOrganic_estMinsWatched += row[5];\n}\n\nreturn [\n  {\n    json: {\n      YTOrganic_totalViews,\n      YTOrganic_totalLikes,\n      YTOrganic_totalShares,\n      YTOrganic_totalSubscribers,\n      YTOrganic_totalEngagement: YTOrganic_totalLikes + YTOrganic_totalShares + YTOrganic_totalSubscribers,\n      YTOrganic_estMinsWatched\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        -32
+      ],
+      "id": "570a907a-60bd-416f-bc85-3dfaad4a1636",
+      "name": "Format Data: YT Organic Views, Likes, Shares, Followers, Est. Mins Watched"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/act_931044352092437/insights",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"access_token\": \"EAAUT3CZAvdJ4BQnMe5lVkj09R7r2PFU8ZBpT5UUSRC027pmf6qP2eZBpt0nl5zqtKGPkfUq7Hvv1SJk6FZA8urBLiRGxKuVLZC8BdROxKt3UZCVnbl0lkYGLysco8ZBZCzquKt213iQfXc5hEBCb03mzaFMx7zlOZApq4r8MTos7TI1gDbLYVfvvOp79Auxz10gZDZD\",\n  \"fields\": \"impressions,spend,actions\",\n  \"date_preset\": \"yesterday\",\n  \"level\": \"account\",\n  \"action_breakdowns\": \"action_type\",\n  \"since\":\"{{ $json.start_date }}\",\n  \"until\":\"{{ $json.end_date }}\"\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2816,
+        736
+      ],
+      "id": "5feb7e55-89de-459a-be61-ef2be2feab0f",
+      "name": "FB Paid: Spend, Views, Likes, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input data\nconst data = $input.all()[0].json.data;\n\n// Initialize totals\nlet totalSpend = 0;\nlet totalPaidViews = 0;\nlet totalPaidLikes = 0;\nlet totalPaidShares = 0;\nlet totalPaidFollowers = 0;\n\n// Loop through each day\ndata.forEach(day => {\n  const spend = parseFloat(day.spend || 0);\n  totalSpend += spend;\n\n  // Find actions\n  const actions = day.actions || [];\n\n  // Get counts for specific action_types\n  const videoViews = actions.find(a => a.action_type === \"video_view\")?.value || 0;\n  const postReactions = actions.find(a => a.action_type === \"post_reaction\")?.value || 0;\n  const postEngagement = actions.find(a => a.action_type === \"post_engagement\")?.value || 0;\n  const pageEngagement = actions.find(a => a.action_type === \"page_engagement\")?.value || 0;\n\n  // Aggregate totals\n  totalPaidViews += Number(videoViews);\n  totalPaidLikes += Number(postReactions);\n  totalPaidShares += Number(postEngagement) - Number(postReactions);\n  totalPaidFollowers += Number(pageEngagement);\n});\n\n// Calculate cost metrics safely (avoid division by 0)\nconst cpv = totalPaidViews ? totalSpend / totalPaidViews : 0;\nconst cpl = totalPaidLikes ? totalSpend / totalPaidLikes : 0;\nconst cps = totalPaidShares ? totalSpend / totalPaidShares : 0;\nconst cpf = totalPaidFollowers ? totalSpend / totalPaidFollowers : 0;\n\n// Return result as a single JSON with numbers\nreturn [\n  {\n    json: {\n      FBPaid_totalSpend: Number(totalSpend.toFixed(2)),\n      FBPaid_totalViews: totalPaidViews,\n      FBPaid_totalLikes: totalPaidLikes,\n      FBPaid_totalShares: totalPaidShares,\n      FBPaid_totalFollowers: totalPaidFollowers,\n      FBPaid_CPV: Number(cpv.toFixed(4)),\n      FBPaid_CPL: Number(cpl.toFixed(4)),\n      FBPaid_CPS: Number(cps.toFixed(4)),\n      FBPaid_CPF: Number(cpf.toFixed(4))\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        736
+      ],
+      "id": "60e4c5c8-10fc-4433-9e71-15ee12d55211",
+      "name": "Format Data: FB Paid Spend, Views, Likes, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v24.0/act_931044352092437/insights",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"access_token\": \"EAAUT3CZAvdJ4BQnMe5lVkj09R7r2PFU8ZBpT5UUSRC027pmf6qP2eZBpt0nl5zqtKGPkfUq7Hvv1SJk6FZA8urBLiRGxKuVLZC8BdROxKt3UZCVnbl0lkYGLysco8ZBZCzquKt213iQfXc5hEBCb03mzaFMx7zlOZApq4r8MTos7TI1gDbLYVfvvOp79Auxz10gZDZD\",\n  \"fields\": \"impressions,spend,actions\",\n  \"level\": \"account\",\n  \"time_increment\": 1,\n  \"use_account_attribution_setting\": \"true\",\n  \"action_breakdowns\": \"action_type\",\n  \"filtering\": \"[{\\\"field\\\":\\\"publisher_platform\\\",\\\"operator\\\":\\\"IN\\\",\\\"value\\\":[\\\"instagram\\\"]}]\",\n  \"time_range\": {\n    \"since\":\"{{ $json.start_date }}\",\n    \"until\":\"{{ $json.end_date }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2816,
+        928
+      ],
+      "id": "1142db5b-158c-4ecc-9977-54bcd018adb8",
+      "name": "IG Paid: Spend, Views, Likes, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input data\nconst data = $input.all()[0].json.data;\n\n// Initialize totals\nlet totalSpend = 0;\nlet totalPaidViews = 0;\nlet totalPaidLikes = 0;\nlet totalPaidShares = 0;\nlet totalPaidFollowers = 0;\n\n// Loop through each day\ndata.forEach(day => {\n  const spend = parseFloat(day.spend || 0);\n  totalSpend += spend;\n\n  // Find actions\n  const actions = day.actions || [];\n\n  // Get counts for specific action_types\n  const videoViews = actions.find(a => a.action_type === \"video_view\")?.value || 0;\n  const postReactions = actions.find(a => a.action_type === \"post_reaction\")?.value || 0;\n  const postEngagement = actions.find(a => a.action_type === \"post_engagement\")?.value || 0;\n  const pageEngagement = actions.find(a => a.action_type === \"page_engagement\")?.value || 0;\n\n  // Aggregate totals\n  totalPaidViews += Number(videoViews);\n  totalPaidLikes += Number(postReactions);\n  totalPaidShares += Number(postEngagement) - Number(postReactions);\n  totalPaidFollowers += Number(pageEngagement);\n});\n\n// Calculate cost metrics safely (avoid division by 0)\nconst cpv = totalPaidViews ? totalSpend / totalPaidViews : 0;\nconst cpl = totalPaidLikes ? totalSpend / totalPaidLikes : 0;\nconst cps = totalPaidShares ? totalSpend / totalPaidShares : 0;\nconst cpf = totalPaidFollowers ? totalSpend / totalPaidFollowers : 0;\n\n// Return result as a single JSON with numbers\nreturn [\n  {\n    json: {\n      IGPaid_totalSpend: Number(totalSpend.toFixed(2)),\n      IGPaid_totalViews: totalPaidViews,\n      IGPaid_totalLikes: totalPaidLikes,\n      IGPaid_totalShares: totalPaidShares,\n      IGPaid_totalFollowers: totalPaidFollowers,\n      IGPaid_CPV: Number(cpv.toFixed(4)),\n      IGPaid_CPL: Number(cpl.toFixed(4)),\n      IGPaid_CPS: Number(cps.toFixed(4)),\n      IGPaid_CPF: Number(cpf.toFixed(4))\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        928
+      ],
+      "id": "944ca281-8656-4531-a007-bf890b0b2d81",
+      "name": "Format Data: IG Paid Spend, Views, Likes, Shares, Followers"
+    },
+    {
+      "parameters": {
+        "jsCode": "function sumVideoViews(items) {\n  return items.reduce((total, item) => {\n    // Convert to number because videoViews comes as a string\n    return total + Number(item.videoViews || 0);\n  }, 0);\n}\n\n// Example usage in n8n:\nconst data = $input.all().map(i => i.json); // if this is your n8n input\n\nconst YTPaid_totalSpend = 0;\nconst YTPaid_totalViews = sumVideoViews(data);\nconst YTPaid_totalLikes = 0;\nconst YTPaid_totalShares = 0;\nconst YTPaid_totalFollowers = 0;\nconst YTPaid_CPV = 0;\nconst YTPaid_CPL = 0;\nconst YTPaid_CPS = 0;\nconst YTPaid_CPF = 0;\n//const viewsFromYT = $('YT Paid: Views').first().json.rows[0][0];\n//const YTOrganic_totalViews = viewsFromYT - YTPaid_totalViews;\n//const totalViews = totalPaidViews + YTOrganic_totalViews;\n\nreturn [\n  {\n    json: {\n      YTPaid_totalSpend,\n      YTPaid_totalViews,\n      YTPaid_totalLikes,\n      YTPaid_totalShares,\n      YTPaid_totalFollowers,\n      YTPaid_CPV,\n      YTPaid_CPL,\n      YTPaid_CPS,\n      YTPaid_CPF\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        160
+      ],
+      "id": "f745207f-a374-4965-8706-0a200dab4a8b",
+      "name": "Format Data: YT Paid Views"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f11c100-2b47-4fa6-9e8e-97d9676c5abd",
+              "name": "start_date",
+              "value": "=2026-01-29",
+              "type": "string"
+            },
+            {
+              "id": "0397551d-3862-4ba3-85ae-fdfafa0111c2",
+              "name": "end_date",
+              "value": "=2026-02-04",
+              "type": "string"
+            },
+            {
+              "id": "a3acb08c-1465-43c2-aaf2-4adbc6df8c45",
+              "name": "current_quarter",
+              "value": "Q1",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3536,
+        544
+      ],
+      "id": "c4c2418b-003d-4455-abef-66f22ebe44cc",
+      "name": "Set Date Range + Context"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ZUJtsn3-tClLdDjHYw0qRxv2OAVbOkTIt0pzqd1imZc",
+          "mode": "list",
+          "cachedResultName": "CUAL Marketing Engineering KPIs Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZUJtsn3-tClLdDjHYw0qRxv2OAVbOkTIt0pzqd1imZc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 751911884,
+          "mode": "list",
+          "cachedResultName": "Quarterly Expectations per platform",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZUJtsn3-tClLdDjHYw0qRxv2OAVbOkTIt0pzqd1imZc/edit#gid=751911884"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "QUARTER",
+              "lookupValue": "={{ $json.current_quarter }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3008,
+        1184
+      ],
+      "id": "fd1c22d0-70e6-41ba-aa8e-f706a7f7c84a",
+      "name": "Pull Expectations Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "l0vUx3jpXgDL4Fs3",
+          "name": "[CUAL - cookingupalegacy@gmail.com] Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 7
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1872,
+        464
+      ],
+      "id": "69ec33f6-b860-418d-a657-92639f57a20a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input JSON from previous node\nconst inputData = $input.all().map(item => item.json);\n\n// Initialize the output object\nlet output = { current_quarter: null };\n\n// Ensure there is at least one row to get the current quarter\nif (inputData.length > 0) {\n  output.current_quarter = inputData[0].QUARTER;\n}\n\n// Loop through each platform row and map values\ninputData.forEach(row => {\n  switch(row.PLATFORM.toLowerCase()) {\n    case 'facebook':\n      output.FBTarget_PaidViews = row[\"Avg Weekly Paid Views\"];\n      output.FBTarget_OrganicViews = row[\"Avg Weekly Organic Views\"];\n      output.FBTarget_TotalViews = row[\"Avg Weekly Total Views\"];\n      output.FBTarget_PaidFollowers = row[\"Avg Weekly Paid Followers\"];\n      output.FBTarget_OrganicFollowers = row[\"Avg Weekly Organic Followers\"];\n      output.FBTarget_TotalNewFollowers = row[\"Avg Weekly Total New Followers\"];\n      break;\n    case 'instagram':\n      output.IGTarget_PaidViews = row[\"Avg Weekly Paid Views\"];\n      output.IGTarget_OrganicViews = row[\"Avg Weekly Organic Views\"];\n      output.IGTarget_TotalViews = row[\"Avg Weekly Total Views\"];\n      output.IGTarget_PaidFollowers = row[\"Avg Weekly Paid Followers\"];\n      output.IGTarget_OrganicFollowers = row[\"Avg Weekly Organic Followers\"];\n      output.IGTarget_TotalNewFollowers = row[\"Avg Weekly Total New Followers\"];\n      break;\n    case 'youtube':\n      output.YTTarget_PaidViews = row[\"Avg Weekly Paid Views\"];\n      output.YTTarget_OrganicViews = row[\"Avg Weekly Organic Views\"];\n      output.YTTarget_TotalViews = row[\"Avg Weekly Total Views\"];\n      output.YTTarget_PaidFollowers = row[\"Avg Weekly Paid Followers\"];\n      output.YTTarget_OrganicFollowers = row[\"Avg Weekly Organic Followers\"];\n      output.YTTarget_TotalNewFollowers = row[\"Avg Weekly Total New Followers\"];\n      break;\n  }\n});\n\n// n8n function node must return an array of objects\nreturn [ { json: output } ];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        1184
+      ],
+      "id": "2bf1ece5-e257-4fb3-a748-5a7c091d6a65",
+      "name": "Merge Target Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input data\nconst allData = $input.all();\n\n// Initialize totals\nlet paid_spend = 0;\nlet paid_views = 0;\nlet paid_likes = 0;\nlet paid_shares = 0;\nlet paid_followers = 0;\n\n// Loop through each object in the JSON array\nallData.forEach(item => {\n  const data = item.json; // <-- actual JSON object\n\n  // You need to check data.*, not item.*\n  if (data.YTPaid_totalSpend !== undefined) {\n    paid_spend += parseFloat(data.YTPaid_totalSpend || 0);\n    paid_views += parseFloat(data.YTPaid_totalViews || 0);\n    paid_likes += parseFloat(data.YTPaid_totalLikes || 0);\n    paid_shares += parseFloat(data.YTPaid_totalShares || 0);\n    paid_followers += parseFloat(data.YTPaid_totalFollowers || 0);\n  }\n  if (data.FBPaid_totalSpend !== undefined) {\n    paid_spend += parseFloat(data.FBPaid_totalSpend || 0);\n    paid_views += parseFloat(data.FBPaid_totalViews || 0);\n    paid_likes += parseFloat(data.FBPaid_totalLikes || 0);\n    paid_shares += parseFloat(data.FBPaid_totalShares || 0);\n    paid_followers += parseFloat(data.FBPaid_totalFollowers || 0);\n  }\n  if (data.IGPaid_totalSpend !== undefined) {\n    paid_spend += parseFloat(data.IGPaid_totalSpend || 0);\n    paid_views += parseFloat(data.IGPaid_totalViews || 0);\n    paid_likes += parseFloat(data.IGPaid_totalLikes || 0);\n    paid_shares += parseFloat(data.IGPaid_totalShares || 0);\n    paid_followers += parseFloat(data.IGPaid_totalFollowers || 0);\n  }\n});\n\n// Avoid division by zero\nconst cpv = paid_views ? paid_spend / paid_views : 0;\nconst cpl = paid_likes ? paid_spend / paid_likes : 0;\nconst cps = paid_shares ? paid_spend / paid_shares : 0;\nconst cpf = paid_followers ? paid_spend / paid_followers : 0;\n\n// Return as single JSON object\nreturn [\n  {\n    json: {\n      paid_spend,\n      paid_views,\n      cpv,\n      paid_likes,\n      cpl,\n      paid_shares,\n      cps,\n      paid_followers,\n      cpf\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1552,
+        368
+      ],
+      "id": "27a8397c-b341-4f53-98ec-3ef9a9cec33d",
+      "name": "Paid KPIs"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3744,
+        544
+      ],
+      "id": "33c79da9-eb0c-424d-8ecf-f5da9ab43477",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "connections": {
+    "Google Ads: YouTube": {
+      "main": [
+        [
+          {
+            "node": "Format Data: YT Paid Views",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Organic: Views and Followers": {
+      "main": [
+        [
+          {
+            "node": "FB Organic: Likes and Shares",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Organic: Likes and Shares": {
+      "main": [
+        [
+          {
+            "node": "Format Data: FB Organic Likes, Views, Shares, Followers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Organic: Views and Followers": {
+      "main": [
+        [
+          {
+            "node": "IG Organic: Likes and Shares",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Organic: Likes and Shares": {
+      "main": [
+        [
+          {
+            "node": "Format Data: IG Organic Likes, Views, Shares, Followers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YT Paid: Views": {
+      "main": [
+        [
+          {
+            "node": "Google Ads: YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YT Organic: Views, Likes, Shares, Subscriber Count, and Ave Minutes Watched": {
+      "main": [
+        [
+          {
+            "node": "Format Data: YT Organic Views, Likes, Shares, Followers, Est. Mins Watched",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Paid: Spend, Views, Likes, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Format Data: FB Paid Spend, Views, Likes, Shares, Followers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data: FB Paid Spend, Views, Likes, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "IG Paid: Spend, Views, Likes, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Format Data: IG Paid Spend, Views, Likes, Shares, Followers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data: IG Paid Spend, Views, Likes, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Format Data: YT Paid Views": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Set Date Range + Context": {
+      "main": [
+        [
+          {
+            "node": "YT Organic: Views, Likes, Shares, Subscriber Count, and Ave Minutes Watched",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "YT Paid: Views",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FB Organic: Views and Followers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IG Organic: Views and Followers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FB Paid: Spend, Views, Likes, Shares, Followers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IG Paid: Spend, Views, Likes, Shares, Followers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pull Expectations Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data: YT Organic Views, Likes, Shares, Followers, Est. Mins Watched": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data: FB Organic Likes, Views, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Format Data: IG Organic Likes, Views, Shares, Followers": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Pull Expectations Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Target Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Target Data": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Paid KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Date Range + Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/New_York",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "tags": []
+}

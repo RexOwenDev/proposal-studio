@@ -1,0 +1,877 @@
+{
+  "id": "DvYKtulDUNmUvgmM",
+  "name": "Tornatech - Form Submission (with Whitepaper)",
+  "active": true,
+  "isArchived": false,
+  "updatedAt": "2026-03-23T18:55:13.714Z",
+  "createdAt": "2026-01-02T20:05:41.105Z",
+  "versionId": "04ddc2a9-e59d-47fd-b879-5fe940a93221",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "a0ff1f24-c77c-40c6-bca9-1513a58aa7e0",
+        "responseMode": "=onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -704,
+        160
+      ],
+      "id": "1845e996-da68-4a5f-b236-aaffb217f1d6",
+      "name": "Webhook",
+      "webhookId": "a0ff1f24-c77c-40c6-bca9-1513a58aa7e0"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Responses",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Content Type": "={{ $('Webhook').item.json.body['4'] }}",
+            "Title": "={{ $json.message.content.title }}",
+            "Date": "={{ $('Webhook').item.json.body.date_created }}",
+            "Content": "={{ $json.message.content.content }}",
+            "Email": "={{ $('Webhook').item.json.body['3'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Content Type",
+              "displayName": "Content Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Content",
+              "displayName": "Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "needs_revision",
+              "displayName": "needs_revision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        160
+      ],
+      "id": "5487ce7b-6138-4981-9967-e934326c2adc",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cEd9FhgfccbmNQQA",
+          "name": "[DS - analyn.alvario@designshopp.com] - Google Sheet account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.tornatech.com/wp-json/wp/v2/categories",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ $('Append row in sheet').item.json['Content Type'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        160
+      ],
+      "id": "f008e17f-659b-4848-9d36-511b2c80e119",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 282401417,
+          "mode": "list",
+          "cachedResultName": "Form_Submissions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw/edit#gid=282401417"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Webhook').item.json.body['3'] }}",
+            "submitted_at": "={{ $('Webhook').item.json.body['date_created'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "submitted_at",
+              "displayName": "submitted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -128,
+        -176
+      ],
+      "id": "6ad711fc-a4e8-42a9-b80a-bbab87c2c3c8",
+      "name": "Append to Form_Submissions",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cEd9FhgfccbmNQQA",
+          "name": "[DS - analyn.alvario@designshopp.com] - Google Sheet account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const replyRaw = ($json.text || $json.response || $json.body || \"\").toLowerCase();\n\nconst approved =\n  replyRaw.includes(\"approved\") ||\n  replyRaw.includes(\"approve\") ||\n  replyRaw.trim() === \"yes\";\n\nreturn [{\n  json: {\n    approved,\n    replyRaw,\n    wp_post_id: $node[\"Create a Whitepaper [Draft]\"].json.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        -320
+      ],
+      "id": "37b809d7-2636-4c0e-82f4-878bcd073ab6",
+      "name": "Parse Approval"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "555e7746-dc93-41dd-a9d2-c8d8fada7a3f",
+              "leftValue": "={{$json.approved}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2032,
+        -320
+      ],
+      "id": "3ee85306-fd70-4c9a-8a73-79f642dd2cf2",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "postId": "={{$json.wp_post_id}}",
+        "updateFields": {
+          "status": "publish"
+        }
+      },
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        -336
+      ],
+      "id": "fd75c9a0-545c-41ac-ae7f-b5ec744b3c38",
+      "name": "Publish the Post",
+      "credentials": {
+        "wordpressApi": {
+          "id": "KDpoFaRvQy32gJv9",
+          "name": "[DS] Tornatech WP Admin Account - designshopp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').first().json.body['3'] }}",
+        "subject": "=Review Required: Draft  {{ $('HTTP Request').item.json.name }}",
+        "message": "=<p>Hi {{ $('Webhook').first().json.body['1'] }}, </p>\n\n<p>Hope you're doing well.</p>\n\n<p>\n  A draft {{ $('HTTP Request').item.json.name }} has been created in the WordPress admin based on the questionnaire\n  you/your team provided. When you have a moment, please review it for technical accuracy\n  and NFPA 20 compliance.\n</p>\n\n<p>\n  Draft link:\n  <a href=\"{{ $json.link }}\" target=\"_blank\" rel=\"noopener noreferrer\">\n    {{ $json.link }}\n  </a>\n</p>\n\n<p>\n  Thank you in advance for taking a look. Your review helps ensure the {{ $('HTTP Request').item.json.name }} is accurate\n  and compliant before we move forward.\n</p>\n<br />\n<br />\n<br />\n<br />\n\n<p>---</p>\n<p style=\"font-size: 12px;font-style: italic;\">Powered by Spilled Milk Agency</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2704,
+        160
+      ],
+      "id": "c1319596-5bbe-4c8d-b4c8-0ddadeb7ce4f",
+      "name": "Send a message",
+      "webhookId": "6691c34b-bb70-4ed0-86e9-03d71b841411",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NMxhzXsSqk1u0lKF",
+          "name": "automation@spilledmilkagency.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert technical writer specializing in fire pump controllers and NFPA 20 compliance.\nWrite a polished Tornatech Whitepaper based strictly on the questionnaire below.\n\nYou may add brief, GENERAL engineering context that is standard to MI cable and NFPA 20 practice,\nbut you must NOT add any project-specific facts (no client names, locations, product models,\nmetrics, quotes, timelines, or AHJ decisions unless provided).\n\nIf you add general context, keep it clearly non-specific and industry-standard.\n\nWriting style:\n- neutral, engineering-forward, third person\n- no marketing fluff\n- 300–400 words\n- HTML output ready for WordPress\n- you can refer to the https://www.tornatech.com/ or https://firetrol.com/ website\n- Consider these additional notes {{ $('Webhook').item.json.body['29'] }}\n\nStructure exactly:\n1. Title (H1) the value should be {{ $json.body['16'] }}\n2. Executive Summary   (H3 + 1–2 short paragraphs)\n  Answers:\n  What problem exists? Why it matters now? What the paper covers?\n\n3. Context (H3); Covers Industry environment, Regulatory landscape, Common practices today)\n\n4. Problem Statement / Core Challenge (H3)\nHigh-level, not customer-specific; Defines the broader issue the industry faces\n\n5. Technical & Compliance Considerations (H3)\nExplains: Technical constraints , Compliance requirements (NFPA, ISO, local codes, etc.), Risks of non-compliance\n\n6. Evaluation Criteria / Key Requirements (H3)\n7. Recommended Approach / Best Practices (H3)\n8. Practical Application / Use Scenarios (H3)\n9. Key Benefits and Outcomes (H3)\n10. Conclusion (H3)\n\nQuestionnaire answers:\n\n\n1. Context\n{{ $json.body['37'] }}\n\n2. Problem Statement / Core Challenge\n{{ $json.body['31'] }}\n\n3. Technical & Compliance Considerations\n{{ $json.body['36'] }}\n\n4. Evaluation Criteria / Key Requirements\n{{ $json.body['35'] }}\n\n5. Recommended Approach / Best Practices\n{{ $json.body['33'] }}\n\n6. Practical Application / Use Scenarios\n{{ $json.body['30'] }}\n\n7. Key Benefits and Outcomes\n{{ $json.body['34'] }}\n\n8. Conclusion\n{{ $json.body['32'] }}\n\n\n\nRULES:\n- Never add product names, hardware, codes, or procedures not explicitly mentioned.\n- If information is missing, state it generically without adding details.\n- Maintain technical accuracy and NFPA language where applicable.\n- remove the <html> opening tag"
+            },
+            {
+              "content": "You are writing a WordPress whitepaper. Return ONLY valid JSON.",
+              "role": "system"
+            },
+            {
+              "content": "From the form submission, generate:\n\ntitle: short, clear, SEO-friendly title (max 70 characters)\n\ncontent: full whitepaper in HTML\n\nReturn ONLY this JSON:\n{\n  \"title\": \"\",\n  \"content\": \"\"\n}\ndo not include another <h1> title in the content and add a class \"ds-divider\" in every last paragraph before <h3>"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        256,
+        -96
+      ],
+      "id": "5c7bdc03-5037-4bf9-9003-c3b8e88eb4ec",
+      "name": "Generate Whitepaper",
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body['4'] }}",
+                    "rightValue": "=Whitepaper",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6dcf4c49-ec1d-4472-9de3-213b4ac9f772"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "40130901-0239-4e18-a9db-0bf3a2c9ec40",
+                    "leftValue": "={{ $json.body['4'] }}",
+                    "rightValue": "Case Study",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "eff9543d-4b08-483a-aae8-eaf49989b344",
+                    "leftValue": "={{ $json.body['4'] }}",
+                    "rightValue": "Social Media",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        144
+      ],
+      "id": "2c26ee2e-4b51-43c9-b834-e05db9b52a0b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert technical writer specializing in fire pump controllers and NFPA 20 compliance.\nWrite a polished Tornatech case study based strictly on the questionnaire below.\n\nYou may add brief, GENERAL engineering context that is standard to MI cable and NFPA 20 practice,\nbut you must NOT add any project-specific facts (no client names, locations, product models,\nmetrics, quotes, timelines, or AHJ decisions unless provided).\n\nIf you add general context, keep it clearly non-specific and industry-standard.\n\nWriting style:\n- neutral, engineering-forward, third person\n- no marketing fluff\n- 300–400 words\n- HTML output ready for WordPress\n- you can refer to the https://www.tornatech.com/ or https://firetrol.com/ website\n- Consider these additional notes {{ $('Webhook').item.json.body['14'] }}\n\nStructure exactly:\n1. Title (H1)\n2. Request or Situation (H3 + paragraph)\n3. Technical Challenge / Compliance Issue (H3 + paragraph, bullets if needed)\n4. Assessment / Findings (H3 + paragraph, bullets if needed)\n5. Tornatech Solution / Recommended Approach (H3 + paragraph)\n6. Final Outcome / Recommendation (H3 + paragraph)\n\n\n\nQuestionnaire answers:\n\n\n1. Request or Situation:\n{{ $('Webhook').item.json.body['10'] }}\n\n2. Technical Challenge or Code/Compliance Issue:\n{{ $('Webhook').item.json.body['11'] }}\n\n3. Assessment or Findings:\n{{ $('Webhook').item.json.body['12'] }}\n\n4. Tornatech Solution or Recommended Approach:\n{{ $('Webhook').item.json.body['9'] }}\n\n\n\n\nRULES:\n- Never add product names, hardware, codes, or procedures not explicitly mentioned.\n- If information is missing, state it generically without adding details.\n- Maintain technical accuracy and NFPA language where applicable.\n- remove the <html> opening tag"
+            },
+            {
+              "content": "You are writing a WordPress case study. Return ONLY valid JSON.",
+              "role": "system"
+            },
+            {
+              "content": "From the form submission, generate:\n\ntitle: short, clear, SEO-friendly title (max 70 characters)\n\ncontent: full case study in HTML\n\nReturn ONLY this JSON:\n{\n  \"title\": \"\",\n  \"content\": \"\"\n}\ndo not include another <h1> title in the content and add a class \"ds-divider\" in every last paragraph before <h3>"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        256,
+        160
+      ],
+      "id": "ecd60d68-c054-4048-ad7d-644103e72a76",
+      "name": "Generate Case Study",
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// category name from webhook field body[\"5\"]\nconst wanted = ($node[\"Webhook\"].json.body?.[\"4\"] || \"\").toLowerCase().trim();\n\n// categories returned by HTTP Request (this node's input)\nconst match = items.find(\n  c => (c.json.name || \"\").toLowerCase().trim() === wanted\n);\n\nif (!match) {\n  throw new Error(`Category not found: ${wanted}`);\n}\n\nreturn [\n  {\n    json: {\n      category_ids: [match.json.id]\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        160
+      ],
+      "id": "709d4259-5c38-407d-94d4-a849a9843c1a",
+      "name": "Validate category"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Webhook').item.json.body['4'] }}",
+                    "rightValue": "Whitepaper",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c834a97f-f502-48a5-81c5-9e5bc609243a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f84396fe-3028-4a26-b9de-576625016762",
+                    "leftValue": "={{ $('Webhook').item.json.body['4'] }}",
+                    "rightValue": "Case Study",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "773eb325-e88d-4b85-8a6d-a47fe21c85ab",
+                    "leftValue": "={{ $('Webhook').item.json.body['4'] }}",
+                    "rightValue": "Social Media",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        144
+      ],
+      "id": "5702f052-d756-4414-b460-51e00085000a",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "title": "={{ $('Generate Whitepaper').item.json.message.content.title }}",
+        "additionalFields": {
+          "content": "={{ $('Generate Whitepaper').item.json.message.content.content }}",
+          "categories": "={{ $json.category_ids[0] }}"
+        }
+      },
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        -96
+      ],
+      "id": "e1cc0307-7b1a-4322-8698-ed389e3dfae7",
+      "name": "Create a Whitepaper [Draft]",
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "title": "={{ $('Generate Case Study').item.json.message.content.title }}",
+        "additionalFields": {
+          "content": "=\n{{ $('Generate Case Study').item.json.message.content.content }}",
+          "categories": "={{ $json.category_ids[0] }}"
+        }
+      },
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        160
+      ],
+      "id": "4bd7930f-c872-4250-8cdb-bd62baecffbc",
+      "name": "Create a Case Study [Draft]",
+      "credentials": {
+        "wordpressApi": {
+          "id": "kcKRdIUs4AzcomCH",
+          "name": "[Live] Tornatech WP Admin Account - qa@designshopp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "GPT-5.4"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert technical writer specializing in fire pump controllers and NFPA 20 compliance.\nWrite a polished Tornatech case study based strictly on the questionnaire below.\n\nYou may add brief, GENERAL engineering context that is standard to MI cable and NFPA 20 practice,\nbut you must NOT add any project-specific facts (no client names, locations, product models,\nmetrics, quotes, timelines, or AHJ decisions unless provided).\n\nIf you add general context, keep it clearly non-specific and industry-standard.\n\nWriting style:\n- neutral, engineering-forward, third person\n- no marketing fluff\n- 300–400 words\n- HTML output ready for WordPress\n- you can refer to the https://www.tornatech.com/ or https://firetrol.com/ website\n- Consider these additional notes {{ $('Webhook').item.json.body['14'] }}\n\nStructure exactly:\n1. Title (H1)\n2. Request or Situation (H3 + paragraph)\n3. Technical Challenge / Compliance Issue (H3 + paragraph, bullets if needed)\n4. Assessment / Findings (H3 + paragraph, bullets if needed)\n5. Tornatech Solution / Recommended Approach (H3 + paragraph)\n6. Final Outcome / Recommendation (H3 + paragraph)\n\n\n\nQuestionnaire answers:\n\n\n1. Request or Situation:\n{{ $('Webhook').item.json.body['10'] }}\n\n2. Technical Challenge or Code/Compliance Issue:\n{{ $('Webhook').item.json.body['11'] }}\n\n3. Assessment or Findings:\n{{ $('Webhook').item.json.body['12'] }}\n\n4. Tornatech Solution or Recommended Approach:\n{{ $('Webhook').item.json.body['9'] }}\n\n\n\n\nRULES:\n- Never add product names, hardware, codes, or procedures not explicitly mentioned.\n- If information is missing, state it generically without adding details.\n- Maintain technical accuracy and NFPA language where applicable.\n- remove the <html> opening tag"
+            },
+            {
+              "content": "You are writing a WordPress case study. Return ONLY valid JSON.",
+              "role": "system"
+            },
+            {
+              "content": "From the form submission, generate:\n\ntitle: short, clear, SEO-friendly title (max 70 characters)\n\ncontent: full case study in HTML\n\nReturn ONLY this JSON:\n{\n  \"title\": \"\",\n  \"content\": \"\"\n}\ndo not include another <h1> title in the content and add a class \"ds-divider\" in every last paragraph before <h3>"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        256,
+        432
+      ],
+      "id": "d9e5e15a-95e4-4390-81cc-436ff6965414",
+      "name": "Generate Social Media Post",
+      "credentials": {
+        "openAiApi": {
+          "id": "NZhdaORQZFnscxig",
+          "name": "[Tornatech] OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "title": "={{ $('Generate Case Study').item.json.message.content.title }}",
+        "additionalFields": {
+          "content": "=\n{{ $('Generate Case Study').item.json.message.content.content }}",
+          "categories": "={{ $json.category_ids[0] }}"
+        }
+      },
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        496
+      ],
+      "id": "cf7d4582-8f1e-46fa-90ee-8a34179c7172",
+      "name": "Create a Social Media [Draft]",
+      "credentials": {
+        "wordpressApi": {
+          "id": "KDpoFaRvQy32gJv9",
+          "name": "[DS] Tornatech WP Admin Account - designshopp"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Append to Form_Submissions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Validate category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Form_Submissions": {
+      "main": [
+        []
+      ]
+    },
+    "Parse Approval": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Publish the Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Generate Whitepaper": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Generate Whitepaper",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Case Study",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Social Media Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Case Study": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate category": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Create a Whitepaper [Draft]",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a Case Study [Draft]",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Create a Whitepaper [Draft]": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a Case Study [Draft]": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a Social Media [Draft]": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "qvfDo35OOWGGpZmWbbfm7"
+  },
+  "pinData": {},
+  "tags": []
+}

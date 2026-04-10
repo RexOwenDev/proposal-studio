@@ -1,0 +1,134 @@
+{
+  "id": "XF0fwW43JwvHC4Tt",
+  "name": "CPA - Error Notification Handler",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2026-03-26T16:11:40.748Z",
+  "createdAt": "2026-03-25T16:59:47.514Z",
+  "versionId": "f2f79139-68cf-4c77-a514-843a6b2ffc65",
+  "nodes": [
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "normalize-error",
+      "name": "Normalize Error Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nlet errorMessage = '';\nlet failedNode = '';\nlet executionId = '';\nlet executionUrl = '';\nlet mode = '';\nlet workflowName = item.workflow?.name || 'Unknown';\nlet workflowId = item.workflow?.id || 'Unknown';\n\nif (item.execution) {\n  errorMessage = item.execution.error?.message || 'Unknown';\n  failedNode = item.execution.lastNodeExecuted || 'Unknown';\n  executionId = item.execution.id || 'N/A';\n  executionUrl = item.execution.url || 'N/A';\n  mode = item.execution.mode || 'Unknown';\n} else if (item.trigger) {\n  errorMessage = item.trigger.error?.message || 'Unknown';\n  failedNode = 'Trigger Node (workflow did not execute)';\n  executionId = 'N/A (trigger-level failure)';\n  executionUrl = 'N/A (trigger-level failure)';\n  mode = item.trigger.mode || 'trigger';\n}\n\nreturn [{\n  json: {\n    workflowName,\n    workflowId,\n    errorMessage,\n    failedNode,\n    executionId,\n    executionUrl,\n    mode\n  }\n}];"
+      }
+    },
+    {
+      "id": "gmail-alert",
+      "name": "Send Error Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        -100
+      ],
+      "parameters": {
+        "sendTo": "owen.quintenta@designshopp.com",
+        "subject": "=CPA Exam Workflow Failed: {{ $json.workflowName }}",
+        "message": "=<b>Client:</b> CPA (Canadian Propane Association)<br/>\n<b>Workflow:</b> {{ $json.workflowName }}<br/>\n<b>Workflow ID:</b> {{ $json.workflowId }}<br/>\n<b>Execution ID:</b> {{ $json.executionId }}<br/>\n<b>Execution URL:</b> {{ $json.executionUrl }}<br/>\n<b>Failed Node:</b> {{ $json.failedNode }}<br/>\n<b>Error Message:</b> {{ $json.errorMessage }}<br/>\n<b>Mode:</b> {{ $json.mode }}",
+        "options": {},
+        "operation": "send"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CGSyc2j9LllgKdAU",
+          "name": "[DS - alec.galvez@designshopp.com] Gmail account"
+        }
+      }
+    },
+    {
+      "id": "sheets-errorlog",
+      "name": "Log to Errors Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        460,
+        100
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1lq_NnzUdLTTpndTYdN3PATMOqSry5qKQ41gWwuVAgzE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errors",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+            "workflowName": "={{ $json.workflowName }}",
+            "nodeName": "={{ $json.failedNode }}",
+            "errorMessage": "={{ $json.errorMessage }}",
+            "submissionId": "={{ $json.executionId }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Data": {
+      "main": [
+        [
+          {
+            "node": "Send Error Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Errors Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "tags": []
+}

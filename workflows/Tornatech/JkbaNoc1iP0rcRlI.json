@@ -1,0 +1,327 @@
+{
+  "id": "JkbaNoc1iP0rcRlI",
+  "name": "Tornatech - Trigger Email Reminder",
+  "active": false,
+  "isArchived": false,
+  "updatedAt": "2025-12-19T16:12:12.000Z",
+  "createdAt": "2025-11-25T19:56:48.039Z",
+  "versionId": "25bed0b0-4779-49a7-9f00-d016ee09a4c0",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */1 * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        288
+      ],
+      "id": "77b04dca-438c-492e-b853-e8fe7a480fa8",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// all merged items (reminders + submissions)\nconst all = items.map(i => i.json);\n\n// split by source\nconst reminders = all.filter(i => i.source === \"reminder\");\nconst submissions = all.filter(i => i.source === \"submission\");\n\n// normalize submitted emails into a set\nconst submittedSet = new Set(\n  submissions\n    .map(s => (s.email || \"\").trim().toLowerCase())\n    .filter(Boolean)\n);\n\n// for each reminder, check if email is missing\nconst output = reminders.map(r => {\n  const email = (r.email || \"\").trim().toLowerCase();\n  const name = r.name || \"\";\n  const formUrl = r.form_url || r.formUrl || \"\";\n\n  const hasSubmitted = submittedSet.has(email);\n\n  return {\n    json: {\n      email,\n      name,\n      form_url: formUrl,\n      hasSubmitted,\n      shouldRemind: !hasSubmitted,\n      reason: hasSubmitted ? \"already_submitted\" : \"no_submission\",\n    }\n  };\n});\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        304
+      ],
+      "id": "70345533-e21c-4def-b1e9-def87fdcbb3e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json[\"email\"]}}",
+        "subject": "Test Form Reminder",
+        "message": "=Hi {{$json.name || \"there\"}},\n\nJust a quick reminder to complete the content intake form.\n\nForm link: {{$json.form_url}}\n\nThanks!\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1472,
+        288
+      ],
+      "id": "286fef3d-5d1c-49bf-b286-bce6eca4b1b7",
+      "name": "Send a message",
+      "webhookId": "b93ba344-d61f-415c-9df8-1996ac5926ae",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "SgIDsShQhrA71npJ",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cb63bbb3-183f-47ed-9b41-b3f64e3a160f",
+              "leftValue": "={{$json[\"shouldRemind\"]}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        304
+      ],
+      "id": "1ef83b88-92b7-4095-a799-563f9ea75444",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 165869954,
+          "mode": "list",
+          "cachedResultName": "Reminder_List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw/edit#gid=165869954"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        400
+      ],
+      "id": "6055d194-f054-451b-8936-8ef012fe6e7d",
+      "name": "Reminder List",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fPpSuDM6jY8pi5qF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 282401417,
+          "mode": "list",
+          "cachedResultName": "Form_Submissions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hulPVHOB8U1CCW7q6J3adKwi9QcrKr-A-ximFvCVEPw/edit#gid=282401417"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        192
+      ],
+      "id": "90cebc29-1e5e-4c00-a7eb-64923cdc6774",
+      "name": "Submission List",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fPpSuDM6jY8pi5qF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "abea2d10-10df-4b97-bfe8-899e63ea7d83",
+              "name": "source",
+              "value": "reminder",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        400
+      ],
+      "id": "4309f6be-e340-40cb-b847-515d5ab421d9",
+      "name": "Tag Reminders"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        304
+      ],
+      "id": "fad026d4-5018-40b0-b1e7-8aedbf5ecb52",
+      "name": "Merge Lists"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13b63602-2778-40e9-92a8-a0f1940965f3",
+              "name": "source",
+              "value": "submission",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        192
+      ],
+      "id": "b5f91739-1759-4d45-9a40-40e386c90c6d",
+      "name": "Tag Submissions"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Reminder List",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Submission List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Reminder List": {
+      "main": [
+        [
+          {
+            "node": "Tag Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submission List": {
+      "main": [
+        [
+          {
+            "node": "Tag Submissions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Reminders": {
+      "main": [
+        [
+          {
+            "node": "Merge Lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Lists": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Submissions": {
+      "main": [
+        [
+          {
+            "node": "Merge Lists",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

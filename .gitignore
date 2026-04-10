@@ -4,3 +4,21 @@
 *.key
 .claude/worktrees/
 .claude/projects/
+
+# Logs and temp files
+*.log
+crew_ai_server.log
+
+# Audit scripts/outputs with malformed Windows path names
+*audit.sh
+*audit.json
+*w1_audit*
+
+# Claude Code harness (local-only)
+.remember/
+.superpowers/
+proposal studio/.remember/
+proposal studio/.superpowers/
+
+# Portfolio site (separate project)
+portfolio-site/
