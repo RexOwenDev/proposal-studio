@@ -37,7 +37,7 @@ export default function EditPage({ params }: EditPageProps) {
 
   // Realtime: live block updates + presence
   const { liveBlockUpdates } = useRealtimeBlocks(proposal?.id || null);
-  const { onlineUsers, editingUsers, setEditingBlock } = usePresence(proposal?.id || null, userEmail);
+  const { onlineUsers, typingUsers, editingUsers, setEditingBlock, setTyping } = usePresence(proposal?.id || null, userEmail);
 
   // Mark as mounted so SSR skeleton and client first-render are identical (fixes React #418)
   useEffect(() => { setMounted(true); }, []);
@@ -430,6 +430,12 @@ export default function EditPage({ params }: EditPageProps) {
       e.stopPropagation();
       startEditing(el, blockId, doc);
     });
+    let typingClearTimer: ReturnType<typeof setTimeout>;
+    el.addEventListener('input', () => {
+      setTyping(true);
+      clearTimeout(typingClearTimer);
+      typingClearTimer = setTimeout(() => setTyping(false), 2000);
+    });
   }
 
   function startEditing(el: HTMLElement, blockId: string, doc: Document) {
@@ -451,6 +457,7 @@ export default function EditPage({ params }: EditPageProps) {
       el.classList.remove('editing');
       el.removeEventListener('blur', handleBlur);
       el.removeEventListener('keydown', handleKeydown);
+      setTyping(false);
       saveBlockContent(blockId, doc);
       setEditingBlockId(null);
       setEditingBlock(null); // R1: clear editing lock
@@ -699,6 +706,7 @@ export default function EditPage({ params }: EditPageProps) {
         slug={proposal.slug}
         proposalId={proposal.id}
         onlineUsers={onlineUsers}
+        typingUsers={typingUsers.filter(email => email !== userEmail)}
         currentUserEmail={userEmail}
         isPublishing={isPublishing}
       />

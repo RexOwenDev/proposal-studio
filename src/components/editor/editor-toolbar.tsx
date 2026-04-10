@@ -19,6 +19,7 @@ interface EditorToolbarProps {
   slug: string;
   proposalId?: string;
   onlineUsers?: PresenceUser[];
+  typingUsers?: string[];
   currentUserEmail?: string | null;
   isPublishing?: boolean;
 }
@@ -40,6 +41,7 @@ export default function EditorToolbar({
   slug,
   proposalId,
   onlineUsers = [],
+  typingUsers,
   currentUserEmail,
   isPublishing = false,
 }: EditorToolbarProps) {
@@ -139,6 +141,22 @@ export default function EditorToolbar({
                 {onlineUsers.filter((u) => u.email !== currentUserEmail).length} online
               </span>
             )}
+          </div>
+        )}
+
+        {/* Typing indicator */}
+        {typingUsers && typingUsers.length > 0 && (
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
+            <span className="flex gap-0.5 items-end">
+              <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:0ms]" />
+              <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:150ms]" />
+              <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce [animation-delay:300ms]" />
+            </span>
+            <span>
+              {typingUsers[0].split('@')[0]}
+              {typingUsers.length > 1 ? ` +${typingUsers.length - 1}` : ''}
+              {' '}typing&hellip;
+            </span>
           </div>
         )}
 
