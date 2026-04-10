@@ -45,6 +45,7 @@ export default function EditorToolbar({
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
+  const isPublished = status === 'published';
 
   async function handleExport() {
     if (!proposalId) return;
@@ -61,7 +62,6 @@ export default function EditorToolbar({
       onExportWarning?.();
     }
   }
-  const isPublished = status === 'published';
 
   function handlePublishClick() {
     if (isPublished) {
