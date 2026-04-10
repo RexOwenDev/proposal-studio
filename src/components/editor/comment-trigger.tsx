@@ -64,18 +64,22 @@ export default function CommentTrigger({ iframeRef, onAddComment }: CommentTrigg
     const iframe = iframeRef.current;
     if (!iframe) return;
 
+    let registeredDoc: Document | null = null;
+
     function attach() {
-      iframe!.contentDocument?.addEventListener('mouseup', handleMouseUp);
+      setSelection(null); // clear stale selection on every iframe load
+      registeredDoc = iframe!.contentDocument;
+      registeredDoc?.addEventListener('mouseup', handleMouseUp);
     }
 
     iframe.addEventListener('load', attach);
-    attach(); // in case already loaded
+    attach(); // already loaded case
 
     document.addEventListener('mousedown', handleMouseDown);
 
     return () => {
       iframe.removeEventListener('load', attach);
-      iframe.contentDocument?.removeEventListener('mouseup', handleMouseUp);
+      registeredDoc?.removeEventListener('mouseup', handleMouseUp); // correct document ref
       document.removeEventListener('mousedown', handleMouseDown);
     };
   }, [iframeRef, handleMouseUp, handleMouseDown]);

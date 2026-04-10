@@ -34,6 +34,7 @@ export default function CommentPanel({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const loadComments = useCallback(async () => {
     if (!proposalId) return;
@@ -49,7 +50,7 @@ export default function CommentPanel({
   }, [proposalId]);
 
   useEffect(() => { if (open) loadComments(); }, [open, loadComments]);
-  useEffect(() => { setNewText(''); }, [pendingSelection]);
+  useEffect(() => { setNewText(''); setSubmitError(null); }, [pendingSelection]);
 
   async function handleSubmitNew() {
     if (!newText.trim() || submitting) return;
@@ -65,7 +66,11 @@ export default function CommentPanel({
           selected_text: pendingSelection?.text ?? null,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setSubmitError('Failed to post comment. Please try again.');
+        return;
+      }
+      setSubmitError(null);
       const created: Comment = await res.json();
       setComments((prev) => [...prev, created]);
       setNewText('');
@@ -83,7 +88,11 @@ export default function CommentPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposal_id: proposalId, parent_id: parentId, text: replyText.trim() }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setSubmitError('Failed to post reply. Please try again.');
+        return;
+      }
+      setSubmitError(null);
       const created: Comment = await res.json();
       setComments((prev) => [...prev, created]);
       setReplyText('');
@@ -99,14 +108,14 @@ export default function CommentPanel({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resolved }),
     });
-    if (!res.ok) return;
+    if (!res.ok) { console.error('Failed to update comment'); return; }
     const updated: Comment = await res.json();
     setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }
 
   async function handleDelete(commentId: string) {
     const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
-    if (!res.ok) return;
+    if (!res.ok) { console.error('Failed to update comment'); return; }
     setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
   }
 
@@ -175,6 +184,9 @@ export default function CommentPanel({
               {submitting ? 'Posting\u2026' : 'Post'}
             </button>
           </div>
+          {submitError && (
+            <p className="text-xs text-red-500 mt-1">{submitError}</p>
+          )}
         </div>
 
         {/* Comment threads */}
