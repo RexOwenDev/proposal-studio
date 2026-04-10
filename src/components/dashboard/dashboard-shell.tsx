@@ -10,9 +10,10 @@ interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
   userEmail: string;
   viewStatsMap?: Map<string, ViewStats>;
+  acceptanceMap?: Map<string, string>;
 }
 
-export default function DashboardShell({ proposals, userEmail, viewStatsMap }: Props) {
+export default function DashboardShell({ proposals, userEmail, viewStatsMap, acceptanceMap }: Props) {
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -45,7 +46,7 @@ export default function DashboardShell({ proposals, userEmail, viewStatsMap }: P
             </button>
           </div>
         ) : (
-          <ProposalGrid proposals={proposals} viewStatsMap={viewStatsMap} />
+          <ProposalGrid proposals={proposals} viewStatsMap={viewStatsMap} acceptanceMap={acceptanceMap} />
         )}
       </main>
 

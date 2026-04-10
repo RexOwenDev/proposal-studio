@@ -8,13 +8,14 @@ import ProposalCard from '@/components/dashboard/proposal-card';
 interface Props {
   proposals: (Proposal & { content_blocks: { id: string }[] })[];
   viewStatsMap?: Map<string, ViewStats>;
+  acceptanceMap?: Map<string, string>;
 }
 
 const ALL_STATUSES = ['draft', 'published'] as const;
 
 type SortKey = 'newest' | 'oldest' | 'title-az';
 
-export default function ProposalGrid({ proposals, viewStatsMap }: Props) {
+export default function ProposalGrid({ proposals, viewStatsMap, acceptanceMap }: Props) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -190,6 +191,8 @@ export default function ProposalGrid({ proposals, viewStatsMap }: Props) {
               isSelected={bulkMode ? selectedIds.has(proposal.id) : undefined}
               onToggleSelect={bulkMode ? toggleSelect : undefined}
               viewStats={viewStatsMap?.get(proposal.id)}
+              isAccepted={acceptanceMap?.has(proposal.id) ?? false}
+              acceptedBy={acceptanceMap?.get(proposal.id)}
             />
           ))}
         </div>

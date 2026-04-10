@@ -17,9 +17,11 @@ interface Props {
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   viewStats?: ViewStats;
+  isAccepted?: boolean;
+  acceptedBy?: string;
 }
 
-export default function ProposalCard({ proposal, blockCount, isSelected, onToggleSelect, viewStats }: Props) {
+export default function ProposalCard({ proposal, blockCount, isSelected, onToggleSelect, viewStats, isAccepted, acceptedBy }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
@@ -116,9 +118,18 @@ export default function ProposalCard({ proposal, blockCount, isSelected, onToggl
           <h2 className="text-gray-900 font-semibold group-hover:text-blue-600 transition-colors duration-150 truncate pr-2 text-sm leading-snug">
             {proposal.title}
           </h2>
-          <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 capitalize font-medium ${statusColors[proposal.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-            {proposal.status}
-          </span>
+          {isAccepted ? (
+            <span
+              className="text-xs px-2 py-0.5 rounded border bg-emerald-900/50 text-emerald-300 border-emerald-700 shrink-0"
+              title={acceptedBy ? `Accepted by ${acceptedBy}` : 'Accepted'}
+            >
+              Accepted
+            </span>
+          ) : (
+            <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 capitalize font-medium ${statusColors[proposal.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+              {proposal.status}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 text-gray-400 text-xs mt-auto pt-2 flex-wrap">

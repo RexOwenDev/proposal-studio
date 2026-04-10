@@ -33,13 +33,29 @@ export default async function DashboardPage() {
     ])
   );
 
+  const proposalList = proposals || [];
+  const { data: acceptances } = proposalList.length > 0
+    ? await supabase
+        .from('proposal_acceptances')
+        .select('proposal_id, client_name')
+        .in('proposal_id', proposalList.map((p) => p.id))
+    : { data: [] };
+
+  const acceptanceMap = new Map<string, string>(
+    (acceptances ?? []).map((a: { proposal_id: string; client_name: string }) => [
+      a.proposal_id,
+      a.client_name,
+    ])
+  );
+
   return (
     <>
       <LiveRefresh />
       <DashboardShell
-        proposals={proposals || []}
+        proposals={proposalList}
         userEmail={user.email || 'Unknown'}
         viewStatsMap={statsMap}
+        acceptanceMap={acceptanceMap}
       />
     </>
   );

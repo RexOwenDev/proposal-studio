@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import type { ContentBlock } from '@/lib/types';
+import type { ContentBlock, ProposalAcceptance } from '@/lib/types';
 import ProposalRenderer from '@/components/proposal/proposal-renderer';
+import AcceptProposalButton from '@/components/proposal/accept-proposal-button';
 import { recordView } from '@/lib/analytics/record-view';
 
 interface Props {
@@ -55,6 +56,12 @@ export default async function PublicProposalPage({ params }: Props) {
     .order('block_order', { ascending: true })
     .returns<ContentBlock[]>();
 
+  const { data: existingAcceptance } = await supabase
+    .from('proposal_acceptances')
+    .select('*')
+    .eq('proposal_id', proposal.id)
+    .maybeSingle<ProposalAcceptance>();
+
   return (
     <div className="min-h-screen bg-white">
       <ProposalRenderer
@@ -62,6 +69,10 @@ export default async function PublicProposalPage({ params }: Props) {
         blocks={blocks || []}
         scripts={proposal.scripts}
         mode="view"
+      />
+      <AcceptProposalButton
+        proposalId={proposal.id}
+        existingAcceptance={existingAcceptance}
       />
     </div>
   );
