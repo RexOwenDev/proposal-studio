@@ -34,7 +34,6 @@ export async function GET() {
   const { data: proposals, error } = await supabase
     .from('proposals')
     .select('*')
-    .eq('created_by', user.id)
     .order('updated_at', { ascending: false });
 
   if (error) {

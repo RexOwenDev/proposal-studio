@@ -18,9 +18,10 @@ export default async function DashboardPage() {
     .order('updated_at', { ascending: false })
     .returns<(Proposal & { content_blocks: { id: string }[] })[]>();
 
-  const { data: statsRows } = await supabase.rpc('get_proposal_view_stats', {
-    owner_id: user.id,
-  });
+  const proposalIds = (proposals ?? []).map((p) => p.id);
+  const { data: statsRows } = proposalIds.length > 0
+    ? await supabase.rpc('get_proposal_view_stats', { proposal_ids: proposalIds })
+    : { data: [] };
 
   const statsMap = new Map<string, ViewStats>(
     (statsRows ?? []).map((r: { proposal_id: string; total_views: number; unique_views: number; last_viewed_at: string | null }) => [

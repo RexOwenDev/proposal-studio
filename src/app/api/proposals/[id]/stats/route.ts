@@ -43,16 +43,15 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Ownership check before returning analytics
+  // Verify the proposal exists (any authenticated user can view stats)
   const { data: proposal } = await supabase
     .from('proposals')
     .select('id')
     .eq('id', id)
-    .eq('created_by', user.id)
     .maybeSingle();
 
   if (!proposal) {
-    return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
+    return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
   const { data: views } = await supabase

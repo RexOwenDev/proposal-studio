@@ -104,12 +104,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Ownership check: only the proposal creator can update any fields (title, status, etc.)
+  // Any authenticated user can update proposal fields (collaborative workspace)
   const { data, error } = await supabase
     .from('proposals')
     .update(allowed)
     .eq('id', id)
-    .eq('created_by', user.id)
     .select()
     .single();
 
@@ -137,20 +136,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Ownership check: only the proposal creator can delete it.
-  // Verify ownership first — delete on a non-owned row silently succeeds in Supabase
-  // so we do an explicit select-then-delete pattern here.
-  const { data: proposal } = await supabase
-    .from('proposals')
-    .select('id')
-    .eq('id', id)
-    .eq('created_by', user.id)
-    .single();
-
-  if (!proposal) {
-    return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
-  }
-
+  // Any authenticated user can delete proposals (collaborative workspace)
   const { error } = await supabase
     .from('proposals')
     .delete()

@@ -3,7 +3,6 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { isEmailAllowed } from '@/lib/access-control';
 
 // Separated so useSearchParams() can be wrapped in Suspense (Next.js requirement)
 function LoginForm() {
@@ -11,20 +10,13 @@ function LoginForm() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const searchParams = useSearchParams();
-  const isUnauthorized = searchParams.get('error') === 'unauthorized';
+  // Keep useSearchParams so Suspense boundary is still needed
+  useSearchParams();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('loading');
     setErrorMsg('');
-
-    // Client-side check — UX only, real enforcement is in proxy.ts
-    if (!isEmailAllowed(email)) {
-      setStatus('error');
-      setErrorMsg('Access is restricted to Design Shopp team members.');
-      return;
-    }
 
     const supabase = createClient();
     const redirectTo = new URL(window.location.href).searchParams.get('redirect') || '/';
@@ -51,15 +43,6 @@ function LoginForm() {
           <h1 className="text-xl font-semibold text-white mb-1">Proposal Studio</h1>
           <p className="text-zinc-400 text-sm mb-6">Sign in with your email to continue</p>
 
-          {isUnauthorized && status === 'idle' && (
-            <div className="bg-red-950/50 border border-red-800 rounded-md p-4 mb-4">
-              <p className="text-red-300 text-sm font-medium">Access denied</p>
-              <p className="text-red-400/70 text-xs mt-1">
-                Your email is not authorized for Proposal Studio. Contact your admin for access.
-              </p>
-            </div>
-          )}
-
           {status === 'sent' ? (
             <div className="bg-emerald-950/50 border border-emerald-800 rounded-md p-4">
               <p className="text-emerald-300 text-sm font-medium">Check your email</p>
@@ -78,7 +61,7 @@ function LoginForm() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@designshopp.com"
+                  placeholder="you@example.com"
                   required
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder:text-zinc-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -99,7 +82,7 @@ function LoginForm() {
           )}
 
           <p className="text-zinc-600 text-xs mt-4 text-center">
-            Restricted to Design Shopp team members
+            Magic link sent — check your inbox
           </p>
         </div>
       </div>

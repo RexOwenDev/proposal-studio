@@ -113,12 +113,6 @@ export default function EditPage({ params }: EditPageProps) {
         return;
       }
 
-      // Only the creator may access the edit page
-      if (proposalData.created_by !== user.id) {
-        router.push('/');
-        return;
-      }
-
       const { data: blocksData } = await supabase
         .from('content_blocks')
         .select('*')

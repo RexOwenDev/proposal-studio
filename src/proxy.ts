@@ -46,16 +46,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Access control — block authenticated users with unauthorized emails
-  if (user && needsAuth && user.email && !isEmailAllowed(user.email)) {
-    // Sign them out and redirect to unauthorized page
-    await supabase.auth.signOut();
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('error', 'unauthorized');
-    return NextResponse.redirect(url);
-  }
-
   // If logged in and hitting /login, redirect to dashboard
   if (user && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url));

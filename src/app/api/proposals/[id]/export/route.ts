@@ -84,10 +84,6 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
-  if (proposal.created_by !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
-  }
-
   const { data: blocks } = await supabase
     .from('content_blocks')
     .select('*')
