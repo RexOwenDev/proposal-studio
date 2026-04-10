@@ -16,6 +16,7 @@ interface EditorToolbarProps {
   onPublish: (publish: boolean) => void;
   onExportPDF?: () => void;
   onExportWarning?: () => void;
+  onExportError?: () => void;
   onBack: () => void;
   slug: string;
   proposalId?: string;
@@ -41,6 +42,7 @@ export default function EditorToolbar({
   onPublish,
   onExportPDF,
   onExportWarning,
+  onExportError,
   onBack,
   slug,
   proposalId,
@@ -54,21 +56,29 @@ export default function EditorToolbar({
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const isPublished = status === 'published';
 
   async function handleExport() {
-    if (!proposalId) return;
-    const res = await fetch(`/api/proposals/${proposalId}/export`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title ?? 'proposal'}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    if (res.headers.get('X-Has-Scripts') === '1') {
-      onExportWarning?.();
+    if (!proposalId || isExporting) return;
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/export`);
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title ?? 'proposal'}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      if (res.headers.get('X-Has-Scripts') === '1') {
+        onExportWarning?.();
+      }
+    } catch {
+      onExportError?.();
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -212,9 +222,17 @@ export default function EditorToolbar({
           {proposalId && (
             <button
               onClick={handleExport}
-              className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
+              disabled={isExporting}
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Export HTML
+              {isExporting ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                  Exporting…
+                </>
+              ) : (
+                'Export HTML'
+              )}
             </button>
           )}
 

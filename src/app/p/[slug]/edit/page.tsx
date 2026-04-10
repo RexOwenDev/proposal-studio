@@ -757,6 +757,7 @@ export default function EditPage({ params }: EditPageProps) {
         onPublish={handlePublish}
         onExportPDF={() => iframeRef.current?.contentWindow?.print()}
         onExportWarning={() => showToast('This proposal uses JavaScript. Open the exported file in a browser for full functionality.', 'info')}
+        onExportError={() => showToast('Export failed. Please try again.', 'error')}
         onBack={() => router.push('/')}
         slug={proposal.slug}
         proposalId={proposal.id}
