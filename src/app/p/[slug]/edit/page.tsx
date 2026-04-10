@@ -34,6 +34,7 @@ export default function EditPage({ params }: EditPageProps) {
   const [mediaWarning, setMediaWarning] = useState<string | null>(null); // H4
   const { toasts, showToast, dismissToast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const undoStackRef = useRef<Map<string, string[]>>(new Map());
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const iframeRenderedRef = useRef(false);
   const typingClearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -440,6 +441,21 @@ export default function EditPage({ params }: EditPageProps) {
     }
   }
 
+  /**
+   * Serializes an editable element's inner HTML as a clean string,
+   * stripping editor-injected attributes so snapshots are stable.
+   * Uses outerHTML with outer tag stripped for broad browser compat.
+   */
+  function snapshotEl(el: HTMLElement): string {
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('contenteditable');
+    clone.removeAttribute('data-editable');
+    clone.classList.remove('editing');
+    const outer = clone.outerHTML;
+    // Strip the outer tag: <div ...>CONTENT</div> → CONTENT
+    return outer.replace(/^<[^>]*>/, '').replace(/<\/[^>]+>$/, '');
+  }
+
   function makeEditable(el: HTMLElement, blockId: string, doc: Document) {
     el.setAttribute('data-editable', 'true');
     el.setAttribute('data-block-id-ref', blockId);
@@ -451,6 +467,14 @@ export default function EditPage({ params }: EditPageProps) {
       setTyping(true);
       clearTimeout(typingClearTimerRef.current);
       typingClearTimerRef.current = setTimeout(() => setTyping(false), 2000);
+      // Capture undo snapshot on each input (deduplicated)
+      const stack = undoStackRef.current.get(blockId) ?? [];
+      const current = snapshotEl(el);
+      if (stack[stack.length - 1] !== current) {
+        stack.push(current);
+        if (stack.length > 20) stack.shift();
+        undoStackRef.current.set(blockId, stack);
+      }
     });
   }
 
@@ -464,6 +488,8 @@ export default function EditPage({ params }: EditPageProps) {
     el.contentEditable = 'true';
     el.classList.add('editing');
     el.focus();
+    // Capture starting state for Ctrl+Z
+    undoStackRef.current.set(blockId, [snapshotEl(el)]);
     setEditingBlockId(blockId);
     setEditingBlock(blockId); // R1: broadcast to teammates
     activeEditRef.current = { blockId, doc };
@@ -476,6 +502,7 @@ export default function EditPage({ params }: EditPageProps) {
       el.removeEventListener('keydown', handleKeydown);
       setTyping(false);
       saveBlockContent(blockId, doc);
+      undoStackRef.current.delete(blockId); // free memory when editing ends
       setEditingBlockId(null);
       setEditingBlock(null); // R1: clear editing lock
       activeEditRef.current = null;
@@ -483,6 +510,21 @@ export default function EditPage({ params }: EditPageProps) {
 
     // Cancel on Escape
     const handleKeydown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd+Z — undo last snapshot
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const stack = undoStackRef.current.get(blockId);
+        if (stack && stack.length > 1) {
+          stack.pop(); // discard current (most recent) state
+          const prev = stack[stack.length - 1];
+          // Restore by parsing our own snapshot HTML through DOMParser
+          const parser = new (el.ownerDocument.defaultView as Window & typeof globalThis).DOMParser();
+          const parsed = parser.parseFromString(`<body>${prev}</body>`, 'text/html');
+          el.replaceChildren(...Array.from(parsed.body.childNodes));
+          undoStackRef.current.set(blockId, stack);
+        }
+        return;
+      }
       if (e.key === 'Escape') {
         el.contentEditable = 'false';
         el.classList.remove('editing');
