@@ -1,0 +1,304 @@
+import * as cheerio from 'cheerio';
+import type { ParseResult, ParsedBlock } from '@/lib/types';
+import { MODULE_SCRIPT_START, MODULE_SCRIPT_END } from '@/lib/utils/wrap-scripts';
+
+export function parseHTML(html: string): ParseResult {
+  const $ = cheerio.load(html);
+
+  // 1. Extract all <head> link tags (fonts, preconnects, stylesheets)
+  const headLinks: string[] = [];
+  $('link[rel="preconnect"], link[rel="stylesheet"], link[href*="fonts"]').each((_, el) => {
+    headLinks.push($.html(el)!);
+  });
+  $('link[rel="preconnect"], link[rel="stylesheet"], link[href*="fonts"]').remove();
+
+  // Extract all <style> tags (head and body)
+  const styleParts: string[] = [];
+  $('style').each((_, el) => {
+    const content = $(el).html();
+    if (content?.trim()) {
+      styleParts.push(content);
+    }
+  });
+  $('style').remove();
+
+  // Store head links and CSS together with a reliable separator
+  const cssContent = styleParts.join('\n\n');
+  const stylesheet = headLinks.length > 0
+    ? `<!--HEAD_LINKS-->\n${headLinks.join('\n')}\n<!--/HEAD_LINKS-->\n${cssContent}`
+    : cssContent;
+
+  // 2. Extract scripts — preserve type="module" with sentinels (H5)
+  const scriptParts: string[] = [];
+  $('script').each((_, el) => {
+    const $el = $(el);
+    const type = $el.attr('type');
+    const content = $el.html();
+    if (!content?.trim()) return;
+
+    if (type === 'module') {
+      // Wrap in sentinels so wrapScripts() preserves type="module"
+      scriptParts.push(`${MODULE_SCRIPT_START}${content}${MODULE_SCRIPT_END}`);
+    } else {
+      scriptParts.push(content);
+    }
+  });
+  $('script').remove();
+  const scripts = scriptParts.join('\n\n');
+
+  // 3. Extract title
+  const titleTag = $('title').text().trim();
+  const firstH1 = $('h1').first().text().trim();
+  const title = titleTag || firstH1 || 'Untitled Proposal';
+
+  // 4. Split body into blocks
+  const blocks: ParsedBlock[] = [];
+  let order = 0;
+
+  const bodyChildren = $('body').children().toArray();
+
+  for (const child of bodyChildren) {
+    if (child.type !== 'tag') continue;
+    const el = $(child);
+    const tagName = child.tagName.toLowerCase();
+
+    // Check if this is a wrapper div that should be expanded
+    const wrapperClass = getWrapperClass(el, tagName);
+    if (wrapperClass) {
+      const wrapperChildren = el.children().toArray();
+      for (const wChild of wrapperChildren) {
+        if (wChild.type !== 'tag') continue;
+        const wEl = $(wChild);
+
+        // Keep empty visual dividers (e.g., <div class="rule">)
+        if (isEmptyElement(wEl) && !isVisualDivider(wEl)) continue;
+
+        blocks.push({
+          order: order++,
+          label: autoLabel(wEl, wChild.tagName.toLowerCase(), order, $),
+          html: $.html(wChild)!,
+          wrapperClass,
+        });
+      }
+    } else {
+      if (isEmptyElement(el) && !isVisualDivider(el)) continue;
+
+      blocks.push({
+        order: order++,
+        label: autoLabel(el, tagName, order, $),
+        html: $.html(child)!,
+      });
+    }
+  }
+
+  // H2: If parsing produced only 1 block, try a secondary semantic split
+  if (blocks.length === 1) {
+    const singleHtml = blocks[0].html;
+    const $inner = cheerio.load(singleHtml);
+    const semanticChildren = $inner('body > section, body > article, body > header, body > main, body > footer, body > nav').toArray();
+    if (semanticChildren.length >= 2) {
+      blocks.splice(0, 1); // remove the single block
+      for (const child of semanticChildren) {
+        const el = $inner(child);
+        blocks.push({
+          order: order++,
+          label: autoLabel(el, child.tagName.toLowerCase(), order, $inner),
+          html: $inner.html(child)!,
+        });
+      }
+    }
+  }
+
+  // H3: Fix SVG <use> cross-block references
+  // When blocks are split, <use href="#id"> fails if <defs id="id"> lives in a different block.
+  // Solution: collect every def by ID from all blocks, then inject missing defs into blocks that reference them.
+  (() => {
+    // Pass 1: collect all def elements (children of <defs>) that have an id attribute.
+    // Map: id → outer HTML of the <defs> element that owns it (so we can inject the whole <defs>).
+    const defsById = new Map<string, string>(); // id → defs outerHTML
+
+    for (const block of blocks) {
+      const $b = cheerio.load(block.html);
+      $b('defs').each((_, defsEl) => {
+        const defsHtml = $b.html(defsEl)!;
+        $b(defsEl).children().each((__, child) => {
+          const id = $b(child).attr('id');
+          if (id) {
+            defsById.set(id, defsHtml);
+          }
+        });
+      });
+    }
+
+    if (defsById.size === 0) return; // no SVG defs at all — skip
+
+    // Pass 2: for each block, find <use> references and inject missing defs.
+    for (let i = 0; i < blocks.length; i++) {
+      const $b = cheerio.load(blocks[i].html);
+      const missingDefs = new Set<string>(); // defsHtml strings to inject
+
+      $b('use').each((_, useEl) => {
+        const href = $b(useEl).attr('href') || $b(useEl).attr('xlink:href') || '';
+        if (!href.startsWith('#')) return;
+        const refId = href.slice(1);
+        // Check if this id is already defined within this block
+        if ($b(`#${CSS.escape(refId)}`).length === 0 && defsById.has(refId)) {
+          missingDefs.add(defsById.get(refId)!);
+        }
+      });
+
+      if (missingDefs.size === 0) continue;
+
+      // Inject all missing defs into the first <svg> in the block (or wrap in a hidden svg)
+      const defsToInject = [...missingDefs].join('\n');
+      const firstSvg = $b('svg').first();
+      if (firstSvg.length) {
+        firstSvg.prepend(defsToInject);
+      } else {
+        // No SVG in this block yet — wrap in a zero-size hidden svg so defs are in-scope
+        $b('body').prepend(`<svg xmlns="http://www.w3.org/2000/svg" style="display:none;position:absolute;width:0;height:0">${defsToInject}</svg>`);
+      }
+
+      // Re-serialise block html
+      const body = $b('body');
+      blocks[i] = { ...blocks[i], html: body.html() || blocks[i].html };
+    }
+  })();
+
+  // H4: Detect elements that may not render correctly in the editor iframe
+  const warnings: string[] = [];
+  const fullBody = $('body').html() || '';
+  if (/<canvas[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal uses <canvas> elements. Canvas rendering may be limited in the editor.');
+  }
+  if (/<video[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains <video> elements. Video playback may not work in the editor.');
+  }
+  if (/<audio[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains <audio> elements. Audio may not play in the editor.');
+  }
+  if (/<iframe[\s>]/i.test(fullBody)) {
+    warnings.push('This proposal contains nested <iframe> elements which may be blocked by browser security policies.');
+  }
+  if (scriptParts.some((s) => s.includes(MODULE_SCRIPT_START))) {
+    warnings.push('This proposal uses ES module scripts (<script type="module">). Module imports may fail if they reference external URLs.');
+  }
+
+  return { title, stylesheet, scripts, blocks, warnings };
+}
+
+/** Check if element has no meaningful content */
+function isEmptyElement(el: cheerio.Cheerio<any>): boolean {
+  return !el.html()?.trim() && !el.text()?.trim();
+}
+
+/** Check if an empty element is a visual divider that should be preserved */
+function isVisualDivider(el: cheerio.Cheerio<any>): boolean {
+  const className = el.attr('class') || '';
+  const tagName = (el.get(0) as any)?.tagName?.toLowerCase() || '';
+  return (
+    tagName === 'hr' ||
+    /\brule\b/i.test(className) ||
+    /\bdivider\b/i.test(className) ||
+    /\bseparator\b/i.test(className) ||
+    /\bspacer\b/i.test(className)
+  );
+}
+
+/**
+ * Returns the wrapper's CSS class if this is a wrapper div that should be
+ * expanded into its children. Returns null if it's a regular block.
+ */
+function getWrapperClass(
+  el: cheerio.Cheerio<any>,
+  tagName: string,
+): string | null {
+  if (tagName !== 'div') return null;
+
+  const className = el.attr('class') || '';
+  const id = el.attr('id') || '';
+
+  const wrapperPatterns = [
+    /wrap/i, /wrapper/i, /container/i, /content/i, /main-content/i,
+    /page-content/i, /inner/i,
+  ];
+
+  const matches = wrapperPatterns.some(
+    (p) => p.test(className) || p.test(id)
+  );
+
+  if (matches) {
+    return className || id || 'wrapper';
+  }
+
+  // Also detect by structure: multiple semantic children
+  const children = el.children().toArray();
+  const sectionChildren = children.filter((c) => {
+    if (c.type !== 'tag') return false;
+    return ['section', 'article', 'header', 'footer', 'nav'].includes(
+      c.tagName.toLowerCase()
+    );
+  });
+  if (sectionChildren.length >= 2) {
+    return className || 'wrapper';
+  }
+
+  return null;
+}
+
+function autoLabel(
+  el: cheerio.Cheerio<any>,
+  tagName: string,
+  order: number,
+  $: cheerio.CheerioAPI,
+): string {
+  const id = el.attr('id');
+  if (id) return humanize(id);
+
+  const heading = el.find('h1, h2, h3').first();
+  if (heading.length) {
+    const text = heading.text().trim();
+    if (text && text.length < 80) return text;
+  }
+
+  const className = el.attr('class') || '';
+  if (className) {
+    if (/hero/i.test(className)) return 'Hero';
+    if (/header|site-header/i.test(className)) return 'Header';
+    if (/footer|site-footer/i.test(className)) return 'Footer';
+    if (/\brule\b/i.test(className)) return 'Divider';
+    if (/divider-label/i.test(className)) return el.text().trim() || 'Label';
+
+    const classes = className.split(/\s+/);
+    const meaningful = classes.find(
+      (c) => !['section', 'block', 'container', 'wrap', 'inner'].includes(c)
+    );
+    if (meaningful) return humanize(meaningful);
+  }
+
+  const tagLabels: Record<string, string> = {
+    header: 'Header', footer: 'Footer', nav: 'Navigation',
+    main: 'Main Content', article: 'Article', aside: 'Sidebar', svg: 'Graphic',
+  };
+  if (tagLabels[tagName]) return tagLabels[tagName];
+
+  if (tagName === 'div') {
+    const text = el.text().trim();
+    if (!text || text.length < 3) return 'Divider';
+    if (el.find('table').length) return 'Table';
+    if (el.find('img').length && !el.find('p').length) return 'Image';
+  }
+
+  const sectionLabel = el.find('.section-label').first();
+  if (sectionLabel.length) return sectionLabel.text().trim();
+
+  return `Block ${order}`;
+}
+
+function humanize(str: string): string {
+  return str
+    .replace(/[-_]/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
