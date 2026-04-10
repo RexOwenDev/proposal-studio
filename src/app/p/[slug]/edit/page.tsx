@@ -571,7 +571,7 @@ export default function EditPage({ params }: EditPageProps) {
 
           setSaveStatus('saved');
           setLastSavedAt(new Date());
-          setTimeout(() => setSaveStatus('idle'), 2000);
+          saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
         } catch {
           setSaveStatus('error');
           showToast('Failed to save changes. Please try again.', 'error');

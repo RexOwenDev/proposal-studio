@@ -177,14 +177,14 @@ export default function EditorToolbar({
 
         {/* Right: Status + actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 shrink-0">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 shrink-0" aria-live="polite" aria-atomic="true">
             {saveStatus === 'saving' && (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" aria-hidden="true" />
                 <span>Saving…</span>
               </>
             )}
-            {saveStatus === 'saved' && lastSavedAt && (
+            {(saveStatus === 'saved' || saveStatus === 'idle') && lastSavedAt && (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" aria-hidden="true" />
                 <span>Saved {formatRelativeTime(lastSavedAt)}</span>
