@@ -2,8 +2,8 @@
 *.local.json
 .env.*
 *.key
-.claude/worktrees/
-.claude/projects/
+**/.claude/worktrees/
+**/.claude/projects/
 
 # Logs and temp files
 *.log
