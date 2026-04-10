@@ -28,6 +28,8 @@ export default function EditPage({ params }: EditPageProps) {
   const [isOwner, setIsOwner] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [, forceTickRender] = useState(0);
   const [mediaWarning, setMediaWarning] = useState<string | null>(null); // H4
   const { toasts, showToast, dismissToast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -46,6 +48,12 @@ export default function EditPage({ params }: EditPageProps) {
 
   // Mark as mounted so SSR skeleton and client first-render are identical (fixes React #418)
   useEffect(() => { setMounted(true); }, []);
+
+  // Tick every 15s so "Xm ago" label stays current
+  useEffect(() => {
+    const id = setInterval(() => forceTickRender((n) => n + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Surgically apply live block changes (visibility, html) from any user.
   // We patch the iframe DOM directly — no full re-render — to avoid losing
@@ -562,6 +570,7 @@ export default function EditPage({ params }: EditPageProps) {
           );
 
           setSaveStatus('saved');
+          setLastSavedAt(new Date());
           setTimeout(() => setSaveStatus('idle'), 2000);
         } catch {
           setSaveStatus('error');
@@ -728,6 +737,7 @@ export default function EditPage({ params }: EditPageProps) {
         typingUsers={typingUsers.filter(email => email !== userEmail)}
         currentUserEmail={userEmail}
         isPublishing={isPublishing}
+        lastSavedAt={lastSavedAt}
         onToggleComments={() => setShowComments((v) => !v)}
       />
 

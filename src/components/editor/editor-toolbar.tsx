@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatRelativeTime } from '@/lib/utils/format-time';
 
 interface PresenceUser {
   email: string;
@@ -22,6 +23,7 @@ interface EditorToolbarProps {
   typingUsers?: string[];
   currentUserEmail?: string | null;
   isPublishing?: boolean;
+  lastSavedAt?: Date | null;
   onToggleComments?: () => void;
 }
 
@@ -45,6 +47,7 @@ export default function EditorToolbar({
   typingUsers,
   currentUserEmail,
   isPublishing = false,
+  lastSavedAt,
   onToggleComments,
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
@@ -174,13 +177,26 @@ export default function EditorToolbar({
 
         {/* Right: Status + actions */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <span className="text-xs text-zinc-500 hidden sm:inline">
-            {saveStatus === 'saving' && 'Saving...'}
-            {saveStatus === 'saved' && 'Saved'}
-            {saveStatus === 'error' && (
-              <span className="text-red-400">Failed</span>
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500 shrink-0">
+            {saveStatus === 'saving' && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" aria-hidden="true" />
+                <span>Saving…</span>
+              </>
             )}
-          </span>
+            {saveStatus === 'saved' && lastSavedAt && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" aria-hidden="true" />
+                <span>Saved {formatRelativeTime(lastSavedAt)}</span>
+              </>
+            )}
+            {saveStatus === 'error' && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" aria-hidden="true" />
+                <span className="text-red-400">Save failed</span>
+              </>
+            )}
+          </div>
 
           {isPublished && (
             <button
