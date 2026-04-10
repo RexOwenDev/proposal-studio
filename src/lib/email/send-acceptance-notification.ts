@@ -37,11 +37,12 @@ export async function sendAcceptanceNotification({
   }
 
   const resend = new Resend(apiKey);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://designshopp.app';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://localhost:3000';
   const editUrl = `${appUrl}/p/${proposalSlug}/edit`;
+  const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'notifications@proposalstudio.app';
 
   await resend.emails.send({
-    from: 'Proposal Studio <notifications@designshopp.app>',
+    from: `Proposal Studio <${fromEmail}>`,
     to: ownerEmail,
     subject: `${clientName} accepted "${proposalTitle}"`,
     html: `
@@ -49,7 +50,7 @@ export async function sendAcceptanceNotification({
       <p><strong>${escHtml(clientName)}</strong> just accepted your proposal <em>${escHtml(proposalTitle)}</em>.</p>
       <p><a href="${editUrl}">View proposal →</a></p>
       <hr />
-      <p style="font-size:12px;color:#888">Sent by Proposal Studio · Design Shopp</p>
+      <p style="font-size:12px;color:#888">Sent by Proposal Studio</p>
     `,
   });
 }

@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: proposal?.title || 'Proposal',
-    description: proposal ? `${proposal.title} — Design Shopp` : undefined,
+    description: proposal ? proposal.title : undefined,
   };
 }
 

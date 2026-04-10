@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       const data = await generateClientProposal(text, {
         title,
         clientName,
-        preparedBy: user.email?.split('@')[0] || 'Design Shopp',
+        preparedBy: user.email?.split('@')[0] || 'Your Team',
       });
       html = buildClientProposalHTML(data);
     }

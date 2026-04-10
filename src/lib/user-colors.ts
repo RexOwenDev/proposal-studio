@@ -4,7 +4,7 @@
  */
 
 // Higher opacity values (0.40–0.45) ensure highlights are clearly visible
-// on the light/warm-white backgrounds used by all Design Shopp proposals.
+// on the light/warm-white backgrounds used by proposal templates.
 const HIGHLIGHT_COLORS = [
   { bg: 'rgba(255, 213, 79, 0.45)', border: 'rgba(245, 166, 35, 0.85)', name: 'amber' },
   { bg: 'rgba(96, 165, 250, 0.40)', border: 'rgba(59, 130, 246, 0.85)', name: 'blue' },

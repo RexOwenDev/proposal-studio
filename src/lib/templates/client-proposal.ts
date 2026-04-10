@@ -1,6 +1,6 @@
 /**
  * Template 1: Client Proposal
- * Generates static HTML for a Spilled Milk / Design Shopp client-facing proposal.
+ * Generates static HTML for a client-facing proposal.
  * JavaScript in output is interaction-only (accordion, count-up, scroll animations).
  * All section content is rendered server-side from structured AI data.
  */
@@ -834,8 +834,7 @@ function buildHeroSection(data: ClientProposalData): string {
   <div class="ps-inner" style="width:100%;display:flex;flex-direction:column;">
     <div class="ps-hero-nav">
       <div>
-        <div class="ps-logo-wordmark">Spilled Milk</div>
-        <div class="ps-logo-sub">Design Shopp</div>
+        <div class="ps-logo-wordmark">${esc(meta.preparedBy)}</div>
       </div>
       <div class="ps-client-tag">${esc(meta.client_name)}</div>
     </div>
@@ -1074,7 +1073,7 @@ function buildFooter(data: ClientProposalData): string {
   return `<footer id="footer-section" class="ps-footer">
   <div class="ps-footer-inner">
     <div>
-      <div class="ps-footer-brand">Spilled Milk · Design Shopp</div>
+      <div class="ps-footer-brand">${esc(meta.preparedBy)}</div>
       <div style="font-size:0.75rem;margin-top:4px">${esc(meta.projectType)} for ${esc(meta.client_name)}</div>
     </div>
     <div class="ps-footer-meta">

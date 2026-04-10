@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Proposal Studio",
-  description: "Collaborative proposal editing for Design Shopp",
+  description: "Collaborative proposal editor",
 };
 
 export default function RootLayout({

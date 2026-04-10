@@ -150,7 +150,7 @@ export const InternalDocSchema = z.object({
 
 // ─── System prompts ───────────────────────────────────────────────────────────
 
-const CLIENT_PROPOSAL_SYSTEM = `You are a senior sales proposal writer for Spilled Milk / Design Shopp, a design and automation agency.
+const CLIENT_PROPOSAL_SYSTEM = `You are a senior sales proposal writer for a design and automation agency.
 
 Your job: extract structured proposal data from raw pasted notes — emails, briefs, Slack threads, bullet points, or any informal format — to populate a client-facing proposal template.
 
@@ -171,7 +171,7 @@ Output rules:
 - Be generous with content — fill in reasonable details where the draft is thin
 - Never use double hyphens (--) in any text field. Use a single hyphen or rephrase`;
 
-const INTERNAL_DOC_SYSTEM = `You are a technical project manager for Spilled Milk / Design Shopp, a design and automation agency.
+const INTERNAL_DOC_SYSTEM = `You are a technical project manager for a design and automation agency.
 
 Your job: extract structured project documentation from raw pasted team notes — Slack threads, emails, meeting notes, voice memos, or bullet points — to populate an internal automation doc template.
 
