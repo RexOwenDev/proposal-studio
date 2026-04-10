@@ -674,11 +674,24 @@ export default function EditPage({ params }: EditPageProps) {
       if (!res.ok) throw new Error('Failed to update status');
       const updated = await res.json();
       setProposal({ ...proposal, status: updated.status });
-      const labels: Record<string, string> = {
-        published: 'Proposal published.',
-        draft: 'Proposal unpublished.',
-      };
-      showToast(labels[newStatus] || 'Status updated.', 'success');
+      if (newStatus === 'published') {
+        showToast(
+          'Proposal published — anyone with the link can view it.',
+          'success',
+          {
+            label: 'Copy link',
+            onClick: () =>
+              navigator.clipboard.writeText(
+                `${window.location.origin}/p/${proposal!.slug}`
+              ),
+          }
+        );
+      } else {
+        const labels: Record<string, string> = {
+          draft: 'Proposal unpublished.',
+        };
+        showToast(labels[newStatus] || 'Status updated.', 'success');
+      }
     } catch {
       showToast('Failed to update status. Please try again.', 'error');
     } finally {
