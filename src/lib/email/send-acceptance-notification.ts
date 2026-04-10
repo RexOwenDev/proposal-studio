@@ -3,6 +3,16 @@
 
 import { Resend } from 'resend';
 
+/** Escapes the 5 HTML special characters to prevent injection in email HTML */
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface AcceptanceEmailParams {
   ownerEmail: string;
   clientName: string;
@@ -36,7 +46,7 @@ export async function sendAcceptanceNotification({
     subject: `${clientName} accepted "${proposalTitle}"`,
     html: `
       <p>Hi,</p>
-      <p><strong>${clientName}</strong> just accepted your proposal <em>${proposalTitle}</em>.</p>
+      <p><strong>${escHtml(clientName)}</strong> just accepted your proposal <em>${escHtml(proposalTitle)}</em>.</p>
       <p><a href="${editUrl}">View proposal →</a></p>
       <hr />
       <p style="font-size:12px;color:#888">Sent by Proposal Studio · Design Shopp</p>
