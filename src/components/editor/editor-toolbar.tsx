@@ -14,6 +14,7 @@ interface EditorToolbarProps {
   onToggleSections: () => void;
   onPublish: (publish: boolean) => void;
   onExportPDF?: () => void;
+  onExportWarning?: () => void;
   onBack: () => void;
   slug: string;
   proposalId?: string;
@@ -34,6 +35,7 @@ export default function EditorToolbar({
   onToggleSections,
   onPublish,
   onExportPDF,
+  onExportWarning,
   onBack,
   slug,
   proposalId,
@@ -43,6 +45,22 @@ export default function EditorToolbar({
 }: EditorToolbarProps) {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showUrlCopied, setShowUrlCopied] = useState(false);
+
+  async function handleExport() {
+    if (!proposalId) return;
+    const res = await fetch(`/api/proposals/${proposalId}/export`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title ?? 'proposal'}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (res.headers.get('X-Has-Scripts') === '1') {
+      onExportWarning?.();
+    }
+  }
   const isPublished = status === 'published';
 
   function handlePublishClick() {
@@ -140,6 +158,15 @@ export default function EditorToolbar({
               className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
             >
               {showUrlCopied ? 'Copied!' : 'Copy URL'}
+            </button>
+          )}
+
+          {proposalId && (
+            <button
+              onClick={handleExport}
+              className="hidden sm:inline-flex px-2.5 py-1.5 text-xs text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors border border-zinc-700"
+            >
+              Export HTML
             </button>
           )}
 

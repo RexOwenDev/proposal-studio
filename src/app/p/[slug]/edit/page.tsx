@@ -694,6 +694,7 @@ export default function EditPage({ params }: EditPageProps) {
         onToggleSections={() => setShowSections(!showSections)}
         onPublish={handlePublish}
         onExportPDF={() => iframeRef.current?.contentWindow?.print()}
+        onExportWarning={() => showToast('This proposal uses JavaScript. Open the exported file in a browser for full functionality.', 'info')}
         onBack={() => router.push('/')}
         slug={proposal.slug}
         proposalId={proposal.id}

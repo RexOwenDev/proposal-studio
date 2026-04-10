@@ -117,9 +117,10 @@ export async function GET(
   }
   flushWrapper();
 
-  const wrappedScripts = proposal.scripts ? wrapScripts(proposal.scripts) : '';
+  const hasScripts = Boolean(proposal.scripts && proposal.scripts.trim().length > 0);
+  const wrappedScripts = hasScripts ? wrapScripts(proposal.scripts) : '';
 
-  const html = `<!DOCTYPE html>
+  let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -134,15 +135,29 @@ export async function GET(
 </body>
 </html>`;
 
+  if (hasScripts) {
+    const warning = [
+      '',
+      '<!--',
+      '  NOTE: This proposal contains JavaScript interactions.',
+      '  For best results, open this file in a browser directly (not VS Code preview or email).',
+      '  Font rendering requires an internet connection.',
+      '-->',
+      '',
+    ].join('\n');
+    html = html.replace('<!DOCTYPE html>', `<!DOCTYPE html>${warning}`);
+  }
+
   // Sanitise title for use as a filename
   const filename = proposal.title.replace(/[^a-z0-9\-_ ]/gi, '').trim().replace(/\s+/g, '-').toLowerCase() || 'proposal';
 
-  return new Response(html, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}.html"`,
-      'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-    },
-  });
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${filename}.html"`,
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  };
+  if (hasScripts) headers['X-Has-Scripts'] = '1';
+
+  return new Response(html, { headers });
 }
