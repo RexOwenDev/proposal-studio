@@ -4,7 +4,7 @@
  * generateText + Output.object({ schema }) replaces the removed generateObject.
  * Zod schemas act as both TypeScript type sources AND structured output schemas.
  *
- * Model: claude-sonnet-4-6 via direct Anthropic provider.
+ * Model: claude-sonnet-4.6 via direct Anthropic provider.
  * Base URL is hardcoded to prevent ANTHROPIC_BASE_URL env var from stripping /v1.
  */
 
@@ -20,9 +20,9 @@ const anthropic = createAnthropic({ baseURL: 'https://api.anthropic.com/v1' });
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
 const HeroStatSchema = z.object({
-  before: z.string().describe('Numeric string for the current/bad state, e.g. "4" or "40%". Digits + optional suffix only.'),
-  after: z.string().describe('Numeric string for the improved state, e.g. "0.5" or "92%". Digits + optional suffix only.'),
-  label: z.string().describe('Short label, e.g. "Hours per lead" or "Response time".'),
+  before: z.string().describe('MUST be digits only with optional unit suffix. Examples: "4", "40%", "2h", "12x". NO words, NO sentences. If you cannot express this as a number, use "?" as a fallback.'),
+  after: z.string().describe('MUST be digits only with optional unit suffix. Examples: "0.5", "92%", "30m", "50x". NO words, NO sentences. If you cannot express this as a number, use "?" as a fallback.'),
+  label: z.string().describe('Short label for the metric, e.g. "Hours per lead" or "Response time". 2-5 words.'),
 });
 
 const CapabilityCardSchema = z.object({
@@ -205,7 +205,7 @@ export async function generateClientProposal(
     : '';
 
   const { toolCalls } = await generateText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: anthropic('claude-sonnet-4.6'),
     system: CLIENT_PROPOSAL_SYSTEM,
     prompt: `Here are the sales rep's draft notes for a client proposal:\n\n${draftText}${contextNote}`,
     tools: {
@@ -236,7 +236,7 @@ export async function generateInternalDoc(
     : '';
 
   const { toolCalls } = await generateText({
-    model: anthropic('claude-sonnet-4-6'),
+    model: anthropic('claude-sonnet-4.6'),
     system: INTERNAL_DOC_SYSTEM,
     prompt: `Here are the team notes for an internal automation doc:\n\n${draftText}${contextNote}`,
     tools: {

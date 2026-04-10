@@ -25,6 +25,11 @@ function esc(val: string | number | undefined | null): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Returns true if s looks like a number (digits, %, ., x, h, m, s, k, +) */
+function isNumericStat(s: string): boolean {
+  return /^[\d.,+%xhkms]+$/i.test(s.trim());
+}
+
 /** Sanitize href values — only allow safe URL schemes to prevent javascript: XSS */
 function safeHref(val: string | undefined | null): string {
   if (!val) return '#';
@@ -810,13 +815,19 @@ img { max-width: 100%; display: block; }
 function buildHeroSection(data: ClientProposalData): string {
   const { hero, meta } = data;
   const statsHTML = (hero.stats || []).length
-    ? `<div class="ps-stats-row">${(hero.stats).map((s) => `
+    ? `<div class="ps-stats-row">${(hero.stats).map((s) => {
+        const safeBefore = isNumericStat(s.before) ? s.before : '?';
+        const safeAfter  = isNumericStat(s.after)  ? s.after  : '?';
+        const beforeCount = isNumericStat(s.before) ? ` data-count="${esc(s.before)}"` : '';
+        const afterCount  = isNumericStat(s.after)  ? ` data-count="${esc(s.after)}"` : '';
+        return `
         <div class="ps-stat ps-reveal" data-delay="200">
-          <span class="ps-stat-val ps-stat-before" data-count="${esc(s.before)}">${esc(s.before)}</span>
+          <span class="ps-stat-val ps-stat-before"${beforeCount}>${esc(safeBefore)}</span>
           <span class="ps-stat-arrow">→</span>
-          <span class="ps-stat-val ps-stat-after" data-count="${esc(s.after)}">${esc(s.after)}</span>
+          <span class="ps-stat-val ps-stat-after"${afterCount}>${esc(safeAfter)}</span>
           <span class="ps-stat-label">${esc(s.label)}</span>
-        </div>`).join('')}</div>`
+        </div>`;
+      }).join('')}</div>`
     : '';
 
   return `<section id="hero-section" class="ps-hero">
