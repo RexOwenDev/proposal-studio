@@ -12,22 +12,22 @@
 flowchart TD
     subgraph Client["Browser / Mobile"]
         A1[Dashboard]
-        A2[Rich Text Editor\nTiptap + auto-save]
+        A2["Rich Text Editor — Tiptap + auto-save"]
         A3[Public Proposal Page]
-        A4[Login\nMagic Link · Google OAuth]
+        A4["Login — Magic Link + Google OAuth"]
     end
 
     subgraph API["Next.js 16 API Routes — Vercel"]
-        B1[/api/proposals]
-        B2[/api/blocks]
-        B3[/api/comments]
-        B4[/api/generate]
-        B5[/api/health]
-        B6[/api/proposals/:id/accept]
+        B1["POST /api/proposals"]
+        B2["PATCH /api/blocks"]
+        B3["GET /api/comments"]
+        B4["POST /api/generate"]
+        B5["GET /api/health"]
+        B6["POST /api/proposals/:id/accept"]
     end
 
     subgraph Auth["Authentication"]
-        C1[Supabase Auth\nJWT + Magic Link + OAuth]
+        C1["Supabase Auth — JWT + Magic Link + OAuth"]
         C2[Google OAuth 2.0]
     end
 
@@ -36,17 +36,17 @@ flowchart TD
         D2[(content_blocks)]
         D3[(comments)]
         D4[(proposal_acceptances)]
-        D5[(proposal_events\naudit log)]
-        D6[Row Level Security\nper-user isolation]
-        D7[Realtime\npostgres_changes]
+        D5[("proposal_events — audit log")]
+        D6["Row Level Security — per-user isolation"]
+        D7["Realtime — postgres_changes"]
     end
 
     subgraph AI["AI Layer"]
-        E1[Anthropic Claude\nProposal generation]
+        E1["Anthropic Claude — Proposal generation"]
     end
 
     subgraph Email["Email"]
-        F1[Resend\nAcceptance notifications]
+        F1["Resend — Acceptance notifications"]
     end
 
     A4 -->|Magic Link / OAuth| C1
