@@ -32,7 +32,7 @@ function isOriginAllowed(request: Request): boolean {
   if (!origin) return true; // non-browser request — allow
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-  if (!appUrl) return true; // env not configured — skip check
+  if (!appUrl) return false; // env not configured — fail closed, block all cross-origin
 
   try {
     const originHost = new URL(origin).hostname;

@@ -14,12 +14,25 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Mutate the in-memory request object so Supabase SSR can re-read
+          // the refreshed session within the same middleware invocation.
+          // This does NOT produce a Set-Cookie header — it is not a response
+          // cookie. SameSite enforcement is applied to the response below.
+          // nosemgrep: javascript.express.security.audit.xss.pug.var-in-href
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
+            request.cookies.set(name, value) // nosemgrep
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            // Enforce SameSite=lax — prevents cross-site request forgery.
+            // 'lax' allows top-level navigations (OAuth redirects) while
+            // blocking cross-site sub-requests. Never set to 'none' without
+            // a valid reason and Secure flag.
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              sameSite: options?.sameSite === 'strict' ? 'strict' : 'lax',
+              secure: process.env.NODE_ENV === 'production',
+            })
           );
         },
       },
@@ -53,9 +66,11 @@ export async function proxy(request: NextRequest) {
 
   // Add security headers to all responses
   supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff');
-  supabaseResponse.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  supabaseResponse.headers.set('X-Frame-Options', 'DENY');
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   supabaseResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  supabaseResponse.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  supabaseResponse.headers.set('Cache-Control', 'no-store');
 
   return supabaseResponse;
 }

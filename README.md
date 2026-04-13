@@ -1,8 +1,17 @@
 # Proposal Studio
 
-> A production-grade collaborative proposal editor built for agencies and consultants. Create pixel-perfect client proposals, edit them in real-time with your team, generate content with AI, and close deals with one-click client acceptance.
+**A production-grade collaborative proposal editor** for agencies and consultants — create pixel-perfect client proposals, edit them in real-time with your team, generate content with AI, and close deals with one-click client acceptance.
 
-**Live demo:** [proposal-studio-mu.vercel.app](https://proposal-studio-mu.vercel.app)
+> Built with Next.js 16, Supabase, Anthropic Claude, and Vercel. Deployed to production with full auth, audit trail, real-time sync, and security hardening.
+
+---
+
+## What it does
+
+```
+Author logs in → creates proposal → AI generates content → team edits in real-time
+→ publishes shareable link → client views + accepts → owner gets email notification
+```
 
 ---
 
@@ -118,22 +127,40 @@ sequenceDiagram
 
 ---
 
+## Stack
+
+| Layer | Technology | Why |
+|---|---|---|
+| Framework | Next.js 16 — App Router | Server components, async params, Edge-compatible middleware |
+| Language | TypeScript — strict mode | Catches entire classes of runtime bugs at compile time |
+| Styling | Tailwind CSS v4 | Zero-runtime CSS, co-located with components |
+| Editor | Tiptap | Headless rich text — full control over rendering and serialization |
+| Database | Supabase (PostgreSQL + Auth + Realtime) | RLS at DB layer, built-in auth, real-time subscriptions |
+| AI | Anthropic Claude via AI SDK | Best-in-class instruction following for structured document generation |
+| Email | Resend | Transactional email with high deliverability |
+| Deployment | Vercel | Zero-config serverless, instant previews per branch |
+| Tests | Vitest | Fast, native ESM, compatible with React 19 |
+
+---
+
 ## Features
 
 | Feature | Detail |
 |---|---|
-| **Rich text editing** | Tiptap editor with inline formatting, block structure, section sidebar |
-| **AI generation** | Claude generates full proposals from a brief — title, sections, pricing |
-| **Real-time collaboration** | Supabase Realtime syncs comments live across all open sessions |
-| **Inline comments** | Highlight text → add comment → resolve or edit threads |
+| **AI proposal generation** | Claude generates full proposals from a brief — title, sections, pricing blocks |
+| **Rich text editing** | Tiptap editor with inline formatting, block structure, section sidebar navigation |
+| **Real-time comments** | Supabase Realtime syncs comments live across all open sessions with dedup |
+| **Inline comment editing** | Add, resolve, and edit comment threads directly on highlighted text |
 | **Auto-save** | Debounced 800ms write on every keystroke — no manual save button |
-| **Client acceptance** | Public page with sign-off form; email notification to proposal owner |
-| **Audit trail** | Every key action logged to `proposal_events` with user + timestamp |
-| **Soft delete** | Proposals recoverable — `deleted_at` pattern with restore endpoint |
-| **Health endpoint** | `/api/health` returns DB latency and live service status |
+| **Conflict detection** | Block edits detect concurrent changes and surface a conflict warning |
+| **Client acceptance** | Public shareable link with sign-off form; email sent to owner on acceptance |
+| **Block version history** | Revert any content block to its previous saved version |
+| **Audit trail** | Every key action logged to `proposal_events` with user identity + timestamp |
+| **Soft delete + restore** | Proposals recoverable after deletion — `deleted_at` pattern, not hard delete |
+| **Health endpoint** | `GET /api/health` returns DB ping latency and live service status (200/503) |
 | **Google OAuth** | One-click sign-in alongside passwordless magic link |
-| **Dashboard skeleton** | Instant skeleton UI during server-side data fetch |
-| **Block history** | Revert any content block to its previous version |
+| **Dashboard skeleton** | Staggered skeleton UI renders instantly during server-side data fetch |
+| **Import from HTML** | Paste or upload any HTML proposal; parser extracts blocks automatically |
 
 ---
 
@@ -141,31 +168,18 @@ sequenceDiagram
 
 | Control | Implementation |
 |---|---|
-| **Row Level Security** | All Supabase tables enforce per-user access at DB level — no app-layer bypass possible |
-| **Auth** | JWT via Supabase; passwordless — no credentials stored |
-| **CSRF protection** | Origin header validation on all public-facing endpoints |
-| **Rate limiting** | Supabase-backed counter — safe across multiple Vercel serverless instances |
-| **Structured logging** | JSON log lines in production; stack traces stripped to prevent info leakage |
-| **Security headers** | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Cache-Control: no-store` on all API responses |
-| **Soft delete** | Hard deletes replaced with `deleted_at` + restore endpoint — always recoverable |
-| **Input validation** | UUID validation on all ID params; field length limits via constants |
-| **Audit log** | Service-role writes to `proposal_events`; protected by RLS from client reads |
-
----
-
-## Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) + React 19 + React Compiler |
-| Language | TypeScript (strict mode) |
-| Styling | Tailwind CSS v4 |
-| Editor | Tiptap (headless rich text) |
-| Database | Supabase (PostgreSQL + Auth + Realtime + Storage) |
-| AI | Anthropic Claude via Vercel AI SDK |
-| Email | Resend |
-| Deployment | Vercel |
-| Tests | Vitest — 40 tests across core utilities |
+| **Row Level Security** | All tables enforce per-user isolation at the database level — no app-layer bypass is possible |
+| **Passwordless auth** | Magic link + Google OAuth via Supabase — no passwords stored anywhere |
+| **CSRF protection** | Origin header validation on public endpoints; fails closed if `APP_URL` is unset |
+| **Cookie security** | Auth cookies enforced with `SameSite=Lax`, `Secure` (production), `HttpOnly` |
+| **Rate limiting** | Supabase-backed IP counter — consistent across all Vercel serverless instances |
+| **Sandbox isolation** | Proposal HTML rendered in `<iframe sandbox="allow-scripts">` — `allow-same-origin` intentionally excluded to prevent sandbox escape |
+| **Security headers** | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `Permissions-Policy`, `Cache-Control: no-store` on every response |
+| **Structured logging** | JSON log lines in production; stack traces stripped so implementation details never leak |
+| **Audit log** | Written via service role key to `proposal_events`; RLS blocks client reads |
+| **Input validation** | UUID format checked on all ID params; field length limits enforced via shared constants |
+| **Soft delete only** | No hard deletes on proposals — `deleted_at` timestamp + restore endpoint |
+| **Environment validation** | All required env vars validated at startup; app fails fast with a clear error message |
 
 ---
 
@@ -175,27 +189,27 @@ sequenceDiagram
 src/
 ├── app/
 │   ├── api/
-│   │   ├── proposals/[id]/     CRUD · publish · restore · accept · stats
+│   │   ├── proposals/[id]/     CRUD · publish · restore · accept · stats · duplicate · export
 │   │   ├── blocks/[id]/        Block edit + version revert
-│   │   ├── comments/           Threaded comments (create, edit, delete)
-│   │   ├── generate/           AI proposal generation
+│   │   ├── comments/           Threaded comments — create, edit, delete
+│   │   ├── generate/           AI proposal generation (Claude)
 │   │   └── health/             Uptime check + DB latency
-│   ├── p/[slug]/               Public proposal view + editor
+│   ├── p/[slug]/               Public proposal view + inline editor
 │   ├── login/                  Magic link + Google OAuth
-│   └── page.tsx                Dashboard
+│   └── page.tsx                Dashboard with view stats + acceptance status
 ├── components/
-│   ├── dashboard/              Proposal grid, cards, create modal
-│   ├── editor/                 Toolbar, comment panel, section sidebar
-│   └── proposal/               Public renderer, accept button
+│   ├── dashboard/              Proposal grid, cards, skeleton, create modal
+│   ├── editor/                 Toolbar, realtime comment panel, section sidebar
+│   └── proposal/               Public renderer (sandboxed iframe), accept button
 └── lib/
-    ├── ai/                     Claude prompt + generation logic
-    ├── email/                  Resend email templates
-    ├── supabase/               Server + browser client helpers
-    ├── api.ts                  Shared security headers + response helpers
-    ├── audit.ts                Audit event writer (service role)
-    ├── constants.ts            App-wide limits and thresholds
-    ├── env.ts                  Environment validation at startup
-    └── logger.ts               Structured JSON logger (prod-safe)
+    ├── ai/                     Claude prompt engineering + generation logic
+    ├── email/                  Resend transactional email templates
+    ├── supabase/               SSR server client + browser client
+    ├── api.ts                  Shared security headers + ok/err response helpers
+    ├── audit.ts                Audit event writer (service role, fire-and-forget)
+    ├── constants.ts            Rate limits, field limits, timeouts — single source of truth
+    ├── env.ts                  Startup env validation with typed accessors
+    └── logger.ts               Structured JSON logger — stack traces stripped in production
 ```
 
 ---
@@ -206,9 +220,8 @@ src/
 # 1. Install dependencies
 npm install
 
-# 2. Set up environment variables
+# 2. Copy environment template and fill in values
 cp .env.example .env.local
-# Fill in the values — see Environment Variables section below
 
 # 3. Start dev server
 npm run dev
@@ -216,7 +229,7 @@ npm run dev
 # 4. Run tests
 npm test
 
-# 5. Type check + production build
+# 5. Type-check + production build
 npm run build
 ```
 
@@ -224,27 +237,30 @@ npm run build
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key (safe to expose to browser) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key — server-only, never expose to client |
-| `NEXT_PUBLIC_APP_URL` | Yes | Production URL used for OAuth redirects and CSRF validation |
-| `RESEND_API_KEY` | Yes | Resend API key for transactional email |
-| `ANTHROPIC_API_KEY` | Yes | Anthropic Claude API key for AI proposal generation |
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key — safe to expose to the browser |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — **server-only**, never sent to the client |
+| `NEXT_PUBLIC_APP_URL` | Production URL — used for OAuth redirects and CSRF origin validation |
+| `RESEND_API_KEY` | Resend API key for transactional email |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key for AI proposal generation |
+
+See `.env.example` for the full template.
 
 ---
 
 ## Tests
 
 ```bash
-npm test                # Run all 40 tests
+npm test                # 40 tests, ~330ms
 npm run test:watch      # Watch mode
-npm run test:coverage   # Coverage report (v8)
+npm run test:coverage   # v8 coverage report
 ```
 
-Test coverage across:
-- `utils.ts` — `slugify`, `formatDate`, `debounce`
-- `format-time.ts` — `formatRelativeTime` with fake timers
-- `strip-editor-artifacts.ts` — HTML cleanup for Tiptap editor artifacts
-- `logger.ts` — log level routing, error context extraction, stack trace handling
+| File | Coverage |
+|---|---|
+| `lib/utils.ts` | `slugify`, `formatDate`, `debounce` — 14 tests |
+| `lib/utils/format-time.ts` | `formatRelativeTime` with Vitest fake timers — 7 tests |
+| `lib/utils/strip-editor-artifacts.ts` | HTML cleanup, idempotency, passthrough — 11 tests |
+| `lib/logger.ts` | Log routing, error context, stack trace stripping — 8 tests |

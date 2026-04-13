@@ -89,7 +89,12 @@ export default function ProposalRenderer({
       className="w-full border-0"
       style={{ minHeight: '100vh' }}
       title="Proposal Preview"
-      sandbox="allow-scripts allow-same-origin"
+      // Security: allow-scripts only — do NOT add allow-same-origin.
+      // Combining allow-scripts + allow-same-origin lets iframe JS call
+      // frameElement.removeAttribute('sandbox') to fully escape the sandbox.
+      // The public proposal view only needs script execution (animations, fonts)
+      // and does not require access to the parent's origin or cookies.
+      sandbox="allow-scripts"
     />
   );
 }
