@@ -13,8 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Proposal Studio",
-  description: "Collaborative proposal editor",
+  title: {
+    default: "Proposal Studio",
+    template: "%s | Proposal Studio",
+  },
+  description: "Create, collaborate on, and send pixel-perfect client proposals with real-time editing, AI generation, and one-click acceptance.",
+  keywords: ["proposal", "client proposal", "collaborative editor", "AI proposal", "agency tool"],
+  authors: [{ name: "Proposal Studio" }],
+  robots: { index: false, follow: false }, // private SaaS — not for public indexing
+  openGraph: {
+    type: "website",
+    siteName: "Proposal Studio",
+    title: "Proposal Studio",
+    description: "Collaborative proposal editor with AI generation and real-time comments.",
+  },
 };
 
 export default function RootLayout({
