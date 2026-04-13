@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -34,9 +35,11 @@ export async function GET() {
   const { data: proposals, error } = await supabase
     .from('proposals')
     .select('*')
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false });
 
   if (error) {
+    logger.error('Proposals list: DB error', undefined, { userId: user.id, code: error.code });
     return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
   }
 

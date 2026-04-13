@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
+import { writeAuditEvent } from '@/lib/audit';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -57,8 +59,18 @@ export async function PATCH(
     .single();
 
   if (error || !proposal) {
+    logger.warn('Proposal publish: not found or forbidden', { proposalId: id, userId: user.id, status });
     return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
   }
+
+  logger.info('Proposal status changed', { proposalId: id, userId: user.id, status });
+  void writeAuditEvent({
+    proposalId: id,
+    userId: user.id,
+    userEmail: user.email ?? null,
+    eventType: status === 'published' ? 'proposal_published' : 'proposal_unpublished',
+    metadata: { slug: proposal.slug },
+  });
 
   return NextResponse.json(
     { ...proposal, public_url: status === 'published' ? `/p/${proposal.slug}` : null },

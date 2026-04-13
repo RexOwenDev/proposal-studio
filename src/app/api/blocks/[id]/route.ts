@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { stripEditorArtifacts } from '@/lib/utils/strip-editor-artifacts';
+import { logger } from '@/lib/logger';
+import { writeAuditEvent } from '@/lib/audit';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -40,18 +42,16 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: SECURITY_HEADERS });
   }
 
-  // Owner check: only the proposal creator can edit blocks
+  // Fetch block to get the proposal_id for the audit event
+  // Any authenticated user can edit blocks (collaborative workspace model)
   const { data: block } = await supabase
     .from('content_blocks')
-    .select('proposal_id, proposals(created_by)')
+    .select('proposal_id')
     .eq('id', id)
     .single();
 
-  if (block) {
-    const proposal = (block as Record<string, unknown>).proposals as { created_by: string } | null;
-    if (proposal && proposal.created_by !== user.id) {
-      return NextResponse.json({ error: 'Only the proposal owner can edit' }, { status: 403, headers: SECURITY_HEADERS });
-    }
+  if (!block) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
   let body: Record<string, unknown>;
@@ -64,8 +64,7 @@ export async function PATCH(
   // Strict field whitelist
   const allowed: Record<string, unknown> = {};
   if ('current_html' in body && typeof body.current_html === 'string') {
-    // Strip ALL editor artifacts server-side (marks, data-editable, contenteditable,
-    // etc.) — defence-in-depth against any path that bypasses the client-side strip.
+    // Strip ALL editor artifacts server-side — defence-in-depth
     allowed.current_html = stripEditorArtifacts(body.current_html);
   }
   if ('visible' in body && typeof body.visible === 'boolean') {
@@ -93,6 +92,7 @@ export async function PATCH(
       .single();
 
     if (current && current.updated_at !== body.expected_updated_at) {
+      logger.warn('Block edit conflict', { blockId: id, userId: user.id });
       return NextResponse.json(
         { error: 'conflict', message: 'This section was edited by someone else. Reload to see their changes.' },
         { status: 409, headers: SECURITY_HEADERS }
@@ -108,7 +108,19 @@ export async function PATCH(
     .single();
 
   if (error) {
+    logger.error('Block PATCH: DB error', error, { blockId: id });
     return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+  }
+
+  // Audit: only log content edits, not minor visibility toggles
+  if ('current_html' in allowed) {
+    void writeAuditEvent({
+      proposalId: block.proposal_id,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      eventType: 'block_edited',
+      metadata: { blockId: id },
+    });
   }
 
   return NextResponse.json(data, { headers: SECURITY_HEADERS });

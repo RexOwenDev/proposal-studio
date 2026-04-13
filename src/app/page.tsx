@@ -15,6 +15,7 @@ export default async function DashboardPage() {
   const { data: proposals } = await supabase
     .from('proposals')
     .select('*, content_blocks(id)')
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .returns<(Proposal & { content_blocks: { id: string }[] })[]>();
 

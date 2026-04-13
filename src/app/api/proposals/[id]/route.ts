@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
+import { writeAuditEvent } from '@/lib/audit';
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -48,9 +50,11 @@ export async function GET(
     .from('proposals')
     .select('*')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
 
   if (error || !proposal) {
+    logger.warn('Proposal GET: not found', { proposalId: id, userId: user.id });
     return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
@@ -113,10 +117,11 @@ export async function PATCH(
     .single();
 
   if (error || !data) {
-    // Either server error or the proposal doesn't belong to this user
+    logger.warn('Proposal PATCH: not found or update failed', { proposalId: id, userId: user.id });
     return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
+  logger.info('Proposal updated', { proposalId: id, userId: user.id, fields: Object.keys(allowed) });
   return NextResponse.json(data, { headers: SECURITY_HEADERS });
 }
 
@@ -136,15 +141,42 @@ export async function DELETE(
     return NextResponse.json({ error: 'Invalid ID' }, { status: 400, headers: SECURITY_HEADERS });
   }
 
-  // Any authenticated user can delete proposals (collaborative workspace)
+  // Ownership check — only the creator can delete. Collaborators can edit but not destroy.
+  const { data: proposal, error: fetchError } = await supabase
+    .from('proposals')
+    .select('created_by')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (fetchError) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
+  }
+  if (!proposal) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
+  }
+  if (proposal.created_by !== user.id) {
+    logger.warn('Proposal DELETE: forbidden — not owner', { proposalId: id, userId: user.id });
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
+  }
+
+  // Soft delete — sets deleted_at timestamp; data is preserved for audit/recovery
   const { error } = await supabase
     .from('proposals')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id);
 
   if (error) {
+    logger.error('Proposal DELETE: DB error', error, { proposalId: id });
     return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
   }
 
+  logger.info('Proposal soft-deleted', { proposalId: id, userId: user.id });
+  void writeAuditEvent({
+    proposalId: id,
+    userId: user.id,
+    userEmail: user.email ?? null,
+    eventType: 'proposal_deleted',
+  });
   return NextResponse.json({ success: true }, { headers: SECURITY_HEADERS });
 }

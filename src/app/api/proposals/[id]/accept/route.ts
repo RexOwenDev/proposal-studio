@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import { sendAcceptanceNotification } from '@/lib/email/send-acceptance-notification';
+import { logger } from '@/lib/logger';
+import { writeAuditEvent } from '@/lib/audit';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -13,14 +15,32 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 } as const;
 
-// In-memory rate limiter: { ip_date → attempt_count }
-const rateLimitMap = new Map<string, number>();
-
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+/**
+ * Guards against cross-origin browser-based CSRF attacks.
+ * Allows requests with no Origin header (curl, Postman, server-to-server).
+ * Rejects browser requests originating from untrusted domains.
+ */
+function isOriginAllowed(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  if (!origin) return true; // non-browser request — allow
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  if (!appUrl) return true; // env not configured — skip check
+
+  try {
+    const originHost = new URL(origin).hostname;
+    const appHost = new URL(appUrl).hostname;
+    return originHost === appHost;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(
@@ -33,17 +53,16 @@ export async function POST(
     return NextResponse.json({ error: 'Not found' }, { status: 404, headers: SECURITY_HEADERS });
   }
 
-  // Rate limit: 3 attempts per IP per day
-  const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const today = new Date().toISOString().slice(0, 10);
-  const rateLimitKey = `${rawIp}:${today}`;
-  const attempts = rateLimitMap.get(rateLimitKey) ?? 0;
-  if (attempts >= 3) {
-    return NextResponse.json({ error: 'Too many attempts' }, { status: 429, headers: SECURITY_HEADERS });
+  // CSRF: reject cross-origin browser requests
+  if (!isOriginAllowed(request)) {
+    logger.warn('Accept endpoint: cross-origin request rejected', {
+      proposalId: id,
+      origin: request.headers.get('origin'),
+    });
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: SECURITY_HEADERS });
   }
-  rateLimitMap.set(rateLimitKey, attempts + 1);
 
-  // Parse + validate body
+  // Parse + validate body early so we can use the IP hash for DB-based rate limiting
   let body: unknown;
   try {
     body = await request.json();
@@ -66,11 +85,31 @@ export async function POST(
 
   if (client_email !== undefined && client_email !== null && client_email !== '') {
     if (typeof client_email !== 'string' || !EMAIL_RE.test(client_email)) {
-      return NextResponse.json({ error: 'client_email must be a valid email address' }, { status: 422, headers: SECURITY_HEADERS });
+      return NextResponse.json(
+        { error: 'client_email must be a valid email address' },
+        { status: 422, headers: SECURITY_HEADERS }
+      );
     }
   }
 
   const serviceClient = getServiceClient();
+
+  // DB-based rate limit: 3 acceptance attempts per IP per day.
+  // Uses Supabase rather than in-memory — safe across multiple Vercel instances.
+  const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const today = new Date().toISOString().slice(0, 10);
+  const hashedIp = createHash('sha256').update(`${rawIp}:${today}`).digest('hex');
+
+  const { count: attemptCount } = await serviceClient
+    .from('proposal_acceptances')
+    .select('id', { count: 'exact', head: true })
+    .eq('ip_address', hashedIp)
+    .gte('accepted_at', `${today}T00:00:00.000Z`);
+
+  if (typeof attemptCount === 'number' && attemptCount >= 3) {
+    logger.warn('Accept rate limit reached', { proposalId: id, hashedIp });
+    return NextResponse.json({ error: 'Too many attempts. Try again tomorrow.' }, { status: 429, headers: SECURITY_HEADERS });
+  }
 
   // Verify proposal is published — return 404 for both non-existent and non-published
   const { data: proposal } = await serviceClient
@@ -89,12 +128,9 @@ export async function POST(
   try {
     const { data: { user: ownerUser } } = await serviceClient.auth.admin.getUserById(proposal.created_by);
     ownerEmail = ownerUser?.email ?? null;
-  } catch {
-    // Non-fatal — email just won't be sent
+  } catch (err) {
+    logger.warn('Could not fetch owner email for acceptance notification', err instanceof Error ? { err: err.message } : {});
   }
-
-  // Hash IP for storage
-  const hashedIp = createHash('sha256').update(`${rawIp}:${today}`).digest('hex');
 
   // Insert — unique index enforces one-acceptance-per-proposal
   const { error: insertError } = await serviceClient
@@ -110,8 +146,18 @@ export async function POST(
     if (insertError.code === '23505') {
       return NextResponse.json({ error: 'Already accepted' }, { status: 409, headers: SECURITY_HEADERS });
     }
+    logger.error('Failed to insert acceptance', undefined, { proposalId: id, code: insertError.code });
     return NextResponse.json({ error: 'Server error' }, { status: 500, headers: SECURITY_HEADERS });
   }
+
+  logger.info('Proposal accepted', { proposalId: id, clientName: client_name.trim() });
+  void writeAuditEvent({
+    proposalId: id,
+    userId: null,
+    userEmail: typeof client_email === 'string' && client_email.trim() ? client_email.trim() : null,
+    eventType: 'proposal_accepted',
+    metadata: { clientName: client_name.trim() },
+  });
 
   const accepted_at = new Date().toISOString();
 

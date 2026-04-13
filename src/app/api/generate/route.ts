@@ -5,6 +5,7 @@ import { generateClientProposal, generateInternalDoc } from '@/lib/ai/generate-p
 import { buildClientProposalHTML } from '@/lib/templates/client-proposal';
 import { buildInternalDocHTML } from '@/lib/templates/internal-doc';
 import { createProposalFromHTML } from '@/lib/create-proposal-from-html';
+import { logger } from '@/lib/logger';
 
 // Vercel: allow up to 60 seconds — AI generation takes 10–20s in practice
 export const maxDuration = 60;
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
     .gte('created_at', windowStart);
 
   if (typeof count === 'number' && count >= 10) {
+    logger.warn('Generate rate limit reached', { userId: user.id });
     return NextResponse.json(
       { error: 'Rate limit reached. You can generate up to 10 proposals per hour.' },
       { status: 429 }
@@ -106,9 +108,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-    console.error('[generate] Error:', message);
-    if (stack) console.error('[generate] Stack:', stack);
+    logger.error('[generate] AI generation failed', err instanceof Error ? err : undefined, { userId: user.id, templateType });
 
     const isRateLimit = message.toLowerCase().includes('rate limit') || message.includes('429');
     const isAiError = message.toLowerCase().includes('anthropic') ||

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { Comment } from '@/lib/types';
 import type { SelectionData } from '@/components/editor/comment-trigger';
 
@@ -36,6 +37,12 @@ export default function CommentPanel({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
+
   const loadComments = useCallback(async () => {
     if (!proposalId) return;
     setLoading(true);
@@ -49,8 +56,63 @@ export default function CommentPanel({
     }
   }, [proposalId]);
 
+  // Initial load when panel opens
   useEffect(() => { if (open) loadComments(); }, [open, loadComments]);
   useEffect(() => { setNewText(''); setSubmitError(null); }, [pendingSelection]);
+
+  // Focus edit textarea when entering edit mode
+  useEffect(() => {
+    if (editingId) {
+      setTimeout(() => editInputRef.current?.focus(), 50);
+    }
+  }, [editingId]);
+
+  // ── Realtime subscription ────────────────────────────────────────────────
+  // Listens for INSERT and UPDATE events on the comments table for this
+  // proposal. New comments from collaborators appear live; edits patch in-place.
+  useEffect(() => {
+    if (!open || !proposalId) return;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`comments:${proposalId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'comments',
+          filter: `proposal_id=eq.${proposalId}`,
+        },
+        (payload) => {
+          const incoming = payload.new as Comment;
+          setComments((prev) => {
+            // Avoid duplicates if the local optimistic insert already happened
+            if (prev.some((c) => c.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'comments',
+          filter: `proposal_id=eq.${proposalId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Comment;
+          setComments((prev) =>
+            prev.map((c) => (c.id === updated.id ? updated : c))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [open, proposalId]);
+  // ────────────────────────────────────────────────────────────────────────
 
   async function handleSubmitNew() {
     if (!newText.trim() || submitting) return;
@@ -66,13 +128,11 @@ export default function CommentPanel({
           selected_text: pendingSelection?.text ?? null,
         }),
       });
-      if (!res.ok) {
-        setSubmitError('Failed to post comment. Please try again.');
-        return;
-      }
+      if (!res.ok) { setSubmitError('Failed to post comment. Please try again.'); return; }
       setSubmitError(null);
       const created: Comment = await res.json();
-      setComments((prev) => [...prev, created]);
+      // Optimistic — realtime will dedup if it arrives first
+      setComments((prev) => prev.some((c) => c.id === created.id) ? prev : [...prev, created]);
       setNewText('');
     } finally {
       setSubmitting(false);
@@ -88,13 +148,10 @@ export default function CommentPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposal_id: proposalId, parent_id: parentId, text: replyText.trim() }),
       });
-      if (!res.ok) {
-        setSubmitError('Failed to post reply. Please try again.');
-        return;
-      }
+      if (!res.ok) { setSubmitError('Failed to post reply. Please try again.'); return; }
       setSubmitError(null);
       const created: Comment = await res.json();
-      setComments((prev) => [...prev, created]);
+      setComments((prev) => prev.some((c) => c.id === created.id) ? prev : [...prev, created]);
       setReplyText('');
       setReplyingTo(null);
     } finally {
@@ -108,15 +165,44 @@ export default function CommentPanel({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resolved }),
     });
-    if (!res.ok) { console.error('Failed to update comment'); return; }
+    if (!res.ok) return;
     const updated: Comment = await res.json();
     setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   }
 
   async function handleDelete(commentId: string) {
     const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
-    if (!res.ok) { console.error('Failed to update comment'); return; }
+    if (!res.ok) return;
     setComments((prev) => prev.filter((c) => c.id !== commentId && c.parent_id !== commentId));
+  }
+
+  function startEdit(comment: Comment) {
+    setEditingId(comment.id);
+    setEditText(comment.text);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditText('');
+  }
+
+  async function handleSubmitEdit(commentId: string) {
+    if (!editText.trim() || editSubmitting) return;
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: editText.trim() }),
+      });
+      if (!res.ok) return;
+      const updated: Comment = await res.json();
+      setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingId(null);
+      setEditText('');
+    } finally {
+      setEditSubmitting(false);
+    }
   }
 
   const topLevel = comments.filter((c) => !c.parent_id);
@@ -148,6 +234,13 @@ export default function CommentPanel({
                 {unresolvedCount}
               </span>
             )}
+            {/* Live indicator — visible when panel is open and subscribed */}
+            {open && (
+              <span className="flex items-center gap-1 text-xs text-emerald-600 font-normal">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                Live
+              </span>
+            )}
           </h2>
           <button
             onClick={onClose}
@@ -171,7 +264,7 @@ export default function CommentPanel({
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmitNew(); }}
-            placeholder={pendingSelection ? 'Comment on selection\u2026 (\u2318\u21b5)' : 'Add a comment\u2026 (\u2318\u21b5)'}
+            placeholder={pendingSelection ? 'Comment on selection… (⌘↵)' : 'Add a comment… (⌘↵)'}
             rows={3}
             className="w-full text-sm px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
           />
@@ -181,12 +274,10 @@ export default function CommentPanel({
               disabled={!newText.trim() || submitting}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-medium rounded-lg transition-colors"
             >
-              {submitting ? 'Posting\u2026' : 'Post'}
+              {submitting ? 'Posting…' : 'Post'}
             </button>
           </div>
-          {submitError && (
-            <p className="text-xs text-red-500 mt-1">{submitError}</p>
-          )}
+          {submitError && <p className="text-xs text-red-500 mt-1">{submitError}</p>}
         </div>
 
         {/* Comment threads */}
@@ -212,16 +303,73 @@ export default function CommentPanel({
                 <span className="font-normal text-gray-400 ml-1.5">{formatTime(comment.created_at)}</span>
                 {comment.edited_at && <span className="font-normal text-gray-400 ml-1">(edited)</span>}
               </p>
-              <p className="text-sm text-gray-800 mt-1 break-words whitespace-pre-wrap">{comment.text}</p>
-              <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Reply</button>
-                <button onClick={() => handleResolve(comment.id, !comment.resolved)} className={`text-xs transition-colors ${comment.resolved ? 'text-green-600 hover:text-gray-500' : 'text-gray-400 hover:text-green-600'}`}>
-                  {comment.resolved ? '\u2713 Resolved' : 'Resolve'}
-                </button>
-                {comment.author_id === currentUserId && (
-                  <button onClick={() => handleDelete(comment.id)} className="text-xs text-gray-300 hover:text-red-500 transition-colors ml-auto">Delete</button>
-                )}
-              </div>
+
+              {/* Inline edit mode */}
+              {editingId === comment.id ? (
+                <div className="mt-1.5">
+                  <textarea
+                    ref={editInputRef}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmitEdit(comment.id);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    rows={3}
+                    className="w-full text-sm px-2.5 py-2 bg-blue-50 border border-blue-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400/30 resize-none"
+                  />
+                  <div className="flex gap-2 mt-1.5">
+                    <button
+                      onClick={() => handleSubmitEdit(comment.id)}
+                      disabled={!editText.trim() || editSubmitting}
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-200 text-white text-xs font-medium rounded-md transition-colors"
+                    >
+                      {editSubmitting ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="px-2.5 py-1 text-gray-500 hover:text-gray-700 text-xs rounded-md transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-800 mt-1 break-words whitespace-pre-wrap">{comment.text}</p>
+              )}
+
+              {editingId !== comment.id && (
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <button
+                    onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Reply
+                  </button>
+                  <button
+                    onClick={() => handleResolve(comment.id, !comment.resolved)}
+                    className={`text-xs transition-colors ${comment.resolved ? 'text-green-600 hover:text-gray-500' : 'text-gray-400 hover:text-green-600'}`}
+                  >
+                    {comment.resolved ? '✓ Resolved' : 'Resolve'}
+                  </button>
+                  {comment.author_id === currentUserId && (
+                    <>
+                      <button
+                        onClick={() => startEdit(comment)}
+                        className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(comment.id)}
+                        className="text-xs text-gray-300 hover:text-red-500 transition-colors ml-auto"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Replies */}
               {repliesFor(comment.id).map((reply) => (
@@ -229,10 +377,44 @@ export default function CommentPanel({
                   <p className="text-xs font-semibold text-gray-700">
                     {reply.author_name}
                     <span className="font-normal text-gray-400 ml-1.5">{formatTime(reply.created_at)}</span>
+                    {reply.edited_at && <span className="font-normal text-gray-400 ml-1">(edited)</span>}
                   </p>
-                  <p className="text-sm text-gray-800 mt-0.5 break-words">{reply.text}</p>
-                  {reply.author_id === currentUserId && (
-                    <button onClick={() => handleDelete(reply.id)} className="text-xs text-gray-300 hover:text-red-500 transition-colors mt-1">Delete</button>
+
+                  {editingId === reply.id ? (
+                    <div className="mt-1.5">
+                      <textarea
+                        ref={editInputRef}
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmitEdit(reply.id);
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                        rows={2}
+                        className="w-full text-xs px-2.5 py-2 bg-blue-50 border border-blue-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400/30 resize-none"
+                      />
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          onClick={() => handleSubmitEdit(reply.id)}
+                          disabled={!editText.trim() || editSubmitting}
+                          className="px-2 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-200 text-white text-xs font-medium rounded-md transition-colors"
+                        >
+                          {editSubmitting ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={cancelEdit} className="px-2 py-1 text-gray-500 hover:text-gray-700 text-xs rounded-md transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-800 mt-0.5 break-words">{reply.text}</p>
+                  )}
+
+                  {editingId !== reply.id && reply.author_id === currentUserId && (
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => startEdit(reply)} className="text-xs text-gray-400 hover:text-blue-600 transition-colors">Edit</button>
+                      <button onClick={() => handleDelete(reply.id)} className="text-xs text-gray-300 hover:text-red-500 transition-colors">Delete</button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -245,7 +427,7 @@ export default function CommentPanel({
                     autoFocus
                     onChange={(e) => setReplyText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmitReply(comment.id); }}
-                    placeholder="Reply\u2026 (\u2318\u21b5)"
+                    placeholder="Reply… (⌘↵)"
                     rows={2}
                     className="w-full text-xs px-2.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
                   />
