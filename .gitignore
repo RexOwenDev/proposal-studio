@@ -71,7 +71,7 @@ PROGRESS.md
 *_Phase*_Summary.md
 fix_workflow.js
 fix_*.js
-workflows/
+/workflows/
 "proposal studio/"
 
 # Any file containing live API tokens, JWTs, or n8n credentials
