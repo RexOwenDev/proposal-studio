@@ -63,3 +63,21 @@ proposal studio/.superpowers/
 
 # Portfolio site (separate project)
 portfolio-site/
+
+# Internal dev artifacts — DO NOT re-commit to public repo
+PROGRESS.md
+*_Progress_Handoff.md
+*_CONTEXT_HANDOFF.md
+*_Phase*_Summary.md
+fix_workflow.js
+fix_*.js
+workflows/
+"proposal studio/"
+
+# Any file containing live API tokens, JWTs, or n8n credentials
+# These belong in n8n credential store or .env.local, never in source control
+*.apikey
+*_token.txt
+
+# Client deliverable HTML files live under /public or /src/templates, not in repo root
+automation-meeting-prep.html
