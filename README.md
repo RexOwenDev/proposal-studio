@@ -1,3 +1,5 @@
+<img src="docs/hero.jpg" alt="Proposal Studio — AI-generated proposals, collaborative editing, one-click client acceptance" width="100%" />
+
 # Proposal Studio
 
 **A production-grade collaborative proposal editor** for agencies and consultants — create pixel-perfect client proposals, edit them in real-time with your team, generate content with AI, and close deals with one-click client acceptance.
@@ -8,10 +10,11 @@
 
 ## What it does
 
-```
-Author logs in → creates proposal → AI generates content → team edits in real-time
-→ publishes shareable link → client views + accepts → owner gets email notification
-```
+![The Proposal Journey — From Brief to Signed](docs/product-flow.jpg)
+
+**Author logs in → creates proposal → AI generates content → team edits in real-time → publishes shareable link → client views + accepts → owner gets email notification.**
+
+Every action is logged to an append-only audit trail with timestamp and user identity.
 
 ---
 
@@ -140,6 +143,14 @@ sequenceDiagram
 | Email | Resend | Transactional email with high deliverability |
 | Deployment | Vercel | Zero-config serverless, instant previews per branch |
 | Tests | Vitest | Fast, native ESM, compatible with React 19 |
+
+---
+
+## Screenshot
+
+![Collaborative Tiptap editor with real-time comments and AI assist](docs/editor-mockup.jpg)
+
+The Tiptap-powered editor supports inline formatting, section navigation, real-time comment threads via Supabase Realtime, auto-save with conflict detection, and inline AI assistance — all while three team members edit the same proposal simultaneously.
 
 ---
 
