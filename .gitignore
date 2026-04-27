@@ -81,3 +81,6 @@ fix_*.js
 
 # Client deliverable HTML files live under /public or /src/templates, not in repo root
 automation-meeting-prep.html
+
+# AI planning artifacts — internal only, not for public portfolio
+docs/superpowers/

@@ -24,7 +24,7 @@ Every action is logged to an append-only audit trail with timestamp and user ide
 flowchart TD
     subgraph Client["Browser / Mobile"]
         A1[Dashboard]
-        A2["Rich Text Editor — Tiptap + auto-save"]
+        A2["Rich Text Editor — Block editor + auto-save"]
         A3[Public Proposal Page]
         A4["Login — Magic Link + Google OAuth"]
     end
@@ -137,7 +137,7 @@ sequenceDiagram
 | Framework | Next.js 16 — App Router | Server components, async params, Edge-compatible middleware |
 | Language | TypeScript — strict mode | Catches entire classes of runtime bugs at compile time |
 | Styling | Tailwind CSS v4 | Zero-runtime CSS, co-located with components |
-| Editor | Tiptap | Headless rich text — full control over rendering and serialization |
+| Editor | Custom block editor | Contenteditable blocks — full control over rendering and serialization |
 | Database | Supabase (PostgreSQL + Auth + Realtime) | RLS at DB layer, built-in auth, real-time subscriptions |
 | AI | Anthropic Claude via AI SDK | Best-in-class instruction following for structured document generation |
 | Email | Resend | Transactional email with high deliverability |
@@ -148,9 +148,9 @@ sequenceDiagram
 
 ## Screenshot
 
-![Collaborative Tiptap editor with real-time comments and AI assist](docs/editor-mockup.jpg)
+![Collaborative editor with real-time comments and AI assist](docs/editor-mockup.jpg)
 
-The Tiptap-powered editor supports inline formatting, section navigation, real-time comment threads via Supabase Realtime, auto-save with conflict detection, and inline AI assistance — all while three team members edit the same proposal simultaneously.
+The block editor supports inline formatting, section navigation, real-time comment threads via Supabase Realtime, auto-save with conflict detection, and inline AI assistance — all while three team members edit the same proposal simultaneously.
 
 ---
 
@@ -159,7 +159,7 @@ The Tiptap-powered editor supports inline formatting, section navigation, real-t
 | Feature | Detail |
 |---|---|
 | **AI proposal generation** | Claude generates full proposals from a brief — title, sections, pricing blocks |
-| **Rich text editing** | Tiptap editor with inline formatting, block structure, section sidebar navigation |
+| **Rich text editing** | Custom block editor with inline formatting, block structure, section sidebar navigation |
 | **Real-time comments** | Supabase Realtime syncs comments live across all open sessions with dedup |
 | **Inline comment editing** | Add, resolve, and edit comment threads directly on highlighted text |
 | **Auto-save** | Debounced 800ms write on every keystroke — no manual save button |
@@ -212,15 +212,16 @@ src/
 │   ├── dashboard/              Proposal grid, cards, skeleton, create modal
 │   ├── editor/                 Toolbar, realtime comment panel, section sidebar
 │   └── proposal/               Public renderer (sandboxed iframe), accept button
-└── lib/
-    ├── ai/                     Claude prompt engineering + generation logic
-    ├── email/                  Resend transactional email templates
-    ├── supabase/               SSR server client + browser client
-    ├── api.ts                  Shared security headers + ok/err response helpers
-    ├── audit.ts                Audit event writer (service role, fire-and-forget)
-    ├── constants.ts            Rate limits, field limits, timeouts — single source of truth
-    ├── env.ts                  Startup env validation with typed accessors
-    └── logger.ts               Structured JSON logger — stack traces stripped in production
+├── lib/
+│   ├── ai/                     Claude prompt engineering + generation logic
+│   ├── email/                  Resend transactional email templates
+│   ├── supabase/               SSR server client + browser client
+│   ├── api.ts                  Shared security headers + ok/err response helpers
+│   ├── audit.ts                Audit event writer (service role, fire-and-forget)
+│   ├── constants.ts            Rate limits, field limits, timeouts — single source of truth
+│   ├── env.ts                  Startup env validation with typed accessors
+│   └── logger.ts               Structured JSON logger — stack traces stripped in production
+└── middleware.ts               Auth guard + security headers (re-exports from proxy.ts)
 ```
 
 ---
